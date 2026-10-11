@@ -1,0 +1,136 @@
+// 确认页（scripts/confirm_ui/page/）的测试。在仓库根目录（boss-workbench 文件夹）运行：node --test scripts/tests/confirm_page.test.mjs
+// 不开浏览器、不起服务：用 node:vm 加一个极简的假页面，把 previews.js 和 app.js 原样跑一遍，看它们往页面里写了什么。
+// 安装 Skill 时不带 tests/。
+import { test } from 'node:test'
+import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
+import { join, dirname } from 'node:path'
+import { fileURLToPath } from 'node:url'
+import vm from 'node:vm'
+
+const HERE = dirname(fileURLToPath(import.meta.url))
+const UI = join(HERE, '..', 'confirm_ui')
+const PAGE = join(UI, 'page')
+const read = (f) => readFileSync(f, 'utf8')
+const EXAMPLE = JSON.parse(read(join(UI, 'example', 'recommendations.json')))
+const copy = (x) => JSON.parse(JSON.stringify(x))
+
+function fakeElement(id) {
+  return {
+    id, hidden: false, innerHTML: '', textContent: '', value: '', disabled: false, style: {}, dataset: {},
+    classList: { add() {}, remove() {}, toggle() {}, contains: () => false },
+    addEventListener() {}, focus() {}, querySelector: () => null, querySelectorAll: () => [],
+  }
+}
+
+/** 按 rec 把确认页跑起来；search 是地址栏的 ?step=… 这类参数。返回 el(id) 取页面上的元素。 */
+async function openPage(rec, search = '') {
+  const els = new Map()
+  const timers = []
+  const document = {
+    getElementById: (id) => { if (!els.has(id)) els.set(id, fakeElement(id)); return els.get(id) },
+    querySelectorAll: () => [], querySelector: () => null,
+  }
+  const ctx = {
+    document, console, URLSearchParams, navigator: {},
+    location: { protocol: 'http:', search },
+    fetch: () => Promise.resolve({ ok: true, json: () => Promise.resolve(copy(rec)) }),
+    setInterval: (fn) => { timers.push(fn); return timers.length }, clearInterval() {},
+    setTimeout: () => 0, clearTimeout() {}, scrollTo() {},
+  }
+  ctx.window = ctx
+  vm.createContext(ctx)
+  vm.runInContext(read(join(PAGE, 'previews.js')), ctx, { filename: 'previews.js' })
+  vm.runInContext(read(join(PAGE, 'app.js')), ctx, { filename: 'app.js' })
+  for (let i = 0; i < 5; i++) await new Promise((r) => setImmediate(r)) // 等 fetch → init
+  timers.forEach((fn) => fn()) // 地址栏带 ?step= 时，等推荐读完再跳到那一步
+  return { el: (id) => document.getElementById(id), ctx }
+}
+
+/** 空白起步写的 recommendations.json：没有 kb、没有 wants，复述只有两块 */
+function blankRec() {
+  const r = copy(EXAMPLE)
+  delete r.kb
+  delete r.wants
+  r.profile = [
+    { id: 'who', title: '你是谁、做什么', text: '王姐，开一家社区烘焙店，3 个人。', sources: ['这次对话'] },
+    { id: 'cares', title: '你每天最在意的', text: '早上先看今天要交的订单。', sources: ['这次对话'] },
+  ]
+  r.notes = [{ id: 'nokb', level: 'info', text: '还没有知识库：先用起来，以后说“工作台接上我的知识库”。', sources: ['这次对话'] }]
+  return r
+}
+
+test('有知识库：第一步那句开场白不动（还是“从你的知识库里读到的”），第二步显示“最想先看到”', async () => {
+  const html = read(join(PAGE, 'index.html'))
+  assert.match(html, /<p class="lead" id="lead0">下面是我从你的知识库里读到的/)
+  assert.match(html, /<div class="wants" id="wantsBox">/)
+  const { el } = await openPage(EXAMPLE)
+  assert.equal(el('lead0').textContent, '', '有知识库时不改这句')
+  assert.match(el('readSide').innerHTML, /我读了什么/)
+  assert.equal(el('wantsBox').hidden, false)
+  assert.match(el('wants').innerHTML, /data-want="sales"/)
+})
+
+test('空白起步（没有 kb）：开场白改成“你刚才在对话里说的”；没有 wants 时不显示“最想先看到”那一行', async () => {
+  const { el } = await openPage(blankRec())
+  assert.match(el('lead0').textContent, /^下面是你刚才在对话里说的/)
+  assert.ok(!/知识库里读到/.test(el('lead0').textContent))
+  assert.match(el('readSide').innerHTML, /还没有知识库/)
+  assert.equal(el('wantsBox').hidden, true)
+  assert.equal(el('wants').innerHTML, '')
+})
+
+test('空白起步但写了 wants（用四句话的第 3 句生成）：照样显示', async () => {
+  const r = blankRec()
+  r.wants = [{ id: 'orders', label: '今天要交的订单', selected: true, module: 'tasks' }]
+  const { el } = await openPage(r)
+  assert.equal(el('wantsBox').hidden, false)
+  assert.match(el('wants').innerHTML, /今天要交的订单/)
+})
+
+test('要接数据的模块标“稍后接数据”，不按课程节奏写“明天”', async () => {
+  const { el } = await openPage(EXAMPLE, '?step=1&active=biz')
+  assert.match(el('modList').innerHTML, /稍后接数据/)
+  assert.ok(!/明天接数据/.test(el('modList').innerHTML))
+  assert.match(el('modDetail').innerHTML, /稍后接数据/)
+})
+
+test('电脑开机时间不固定时，建议里指向“上线手机版”，不提没讲过的飞书助理', async () => {
+  const r = copy(EXAMPLE)
+  r.schedule.boot.default = 'random'
+  const { el } = await openPage(r)
+  assert.match(el('plan').innerHTML, /上线手机版/)
+  assert.ok(!/飞书助理|明天/.test(el('plan').innerHTML))
+})
+
+test('内容模块预览：创作对话那两句是通用的，不带示例店的茶', () => {
+  const ctx = { console }
+  ctx.window = ctx
+  vm.createContext(ctx)
+  vm.runInContext(read(join(PAGE, 'previews.js')), ctx)
+  const mod = { id: 'content', name: '内容', preview: { kind: 'content', topics: ['今天做什么面包'], phone: { cover: '早上 7 点', title: '出炉', text: '…', tags: '#面包' } } }
+  const html = ctx.Previews.render(mod, [mod], { palette: {} }, { boss: '王姐' })
+  assert.match(html, /今天做什么面包/)
+  assert.ok(!/岩茶|白茶|泡茶/.test(html), '固定的对话示例里不该有示例店的茶')
+})
+
+test('页面源码里没有课程说法', () => {
+  for (const f of ['app.js', 'previews.js', 'index.html']) {
+    const src = read(join(PAGE, f))
+    for (const w of ['课程', '课上', '课后', '讲师', '学员', '明天讲', '明天接数据']) assert.ok(!src.includes(w), `${f} 里还有“${w}”`)
+  }
+})
+
+test('示例 recommendations.json：kb 一节一个数都不变（示例库对账要比），确认页需要的几块都在', () => {
+  assert.deepEqual(EXAMPLE.kb, {
+    files: 98, minutes: 2, entry: 'AGENTS.md',
+    layers: [
+      { name: '02-关于我', count: 5 }, { name: '03-生意', count: 12 }, { name: '04-客户（10 位）', count: 13 },
+      { name: '05-方法与判断', count: 14 }, { name: '06-项目（3 个）', count: 5 }, { name: '10-渠道与经营', count: 8 },
+      { name: '11-内容与作品', count: 17 }, { name: '00-收件箱（待整理）', count: 4 },
+    ],
+  })
+  for (const k of ['boss', 'profile', 'modules', 'themes', 'schedule']) assert.ok(EXAMPLE[k], `缺 ${k}`)
+  assert.equal(EXAMPLE.themes.length, 5, '五套配色只在这份例子里有，不能少')
+  assert.ok(!JSON.stringify(EXAMPLE).includes('课程'), '例子里不该有“课程”')
+})
