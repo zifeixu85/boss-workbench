@@ -1,0 +1,22 @@
+/* 内容日历的补充样式（只用设计令牌）：停业斜线底、新品上线角标、已发布弱化、周视图大卡。归属：小红书内容模块。 */
+.xhs-cal .fc-daygrid-day.xhs-closed {
+  background-image: repeating-linear-gradient(135deg, color-mix(in srgb, var(--muted-foreground) 13%, transparent) 0 2px, transparent 2px 9px);
+}
+.xhs-cal .fc-daygrid-day.xhs-launch { background: color-mix(in srgb, var(--warn-soft) 70%, transparent); }
+.xhs-cal .fc-daygrid-day-top { flex-direction: row; }
+.xhs-cal .fc-daygrid-day-number { display: flex; width: 100%; padding: 5px 6px; }
+.xhs-tag { display: inline-flex; align-items: center; height: 16px; padding: 0 5px; border-radius: 4px; font-size: 10.5px; font-weight: 600; line-height: 1; white-space: nowrap; }
+.xhs-tag-closed { background: var(--muted); color: var(--foreground); border: 1px solid var(--border); }
+.xhs-tag-launch { background: var(--warn); color: var(--card); }
+.xhs-swatch-closed { display: inline-block; border: 1px solid var(--border); background-image: repeating-linear-gradient(135deg, var(--muted-foreground) 0 1px, transparent 1px 4px); opacity: 0.8; }
+.xhs-cal .fc-event.xhs-ev-next { font-weight: 600; }
+.xhs-cal .fc-event.xhs-ev-past { font-weight: 400; }
+.xhs-cal .fc-event.xhs-ev-past .num { opacity: 0.7; }
+/* 周视图：一天一列大卡 */
+.xhs-cal-week .fc-daygrid-day-frame { min-height: 380px; }
+.xhs-cal-week .fc-event { padding: 4px; margin-bottom: 6px !important; }
+.xhs-wk { display: flex; gap: 6px; align-items: flex-start; }
+/* 日期数字：今天画成圆点；别的月份的日子只把数字调淡，“停业”“新品上线”照常看得清 */
+.xhs-cal .fc-dayGridMonth-view .fc-day-today .fc-daygrid-day-number { background: none; color: var(--muted-foreground); min-width: 0; height: auto; margin: 0; padding: 5px 6px; border-radius: 0; }
+.xhs-cal .fc-day-other .fc-daygrid-day-number { opacity: 1; }
+.xhs-num-today { display: inline-flex; align-items: center; justify-content: center; min-width: 22px; height: 22px; padding: 0 6px; border-radius: 999px; background: var(--primary); color: var(--primary-foreground); font-weight: 600; }

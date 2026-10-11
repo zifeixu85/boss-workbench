@@ -1,0 +1,180 @@
+/* 小红书手机预览和封面模板。归属：小红书内容模块。
+   这里是唯一例外：手机里要像小红书本身（白底、#ff2442 红、系统字体），不用工作台的主题色；
+   封面是 ABC茶社 的品牌色（米白 / 茶绿 / 暖棕 / 雾蓝），也写在这里。网页其他地方仍然只用设计令牌。 */
+
+
+.xp {
+  text-align: left;
+  --xp-red: #ff2442;
+  --xp-ink: #333;
+  --xp-sub: #999;
+  --xp-line: #f0f0f0;
+  --xp-feed: #f5f5f5;
+  --xp-tag: #2d5ea2;
+  font-family: -apple-system, "PingFang SC", "Helvetica Neue", "Microsoft YaHei", sans-serif;
+  color: var(--xp-ink);
+}
+
+/* 手机外壳 */
+.xp-phone {
+  position: relative;
+  width: 100%;
+  max-width: 340px;
+  aspect-ratio: 340 / 700;
+  max-height: 700px;
+  border: 9px solid #17191c;
+  border-radius: 44px;
+  background: #fff;
+  overflow: hidden;
+  box-shadow: 0 0 0 1px #2a2d31, 0 24px 60px -24px rgb(20 30 25 / 0.45), 0 8px 18px -10px rgb(20 30 25 / 0.3);
+  display: flex;
+  flex-direction: column;
+  isolation: isolate;
+}
+.xp-island { position: absolute; top: 7px; left: 50%; width: 30%; height: 20px; transform: translateX(-50%); border-radius: 12px; background: #17191c; z-index: 5; }
+.xp-status { flex: none; height: 34px; display: flex; align-items: center; justify-content: space-between; padding: 6px 22px 0 26px; font-size: 13px; font-weight: 600; letter-spacing: 0.2px; }
+.xp-status svg { width: 15px; height: 11px; }
+.xp-body { flex: 1; min-height: 0; overflow-y: auto; scrollbar-width: none; position: relative; }
+.xp-body::-webkit-scrollbar { display: none; }
+
+/* 缩略版：原尺寸画好整体缩小（--s 是缩放比例） */
+.xp-mini { width: calc(340px * var(--s, 0.66)); height: calc(700px * var(--s, 0.66)); }
+.xp-mini-inner { width: 340px; transform: scale(var(--s, 0.66)); transform-origin: top left; pointer-events: none; }
+
+/* 底栏 */
+.xp-tabbar { flex: none; height: 50px; display: grid; grid-template-columns: repeat(5, 1fr); align-items: center; border-top: 1px solid var(--xp-line); font-size: 12px; color: #666; text-align: center; background: #fff; }
+.xp-tabbar b { color: #222; font-weight: 600; }
+.xp-tabbar .xp-plus { margin: 0 auto; width: 40px; height: 28px; border-radius: 8px; background: var(--xp-red); color: #fff; font-size: 20px; line-height: 28px; font-weight: 300; }
+
+/* 发现页 */
+.xp-top { display: flex; align-items: center; justify-content: space-between; padding: 6px 14px 4px; }
+.xp-top-tabs { display: flex; gap: 20px; font-size: 15px; color: #888; }
+.xp-top-tabs b { color: #222; font-weight: 600; position: relative; }
+.xp-top-tabs b::after { content: ""; position: absolute; left: 50%; bottom: -5px; width: 18px; height: 2.5px; border-radius: 2px; transform: translateX(-50%); background: var(--xp-red); }
+.xp-channels { display: flex; gap: 16px; padding: 8px 14px 8px; font-size: 13px; color: #666; white-space: nowrap; overflow: hidden; }
+.xp-channels b { color: #222; font-weight: 600; }
+.xp-feed { background: var(--xp-feed); padding: 6px 5px 10px; display: grid; grid-template-columns: 1fr 1fr; gap: 5px; align-items: start; }
+.xp-col { display: grid; gap: 5px; }
+.xp-card { position: relative; background: #fff; border-radius: 6px; overflow: hidden; }
+.xp-card.xp-this { outline: 2px solid var(--xp-red); outline-offset: -2px; box-shadow: 0 0 0 3px rgb(255 36 66 / 0.16); }
+.xp-this-tag { position: absolute; top: 6px; right: 6px; z-index: 2; background: var(--xp-red); color: #fff; font-size: 10px; font-weight: 600; padding: 1px 6px; border-radius: 4px; }
+.xp-card-title { padding: 6px 7px 0; font-size: 12.5px; line-height: 1.35; font-weight: 500; color: #222; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.xp-card-foot { display: flex; align-items: center; gap: 4px; padding: 6px 7px 7px; font-size: 10.5px; color: #666; }
+.xp-card-foot .xp-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.xp-avatar { flex: none; width: 15px; height: 15px; border-radius: 50%; display: grid; place-items: center; font-size: 8px; color: #fff; font-weight: 600; }
+.xp-avatar.abc { background: #2e6b55; }
+.xp-avatar.other { background: #c9b79c; }
+.xp-like { display: inline-flex; align-items: center; gap: 2px; font-variant-numeric: tabular-nums; }
+.xp-like svg { width: 11px; height: 11px; }
+
+/* 笔记页 */
+.xp-nav { position: sticky; top: 0; z-index: 3; background: #fff; display: flex; align-items: center; gap: 8px; padding: 6px 12px 8px; }
+.xp-nav .xp-avatar { width: 28px; height: 28px; font-size: 11px; }
+.xp-nav-name { flex: 1; min-width: 0; font-size: 14px; font-weight: 500; }
+.xp-follow { border: 1px solid var(--xp-red); color: var(--xp-red); border-radius: 999px; padding: 2px 12px; font-size: 12.5px; font-weight: 500; }
+.xp-gallery { position: relative; aspect-ratio: 3 / 4; background: #f3f3f3; overflow: hidden; cursor: pointer; user-select: none; }
+.xp-gallery-track { display: flex; height: 100%; transition: transform 0.28s ease; }
+.xp-gallery-track > * { flex: none; width: 100%; height: 100%; }
+.xp-count { position: absolute; top: 10px; right: 10px; z-index: 2; background: rgb(0 0 0 / 0.42); color: #fff; font-size: 11px; padding: 1px 8px; border-radius: 999px; font-variant-numeric: tabular-nums; }
+.xp-dots { display: flex; justify-content: center; gap: 4px; padding: 8px 0 2px; }
+.xp-dots i { width: 5px; height: 5px; border-radius: 50%; background: #d9d9d9; }
+.xp-dots i.on { background: var(--xp-red); }
+.xp-note { padding: 6px 14px 4px; }
+.xp-note h3 { font-size: 16px; line-height: 1.45; font-weight: 600; color: #222; margin: 4px 0 6px; }
+.xp-note p { font-size: 14px; line-height: 1.75; white-space: pre-wrap; color: #333; word-break: break-word; }
+.xp-tags { margin-top: 6px; font-size: 14px; line-height: 1.8; color: var(--xp-tag); }
+.xp-tags span { margin-right: 6px; }
+.xp-meta { margin-top: 8px; font-size: 12px; color: var(--xp-sub); }
+.xp-comments { margin: 12px 14px 16px; padding-top: 12px; border-top: 1px solid var(--xp-line); font-size: 13px; color: #666; }
+.xp-comment-input { margin-top: 10px; display: flex; align-items: center; gap: 8px; color: #aaa; font-size: 13px; }
+.xp-comment-input span:last-child { flex: 1; background: #f5f5f5; border-radius: 999px; padding: 6px 12px; }
+.xp-bottom { flex: none; display: flex; align-items: center; gap: 14px; padding: 8px 14px 10px; border-top: 1px solid var(--xp-line); background: #fff; font-size: 12.5px; color: #333; }
+.xp-bottom .xp-say { flex: 1; background: #f5f5f5; color: #aaa; border-radius: 999px; padding: 7px 12px; font-size: 13px; }
+.xp-bottom .xp-act { display: inline-flex; align-items: center; gap: 3px; font-variant-numeric: tabular-nums; }
+.xp-bottom svg { width: 19px; height: 19px; }
+
+/* ---------- 封面和图片页（3:4，按容器宽度缩放） ---------- */
+:is(.xc, .xc-swatch) { --c-bg: #f3eee3; --c-bg2: #e9e1d0; }
+.xc-swatch { display: inline-block; width: 14px; height: 14px; border-radius: 99px; background: linear-gradient(135deg, var(--c-bg), var(--c-bg2)); box-shadow: inset 0 0 0 1px rgb(0 0 0 / 0.12); }
+.xc {
+  --c-bg: #f3eee3; --c-bg2: #e9e1d0; --c-ink: #1f2d27; --c-accent: #2e6b55; --c-soft: #d9e6dc; --c-mark: rgb(31 45 39 / 0.55);
+  container-type: inline-size;
+  position: relative;
+  text-align: left;
+  aspect-ratio: 3 / 4;
+  width: 100%;
+  overflow: hidden;
+  background: linear-gradient(170deg, var(--c-bg) 0%, var(--c-bg2) 100%);
+  color: var(--c-ink);
+  font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+}
+:is(.xc, .xc-swatch)[data-tone="茶绿"] { --c-bg: #e3ece2; --c-bg2: #cfdccf; --c-ink: #14352a; --c-accent: #2e6b55; --c-soft: #f4f1e6; --c-mark: rgb(20 53 42 / 0.55); }
+:is(.xc, .xc-swatch)[data-tone="暖棕"] { --c-bg: #efe2cf; --c-bg2: #e0c9ab; --c-ink: #3a2414; --c-accent: #a24f22; --c-soft: #f8efe2; --c-mark: rgb(58 36 20 / 0.55); }
+:is(.xc, .xc-swatch)[data-tone="雾蓝"] { --c-bg: #e4eaef; --c-bg2: #cfd9e2; --c-ink: #1b2838; --c-accent: #2f5a86; --c-soft: #f2f5f8; --c-mark: rgb(27 40 56 / 0.55); }
+
+.xc-kicker { position: absolute; top: 6cqw; left: 7cqw; font-size: 4.2cqw; font-weight: 600; letter-spacing: 0.06em; color: var(--c-accent); display: flex; align-items: center; gap: 1.6cqw; }
+.xc-kicker::before { content: ""; width: 5cqw; height: 0.9cqw; border-radius: 1cqw; background: var(--c-accent); }
+.xc-title { position: absolute; left: 7cqw; right: 7cqw; top: 13cqw; font-weight: 800; line-height: 1.12; letter-spacing: -0.01em; font-size: 11.5cqw; word-break: break-all; }
+.xc-title .l2 { display: inline; background: linear-gradient(transparent 58%, color-mix(in srgb, var(--c-accent) 26%, transparent) 58%); }
+.xc-title.xc-long { font-size: 9.6cqw; }
+.xc-pad { position: absolute; left: 0; right: 0; bottom: 0; height: 58%; overflow: hidden; }
+.xc-crop { width: 100%; height: 100%; }
+.xc-crop svg { width: 100%; height: 100%; display: block; }
+.xc-pad svg { width: 100%; height: 100%; display: block; }
+.xc-fade { position: absolute; left: 0; right: 0; top: 0; height: 52%; background: linear-gradient(180deg, var(--c-bg) 62%, transparent); }
+.xc-pad.xc-pad-card { left: 7cqw; right: 7cqw; bottom: 8cqw; height: 50%; border-radius: 4cqw; overflow: hidden; box-shadow: 0 2cqw 6cqw -2cqw rgb(0 0 0 / 0.35); }
+.xc-mark { position: absolute; right: 5cqw; bottom: 4cqw; z-index: 2; display: flex; align-items: center; gap: 1cqw; font-size: 3.4cqw; font-weight: 600; color: #fff; background: rgb(0 0 0 / 0.28); padding: 0.6cqw 2cqw; border-radius: 99cqw; backdrop-filter: blur(2px); }
+.xc-mark svg { width: 3.6cqw; height: 3.6cqw; }
+
+/* 三宫格步骤 */
+.xc-steps { position: absolute; left: 6cqw; right: 6cqw; bottom: 7cqw; display: grid; grid-template-columns: repeat(3, 1fr); gap: 2.4cqw; }
+.xc-step { border-radius: 3cqw; overflow: hidden; background: var(--c-soft); box-shadow: 0 1.5cqw 4cqw -2cqw rgb(0 0 0 / 0.3); }
+.xc-step .xc-step-pic { position: relative; aspect-ratio: 3 / 4; overflow: hidden; }
+.xc-step .xc-step-pic svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+.xc-step .xc-step-no { position: absolute; top: 1.6cqw; left: 1.6cqw; width: 6cqw; height: 6cqw; border-radius: 50%; background: var(--c-accent); color: #fff; font-size: 3.6cqw; font-weight: 700; display: grid; place-items: center; }
+.xc-step .xc-step-cap { padding: 1.4cqw 1.6cqw 1.8cqw; font-size: 3.4cqw; line-height: 1.25; font-weight: 600; min-height: 10cqw; }
+
+/* 一周茶单日历 */
+.xc-week { position: absolute; left: 6cqw; right: 6cqw; bottom: 6cqw; display: grid; grid-template-columns: 1fr 1fr; gap: 2.2cqw; }
+.xc-day { background: var(--c-soft); border-radius: 2.6cqw; padding: 2.2cqw 2.6cqw; display: flex; align-items: center; gap: 2cqw; box-shadow: 0 1cqw 3cqw -1.8cqw rgb(0 0 0 / 0.3); }
+.xc-day .d { font-size: 3.2cqw; color: var(--c-mark); font-weight: 600; }
+.xc-day .t { font-size: 4.6cqw; font-weight: 700; line-height: 1.15; }
+.xc-day .dot { flex: none; width: 5.4cqw; height: 5.4cqw; border-radius: 50%; box-shadow: inset 0 -0.8cqw 0 rgb(0 0 0 / 0.12); }
+.xc-day.brand { background: var(--c-accent); color: #fff; justify-content: center; font-size: 3.8cqw; font-weight: 700; }
+
+/* 左右对比 */
+.xc-vs { position: absolute; left: 6cqw; right: 6cqw; bottom: 7cqw; height: 52%; display: grid; grid-template-columns: 1fr 1fr; gap: 2.4cqw; }
+.xc-vs > div { position: relative; border-radius: 3cqw; overflow: hidden; }
+.xc-vs svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+.xc-vs .bad svg { filter: grayscale(0.7) brightness(0.92); }
+.xc-vs .lab { position: absolute; left: 0; right: 0; bottom: 0; padding: 2cqw; font-size: 4cqw; font-weight: 700; color: #fff; background: linear-gradient(transparent, rgb(0 0 0 / 0.55)); }
+
+/* 内页 */
+.xc-page-no { position: absolute; top: 6cqw; left: 7cqw; font-size: 4cqw; font-weight: 700; color: var(--c-accent); font-variant-numeric: tabular-nums; letter-spacing: 0.04em; }
+.xc-page-text { position: absolute; left: 7cqw; right: 7cqw; top: 16cqw; }
+.xc-page-text .a { font-size: 10cqw; font-weight: 800; line-height: 1.16; }
+.xc-page-text .b { margin-top: 3cqw; font-size: 5.6cqw; font-weight: 500; line-height: 1.4; color: color-mix(in srgb, var(--c-ink) 78%, transparent); }
+.xc-page-pad { position: absolute; right: -6cqw; bottom: -4cqw; width: 78%; aspect-ratio: 300 / 240; opacity: 0.95; border-radius: 6cqw 0 0 0; overflow: hidden; }
+.xc-page-pad svg { width: 100%; height: 100%; }
+.xc-todo { position: absolute; inset: 22cqw 7cqw 30cqw; border: 0.8cqw dashed color-mix(in srgb, var(--c-ink) 35%, transparent); border-radius: 4cqw; display: grid; place-items: center; text-align: center; font-size: 4.4cqw; color: var(--c-mark); padding: 4cqw; }
+
+/* 同行的笔记：中性底色、对方账号名，不套自家模板 */
+.xc.xc-peer { background: var(--p-bg); color: var(--p-ink); }
+.xc-peer-blob { position: absolute; bottom: -22cqw; width: 86cqw; height: 86cqw; border-radius: 50%; background: var(--p-acc); opacity: 0.16; transform: translateX(-50%); }
+.xc-peer-dots { position: absolute; right: 7cqw; bottom: 20cqw; width: 34cqw; height: 22cqw; background-image: radial-gradient(var(--p-acc) 1.1cqw, transparent 1.25cqw); background-size: 5.6cqw 5.6cqw; opacity: 0.32; }
+.xc-peer-title { position: absolute; left: 7cqw; right: 7cqw; top: 11cqw; font-size: 10.4cqw; font-weight: 800; line-height: 1.16; word-break: break-all; }
+.xc-peer-title .l2 { display: block; margin-top: 2.4cqw; font-size: 6.8cqw; font-weight: 700; color: var(--p-acc); }
+.xc-peer-by { position: absolute; left: 7cqw; bottom: 6cqw; font-size: 3.8cqw; font-weight: 600; opacity: 0.72; }
+
+/* 笔记页的几条评论 */
+.xp-cmt { display: flex; gap: 8px; padding: 10px 0 0; }
+.xp-cmt .xp-avatar { width: 24px; height: 24px; font-size: 10px; margin-top: 1px; }
+.xp-cmt-main { flex: 1; min-width: 0; }
+.xp-cmt-name { font-size: 12px; color: var(--xp-sub); }
+.xp-cmt-text { font-size: 13.5px; line-height: 1.55; color: #333; margin-top: 1px; word-break: break-word; }
+.xp-cmt-meta { margin-top: 2px; font-size: 11px; color: #b5b5b5; }
+.xp-cmt-reply { margin-top: 6px; padding: 6px 8px; border-radius: 6px; background: #f7f7f7; font-size: 12.5px; color: #555; }
+.xp-cmt-reply b { color: #333; font-weight: 600; margin-right: 4px; }
+.xp-cmt-like { flex: none; display: flex; flex-direction: column; align-items: center; gap: 1px; font-size: 11px; color: #999; font-variant-numeric: tabular-nums; }
+.xp-cmt-like svg { width: 14px; height: 14px; }
+.xp-cmt-more { margin-top: 10px; font-size: 12.5px; color: var(--xp-tag); }

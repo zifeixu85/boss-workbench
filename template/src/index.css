@@ -1,0 +1,197 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+@import "./styles/calendar.css";
+
+@custom-variant dark (&:is(.dark *));
+
+/* 设计令牌：所有颜色、字体、圆角都从这里取，组件里不写死颜色值 */
+@theme inline {
+  --font-sans: "PingFang SC", "Microsoft YaHei", "Hiragino Sans GB", system-ui, sans-serif;
+  --font-heading: var(--heading-font);
+  --font-mono: "SF Mono", ui-monospace, Consolas, monospace;
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+
+  /* 业务状态色：只表示状态，不拿来当图表系列色 */
+  --color-ok: var(--ok);
+  --color-ok-soft: var(--ok-soft);
+  --color-warn: var(--warn);
+  --color-warn-soft: var(--warn-soft);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --color-info: var(--info);
+  --color-info-soft: var(--info-soft);
+  --color-surface-2: var(--surface-2);
+  --color-rise: var(--rise);
+  --color-fall: var(--fall);
+
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+
+  --shadow-paper: 0 1px 0 rgb(40 50 40 / 0.04), 0 8px 24px -14px rgb(40 50 40 / 0.22);
+  --shadow-float: 0 18px 48px -18px rgb(30 45 38 / 0.35);
+}
+
+:root {
+  --radius: 0.625rem;
+  --sticky-top: 0px; /* 吸顶元素离视口顶部的距离；顶部导航布局里是导航栏高度 */
+  --heading-font: "PingFang SC", "Microsoft YaHei", "Hiragino Sans GB", system-ui, sans-serif; /* 10/10 起所有风格的标题都用黑体，网页里不出现宋体 */
+  /* 涨跌：中国习惯红涨绿跌 */
+  --rise: #c8382c;
+  --fall: #1f8a4c;
+  --background: #f6f5f0;
+  --surface-2: #efede5;
+  --foreground: #1f2d27;
+  --card: #fffefa;
+  --card-foreground: #1f2d27;
+  --popover: #fffefa;
+  --popover-foreground: #1f2d27;
+  --primary: #2e6b55;
+  --primary-foreground: #fbfdfb;
+  --secondary: #ecebe3;
+  --secondary-foreground: #1f2d27;
+  --muted: #efede5;
+  --muted-foreground: #67706a;
+  --accent: #e6efe9;
+  --accent-foreground: #1f4a3b;
+  --destructive: #b4432f;
+  --border: #e3e0d5;
+  --input: #dcd9cd;
+  --ring: #2e6b55;
+
+  --ok: #2e7d5b;
+  --ok-soft: #e4f1ea;
+  --warn: #a8661a;
+  --warn-soft: #fbf0df;
+  --danger: #b4432f;
+  --danger-soft: #f9e6e1;
+  --info: #3d6fd6;
+  --info-soft: #e8eefb;
+
+  /* 图表：已用色盲模拟校验（顺序固定：绿、橙、蓝、玫、橄榄） */
+  --chart-1: #1f8a62;
+  --chart-2: #c0741a;
+  --chart-3: #3d6fd6;
+  --chart-4: #a0517a;
+  --chart-5: #8a7a1c;
+
+  --sidebar: #efede4;
+  --sidebar-foreground: #33413a;
+  --sidebar-primary: #2e6b55;
+  --sidebar-primary-foreground: #fbfdfb;
+  --sidebar-accent: #fffefa;
+  --sidebar-accent-foreground: #1f2d27;
+  --sidebar-border: #e3e0d5;
+  --sidebar-ring: #2e6b55;
+}
+
+/* ---------- 可切换的风格（设置页选择；建台时可按行业推荐） ---------- */
+
+/* 原木：暖底色、赭色主色，适合家居、餐饮、手作 */
+:root[data-theme="wood"] {
+  --background: #f8f4ec; --surface-2: #efe8db; --foreground: #33291f;
+  --card: #fffdf8; --card-foreground: #33291f; --popover: #fffdf8; --popover-foreground: #33291f;
+  --primary: #8a5a2b; --primary-foreground: #fffaf2; --secondary: #efe6d6; --secondary-foreground: #33291f;
+  --muted: #f0e9dc; --muted-foreground: #7a6c5d; --accent: #f3e7d5; --accent-foreground: #6b431c;
+  --border: #e6dccb; --input: #ddd1bd; --ring: #8a5a2b;
+  --sidebar: #f1e9dc; --sidebar-foreground: #463a2d; --sidebar-primary: #8a5a2b; --sidebar-accent: #fffdf8; --sidebar-border: #e6dccb; --sidebar-ring: #8a5a2b;
+}
+
+/* 墨蓝：冷静理性，深色侧栏，适合咨询、贸易、制造 */
+:root[data-theme="navy"] {
+  --background: #f3f5f9; --surface-2: #e9edf4; --foreground: #1b2433;
+  --card: #ffffff; --card-foreground: #1b2433; --popover: #ffffff; --popover-foreground: #1b2433;
+  --primary: #2f5bd3; --primary-foreground: #ffffff; --secondary: #e7ecf5; --secondary-foreground: #1b2433;
+  --muted: #eef1f6; --muted-foreground: #5f6b7e; --accent: #e8eefc; --accent-foreground: #1f43a6;
+  --border: #dfe4ed; --input: #d3dae6; --ring: #2f5bd3;
+  --sidebar: #1d2738; --sidebar-foreground: #d7deea; --sidebar-primary: #7ea2ff; --sidebar-accent: #2b3850; --sidebar-accent-foreground: #ffffff; --sidebar-border: #2b3850; --sidebar-ring: #7ea2ff;
+}
+
+/* 素白：黑白灰，内容优先，适合设计、内容创作 */
+:root[data-theme="mono"] {
+  --background: #fafafa; --surface-2: #f2f2f2; --foreground: #171717;
+  --card: #ffffff; --card-foreground: #171717; --popover: #ffffff; --popover-foreground: #171717;
+  --primary: #171717; --primary-foreground: #fafafa; --secondary: #f0f0f0; --secondary-foreground: #171717;
+  --muted: #f3f3f3; --muted-foreground: #6b6b6b; --accent: #efefef; --accent-foreground: #171717;
+  --border: #e5e5e5; --input: #dcdcdc; --ring: #171717;
+  --sidebar: #f5f5f5; --sidebar-foreground: #333333; --sidebar-primary: #171717; --sidebar-accent: #ffffff; --sidebar-border: #e5e5e5; --sidebar-ring: #171717;
+}
+
+/* 夜墨：深色，晚上看不刺眼。图表用校验过的深色版配色 */
+:root[data-theme="night"] {
+  --background: #131a17; --surface-2: #1a2420; --foreground: #e3ebe4;
+  --card: #1b2420; --card-foreground: #e3ebe4; --popover: #1f2a25; --popover-foreground: #e3ebe4;
+  --primary: #5fae8c; --primary-foreground: #0f1714; --secondary: #24302b; --secondary-foreground: #e3ebe4;
+  --muted: #222c27; --muted-foreground: #9faea3; --accent: #23362d; --accent-foreground: #bfe3cf;
+  --border: #2c3832; --input: #34413a; --ring: #5fae8c;
+  --ok: #5fbf8c; --ok-soft: #1f3a2c; --warn: #e2b04f; --warn-soft: #3a2f1b; --danger: #e5826e; --danger-soft: #3d231e; --info: #8fb0f0; --info-soft: #1f2a3d;
+  --rise: #ef6b5e; --fall: #4fbf7f;
+  --chart-1: #33a174; --chart-2: #c97f30; --chart-3: #5b8de6; --chart-4: #c06a98; --chart-5: #9a8a34;
+  --sidebar: #161f1b; --sidebar-foreground: #c9d4cc; --sidebar-primary: #5fae8c; --sidebar-accent: #23302a; --sidebar-accent-foreground: #ffffff; --sidebar-border: #2c3832; --sidebar-ring: #5fae8c;
+  color-scheme: dark;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  html {
+    @apply font-sans;
+    -webkit-font-smoothing: antialiased;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-size: 14px;
+    line-height: 1.6;
+  }
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
+  .num {
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

@@ -14,3 +14,7 @@ Copyright 2026 A梦（https://ameng.blog）
 ## 其他
 
 示例里的老板、公司、客户、人名和数字全部虚构，不对应任何真实的人或机构。上线手机版用到的腾讯云开发（CloudBase）是第三方服务，以它的官方说明和收费规则为准。
+
+## 第三方组件
+
+工作台模板（`template/`）里的界面组件（`src/components/ui/`）由 shadcn/ui 生成，按 MIT License 使用（Copyright (c) 2023 shadcn）。模板通过 npm 引用的依赖（React、Radix UI、FullCalendar 的免费插件、Recharts、Hono 等）各按其自身许可使用，见各依赖包自带的 LICENSE。

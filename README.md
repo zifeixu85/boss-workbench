@@ -44,7 +44,7 @@ git clone https://github.com/zifeixu85/boss-workbench.git "$HOME/.claude/skills/
 
 建议同时装上[老板知识库](https://github.com/zifeixu85/boss-kb)。装好以后**新开一个对话**，在知识库文件夹里输入 `$boss-workbench`（Claude Code 里是 `/boss-workbench`），说“帮我搭工作台”。
 
-> **工作台模板稍后发布**：搭工作台要用的模板（`template/`，React + SQLite）还在整理，这个仓库暂时没有。没有模板时，Skill 会停下来告诉你“工作台模板还没装好”。确认页、知识库读取、加模块的说明、上线手机版的脚本，现在都能用。
+> **工作台模板（`template/`，React + SQLite）是测试版**：示例数据和部分界面文字还是照着示例茶社写的，给别的老板搭时由 Skill 按他的称呼、店名和行业改。模板会继续更新。
 
 ## 常用说法
 
@@ -60,7 +60,7 @@ git clone https://github.com/zifeixu85/boss-workbench.git "$HOME/.claude/skills/
 ## 现在的状态
 
 - 自动测试 60 项（含上线脚本 24 项、确认页 10 项）：`node --test scripts/tests/*.test.mjs scripts/deploy/tests/*.test.mjs`。
-- 真正上传到腾讯云开发的流程、Windows、干净电脑都**还没实测**；工作台模板稍后发布。
+- 真正上传到腾讯云开发的流程、Windows、干净电脑都**还没实测**；工作台模板是测试版，会继续更新。
 
 ## 搭配使用
 
