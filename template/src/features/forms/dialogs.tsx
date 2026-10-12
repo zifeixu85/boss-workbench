@@ -12,7 +12,7 @@ import { Switch } from '@/components/ui/switch'
 import { Label } from '@/components/ui/label'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { FormDialog } from './FormDialog'
-import { FormField, TextInput, TextArea, Choice, ClientChoice, ProjectChoice, DatePicker, DateTimePicker, MoneyInput, issuesToErrors } from '@/components/form'
+import { FormField, TextInput, TextArea, Choice, ClientChoice, ProjectChoice, DatePicker, DateTimePicker, MoneyInput, TimeInput, issuesToErrors } from '@/components/form'
 
 type Props = { onClose: () => void; forId?: string | null; date?: string | null; text?: string | null }
 type Errors = Record<string, string>
@@ -32,7 +32,7 @@ function useForm<T extends Record<string, unknown>>(schema: ZodType, initial: T,
 }
 
 export function NewTodoDialog({ onClose, forId, date, text }: Props) {
-  const f = useForm(todoInput, { title: text ?? '', status: '待办', priority: '普通', due: date?.slice(0, 10) ?? todayStr(), client_id: forId ?? null, project_id: null, note: '' },
+  const f = useForm(todoInput, { title: text ?? '', status: '待办', priority: '普通', due: date?.slice(0, 10) ?? todayStr(), due_time: date?.includes('T') ? date.slice(11, 16) : null, client_id: forId ?? null, project_id: null, note: '' },
     (d) => api.post('/todos', d), '已新增待办', onClose)
   return (
     <FormDialog open onClose={onClose} title="新建待办" desc="要做的一件具体的事。关联客户后，会出现在客户详情和跟进清单里。" onSubmit={f.onSubmit} submitting={f.pending}>
@@ -41,7 +41,11 @@ export function NewTodoDialog({ onClose, forId, date, text }: Props) {
         <FormField label="优先级"><Choice value={f.v.priority} onChange={(x) => f.set('priority')(x ?? '普通')} options={TODO_PRIORITY} /></FormField>
         <FormField label="状态"><Choice value={f.v.status} onChange={(x) => f.set('status')(x ?? '待办')} options={TODO_STATUS.filter((s) => s !== '取消')} /></FormField>
       </div>
-      <FormField label="截止日期" error={f.errors.due}><DatePicker value={f.v.due} onChange={f.set('due')} /></FormField>
+      <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-3">
+        <FormField label="截止日期" error={f.errors.due}><DatePicker value={f.v.due} onChange={(v) => { f.set('due')(v); if (!v) f.set('due_time')(null) }} /></FormField>
+        <FormField label="到期时间（可不填）" error={f.errors.due_time}><TimeInput label="到期时间" value={f.v.due_time} onChange={f.set('due_time')} /></FormField>
+      </div>
+      {f.v.due_time && <p className="-mt-2 text-xs text-muted-foreground">到期前 1 小时提醒你（已经不到 1 小时的，马上提醒）。</p>}
       <div className="grid grid-cols-2 gap-3">
         <FormField label="关联客户"><ClientChoice value={f.v.client_id} onChange={f.set('client_id')} /></FormField>
         <FormField label="关联项目"><ProjectChoice value={f.v.project_id} onChange={f.set('project_id')} /></FormField>

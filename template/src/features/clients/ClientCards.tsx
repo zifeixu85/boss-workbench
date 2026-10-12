@@ -33,6 +33,7 @@ function perUnit(title: string | null, amountWan: number | null) {
 
 function quietCell(c: ClientRow) {
   const quiet = c.days_silent !== null && c.days_silent > quietDays(c.key_account === 1)
+  if (c.days_silent !== null && c.days_silent <= 0) return <Num label="上次联系" value="今天" sub={c.last_contact ? md(c.last_contact) : undefined} />
   return <Num label="多久没联系" value={silentText(c.days_silent)} tone={quiet ? 'warn' : undefined} sub={c.last_contact ? `上次 ${md(c.last_contact)}` : '没联系过'} />
 }
 

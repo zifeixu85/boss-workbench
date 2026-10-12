@@ -3,7 +3,7 @@
 import { CalendarPlus, MessageSquarePlus, Sparkles } from 'lucide-react'
 import { api, useApi, useWrite } from '@/lib/api'
 import type { Overview, Settings } from '@/lib/types'
-import { fullDate, relDay, yuan } from '@/lib/format'
+import { dueText, fullDate, yuan } from '@/lib/format'
 import { now } from '@/lib/clock'
 import { useOverlay } from '@/app/overlay'
 import { PageHeader, PageBody } from '@/components/page'
@@ -16,6 +16,7 @@ import { KeyClients } from './KeyClients'
 import { XhsToday } from './XhsToday'
 import { AlertsPanel } from './AlertsPanel'
 import { ScheduleAndTodos, SideColumn } from './DayColumns'
+import { NotifyBanner } from './NotifyBanner'
 
 const greet = () => { const h = now().getHours(); return h < 11 ? '早上好' : h < 14 ? '中午好' : h < 18 ? '下午好' : '晚上好' }
 
@@ -54,13 +55,15 @@ export default function TodayPage() {
           </Alert>
         )}
 
+        <NotifyBanner />
+
         {o.headline && (
           <section className="relative overflow-hidden rounded-xl border border-primary/20 bg-[linear-gradient(120deg,var(--accent),var(--card)_70%)] px-5 py-4 shadow-paper">
             <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-1.5 text-xs font-medium text-primary"><Sparkles className="size-3.5" />现在最该做的一件事</div>
                 <div className="mt-1 font-heading text-xl font-semibold">{o.headline.title}</div>
-                <div className="mt-0.5 text-xs text-muted-foreground">截止 {relDay(o.headline.due)}</div>
+                <div className="mt-0.5 text-xs text-muted-foreground">截止 {dueText(o.headline.due, o.headline.due_time)}</div>
               </div>
               <div className="flex gap-2"><Button variant="outline" onClick={() => ov.openDetail('todo', o.headline!.id)}>打开</Button><Button onClick={() => doneTop.mutate(o.headline!.id)}>做完了</Button></div>
             </div>
@@ -73,7 +76,7 @@ export default function TodayPage() {
           <XhsToday plan={o.xhs} />
         </div>
 
-        <AlertsPanel alerts={o.alerts} />
+        <AlertsPanel alerts={o.alerts} hasBiz={!!o.sales?.channels.some((c) => c.gmv !== null)} sources={o.source_count ?? 0} />
 
         <div className="grid gap-5 lg:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)]">
           <ScheduleAndTodos o={o} />

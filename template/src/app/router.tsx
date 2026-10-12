@@ -20,6 +20,7 @@ const Calendar = page(() => import('@/features/calendar/CalendarPage'))
 const Todos = page(() => import('@/features/todos/TodosPage'))
 const Projects = page(() => import('@/features/projects/ProjectsPage'))
 const Inbox = page(() => import('@/features/inbox/InboxPage'))
+const Reminders = page(() => import('@/features/reminders/RemindersPage')) // 提醒（10-12）
 const Kb = page(() => import('@/features/kb/KbPage'))
 const SettingsPage = page(() => import('@/features/settings/SettingsPage'))
 const Design = page(() => import('@/features/design/DesignPage'))
@@ -61,6 +62,7 @@ export const router = createBrowserRouter([
       { path: 'todos', element: <Todos /> },
       { path: 'projects', element: <Projects /> },
       { path: 'inbox', element: <Inbox /> },
+      { path: 'reminders', element: <Reminders /> },
       { path: 'clients', element: <Clients /> },
       { path: 'clients/follow', element: <Follow /> },
       { path: 'clients/pipeline', element: <Pipeline /> },

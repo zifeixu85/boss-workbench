@@ -61,7 +61,7 @@ const TODO_SQL = `SELECT t.*, c.name AS client_name, p.name AS project_name FROM
 export function listTodos(opts: { open?: boolean } = {}) {
   const where = opts.open ? "WHERE t.status NOT IN ('完成','取消')" : ''
   return all(`${TODO_SQL} ${where} ORDER BY CASE t.status WHEN '完成' THEN 1 WHEN '取消' THEN 2 ELSE 0 END,
-    CASE t.priority WHEN '紧急' THEN 0 WHEN '重要' THEN 1 ELSE 2 END, COALESCE(t.due, '9999')`)
+    CASE t.priority WHEN '紧急' THEN 0 WHEN '重要' THEN 1 ELSE 2 END, COALESCE(t.due, '9999'), COALESCE(t.due_time, '99:99')`)
 }
 
 export function getTodo(id: string) {
@@ -70,21 +70,28 @@ export function getTodo(id: string) {
   return row
 }
 
+/** 到期时间要跟着日期：没有截止日期就不能单写时间（提醒按“日期 + 时间”算，见 server/reminders/） */
+const NEED_DATE = '定了到期时间，要先选截止日期'
+
 export function createTodo(input: unknown, actor: Actor) {
   const data = todoInput.parse(input)
+  if (data.due_time && !data.due) throw new BadRequest(NEED_DATE)
   const id = uid('t')
   const at = nowIso()
-  run(`INSERT INTO todos (id, title, status, priority, due, client_id, project_id, note, created_at, updated_at)
-       VALUES (:id, :title, :status, :priority, :due, :client_id, :project_id, :note, :at, :at)`,
-  params({ due: null, client_id: null, project_id: null, note: null, ...data, id, at }))
-  logChange(actor, 'todo', id, '新建', `待办「${data.title}」`)
+  run(`INSERT INTO todos (id, title, status, priority, due, due_time, client_id, project_id, note, created_at, updated_at)
+       VALUES (:id, :title, :status, :priority, :due, :due_time, :client_id, :project_id, :note, :at, :at)`,
+  params({ due: null, due_time: null, client_id: null, project_id: null, note: null, ...data, id, at }))
+  logChange(actor, 'todo', id, '新建', `待办「${data.title}」${data.due_time ? `，${data.due} ${data.due_time} 到期` : ''}`)
   return getTodo(id)
 }
 
 export function updateTodo(id: string, input: unknown, actor: Actor) {
-  const before = getTodo(id) as { title: string; status: string }
+  const before = getTodo(id) as { title: string; status: string; due: string | null }
   const patch = onlyGiven(todoInput.partial().parse(input), input)
+  // 截止日期清空了，到期时间也一起清掉（只剩时间没有意义）
+  if (patch.due === null) Object.assign(patch, { due_time: null })
   if (!Object.keys(patch).length) throw new BadRequest('没有要修改的字段')
+  if (patch.due_time && !(patch.due ?? before.due)) throw new BadRequest(NEED_DATE)
   const doneAt = patch.status === '完成' && before.status !== '完成' ? today() : patch.status && patch.status !== '完成' ? null : undefined
   run(`UPDATE todos SET ${setClause(patch)}${doneAt !== undefined ? ', done_at = :done_at' : ''}, updated_at = :at WHERE id = :id`,
     params({ ...patch, ...(doneAt !== undefined ? { done_at: doneAt } : {}), at: nowIso(), id }))

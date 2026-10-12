@@ -96,6 +96,11 @@ export function DateTimePicker({ value, onChange, allDay }: { value?: string | n
   )
 }
 
+/** 钟点（15:30 这样，24 小时，到分钟）。空着是 null。待办的到期时间、提醒设置用 */
+export function TimeInput({ value, onChange, id, label, className }: { value?: string | null; onChange: (v: string | null) => void; id?: string; label?: string; className?: string }) {
+  return <Input id={id} type="time" step={60} aria-label={label} value={value ?? ''} onChange={(e) => onChange(e.target.value || null)} className={cn('num w-32', className)} />
+}
+
 export function MoneyInput({ value, onChange, id }: { value?: number | null; onChange: (v: number | null) => void; id?: string }) {
   return (
     <div className="relative">

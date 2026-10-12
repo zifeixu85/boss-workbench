@@ -5,12 +5,15 @@
 //   node 工作台/程序/scripts/install.mjs --demo     安装并写入示例数据（虚构的茶社，演示日期 2026-10-27）
 //   node 工作台/程序/scripts/install.mjs --check    只体检，不改任何东西
 //   可选：--registry=<地址>  指定 npm 源；--mirror  直接用国内镜像；--skip-build  不重新构建
+//   node 工作台/程序/scripts/install.mjs --autostart on|off|status [--name 短名]
+//                                                  开机自启：打开 / 关掉（后台服务一起停）/ 看现在是开是关、日志在哪（做法见 autostart.mjs）
 import { spawnSync } from 'node:child_process'
 import { existsSync, statSync, readdirSync, appendFileSync, writeFileSync } from 'node:fs'
 import { createServer } from 'node:net'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import os from 'node:os'
+import { autostart } from './autostart.mjs'
 
 const APP = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 // 知识库根目录和数据库位置：默认 程序/../.. 和 <知识库>/工作台/数据/workbench.db；
@@ -18,7 +21,9 @@ const APP = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const ROOT = resolve(process.env.WORKBENCH_ROOT || join(APP, '..', '..'))
 const DB = process.env.WORKBENCH_DB || join(ROOT, '工作台', '数据', 'workbench.db')
 const LOG = join(APP, 'install.log')
-const args = new Set(process.argv.slice(2).filter((a) => !a.includes('=')))
+const argv = process.argv.slice(2)
+const valueOf = (k) => { const i = argv.indexOf(k); return i >= 0 && argv[i + 1] && !argv[i + 1].startsWith('--') ? argv[i + 1] : null }
+const args = new Set(argv.filter((a) => !a.includes('=')))
 const opt = Object.fromEntries(process.argv.slice(2).filter((a) => a.includes('=')).map((a) => a.replace(/^--/, '').split('=')))
 const CHECK = args.has('--check')
 const NEED = { major: 22, minor: 18 } // node:sqlite 免开关（22.13）+ 直接运行 .ts（22.18）
@@ -134,7 +139,7 @@ function initDb() {
   return false
 }
 
-function checkInstalled() {
+async function checkInstalled() {
   say(C.b('\n② 检查安装结果'))
   existsSync(join(APP, 'node_modules')) ? ok('依赖已安装') : bad('还没装依赖', '双击“安装工作台”')
   const dist = join(APP, 'dist', 'index.html')
@@ -146,14 +151,23 @@ function checkInstalled() {
   if (!existsSync(db)) { bad('还没有数据库', '双击“安装工作台”'); return }
   const res = run(process.execPath, ['server/cli.ts', 'todos', '--json'], { stdio: ['ignore', 'pipe', 'pipe'] })
   res.status === 0 ? ok(`数据库能正常读取（${JSON.parse(res.stdout || '[]').length} 条未完成待办）`) : bad('数据库读不出来', `详细原因在 ${LOG}`)
+  say(C.dim('  开机自启（只报告，不算问题）：'))
+  await autostart('status', { app: APP, root: ROOT, db: DB, port: PORT, say: (x) => say(C.dim(`    ${x}`)) })
 }
 
 async function main() {
+  // 开机自启：单独的一件事，不跑安装、不覆盖 install.log
+  const auto = opt.autostart ?? valueOf('--autostart') ?? (args.has('--autostart') ? '' : null)
+  if (auto !== null) {
+    try { process.exitCode = await autostart(auto, { app: APP, root: ROOT, db: DB, port: PORT, name: opt.name ?? valueOf('--name') ?? undefined }) }
+    catch (err) { console.error(`没办成：${err.message}`); process.exitCode = 1 }
+    return
+  }
   writeFileSync(LOG, `# 工作台${CHECK ? '体检' : '安装'}日志 ${new Date().toLocaleString('zh-CN')}\n`)
   say(C.b(CHECK ? '工作台体检' : '安装老板工作台'))
   await checkEnv()
   if (problems.length) return finish()
-  if (CHECK) { checkInstalled(); return finish() }
+  if (CHECK) { await checkInstalled(); return finish() }
   const reg = await chooseRegistry()
   if (!reg) return finish()
   if (!installDeps(reg)) return finish()

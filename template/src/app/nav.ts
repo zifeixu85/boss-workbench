@@ -3,7 +3,7 @@
 // 注意：两个菜单项的地址不要一个是另一个的前缀（比如 /data 和 /data/imports），否则两项会同时亮；
 // 有子页面的模块用 children（客户与跟进、小红书），或者像“经营”那样换一个前缀（/biz 和 /channel/…）。
 import {
-  BookHeart, BookOpen, CalendarDays, ChartNoAxesCombined, Clapperboard, Database, FileUp, FolderKanban, Inbox, LayoutDashboard,
+  BellRing, BookHeart, BookOpen, CalendarDays, ChartNoAxesCombined, Clapperboard, Database, FileUp, FolderKanban, Inbox, LayoutDashboard,
   ListChecks, NotebookPen, Palette, Settings, ShoppingBag, Store, Users, Video, type LucideIcon,
 } from 'lucide-react'
 import type { Overview } from '@/lib/types'
@@ -29,6 +29,8 @@ export const NAV: NavItem[] = [
   { key: 'todos', to: '/todos', label: '待办', icon: ListChecks, group: '日常', badge: (o) => o.todos.today.length || undefined },
   { key: 'projects', to: '/projects', label: '项目', icon: FolderKanban, group: '日常', badge: (o) => o.risks.length || undefined, tone: 'warn' },
   { key: 'inbox', to: '/inbox', label: '收件箱', icon: Inbox, group: '日常' },
+  // 提醒（10-12 加）：服务端按规则算出来的提醒，角标是没读的条数
+  { key: 'reminders', to: '/reminders', label: '提醒', icon: BellRing, group: '日常', badge: (o) => o.reminders_unread || undefined },
 
   {
     key: 'clients', to: '/clients', label: '客户与跟进', short: '客户', icon: Users, group: '客户',

@@ -11,6 +11,7 @@ import { crmRoutes } from './modules/crm/routes.ts'
 import { bizRoutes } from './modules/biz/routes.ts'
 import { contentRoutes } from './modules/content/routes.ts'
 import { dataRoutes } from './modules/data/routes.ts'
+import { reminderRoutes } from './reminders/routes.ts'
 
 const WEB = '网页' as const
 export const routes = new Hono()
@@ -71,3 +72,4 @@ routes.route('/crm', crmRoutes)
 routes.route('/biz', bizRoutes)
 routes.route('/content', contentRoutes)
 routes.route('/data', dataRoutes)
+routes.route('/reminders', reminderRoutes) // 提醒（公共，2026-10-12）

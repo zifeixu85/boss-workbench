@@ -4,7 +4,7 @@ import { useSearchParams } from 'react-router'
 import { Columns3, ListChecks, ListPlus, Search } from 'lucide-react'
 import { api, useApi, useWrite } from '@/lib/api'
 import type { Todo } from '@/lib/types'
-import { addDays, relDay, todayStr } from '@/lib/format'
+import { addDays, dueText, todayStr } from '@/lib/format'
 import { useOverlay } from '@/app/overlay'
 import { PageHeader, PageBody } from '@/components/page'
 import { StatusBadge } from '@/components/status'
@@ -32,7 +32,7 @@ function Row({ t }: { t: Todo }) {
       </button>
       {t.priority !== '普通' && <StatusBadge value={t.priority} />}
       {t.status !== '待办' && t.status !== '完成' && <StatusBadge value={t.status} />}
-      <span className={cn('num w-16 shrink-0 text-right text-xs', late ? 'font-medium text-danger' : 'text-muted-foreground')}>{relDay(t.due)}</span>
+      <span className={cn('num w-20 shrink-0 text-right text-xs', late ? 'font-medium text-danger' : 'text-muted-foreground')}>{dueText(t.due, t.due_time)}</span>
     </div>
   )
 }
@@ -55,7 +55,7 @@ function TodoCard({ t, onOpen }: { t: Todo; onOpen?: () => void }) {
       <button className="line-clamp-3 w-full text-left text-sm leading-snug break-words" onClick={onOpen}>{t.title}</button>
       <MetaRow className="mt-2">
         {t.priority !== '普通' && <StatusBadge value={t.priority} />}
-        <span>{relDay(t.due)}</span>
+        <span>{dueText(t.due, t.due_time)}</span>
         {t.client_name && <span>{t.client_name}</span>}
       </MetaRow>
     </div>

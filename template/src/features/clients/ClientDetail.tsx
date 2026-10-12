@@ -20,7 +20,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Failed } from '@/components/chart-kit'
 import { FlagChips, LevelMark, SourceLink, yuanToWan } from '@/features/crm/parts'
 import { FollowDialog, StageDialog } from '@/features/crm/dialogs'
-import { quietDays, silentText, toLocal } from '@/features/crm/rules'
+import { quietDays, silentLine, toLocal } from '@/features/crm/rules'
 import type { ClientProfile } from '@/features/crm/types'
 import { ClientTabs } from './ClientTabs'
 
@@ -115,8 +115,10 @@ export function ClientBody({ d }: { d?: ClientProfile }) {
   const conflicts = d.promises.filter((p) => p.status === '待兑现' && p.conflict && !p.decision)
   const stageEdit = d.edits.find((e) => e.entity === '阶段')
   const overview = !sp.get('ctab') || sp.get('ctab') === 'overview'
-  const lastText = c.last_contact ? shortDate(c.last_contact) : '—'
-  const lastSub = s.days_silent !== null ? `${silentText(s.days_silent)}没联系${quiet && !partner ? '，太久了' : ''}` : undefined
+  const today = s.days_silent !== null && s.days_silent <= 0
+  const lastText = c.last_contact ? (today ? '今天' : shortDate(c.last_contact)) : '—'
+  // 当天联系过：写“今天（10月27日）”，不再写“10月27日（今天没联系）”（10-12 修）
+  const lastSub = today ? shortDate(c.last_contact) : s.days_silent !== null ? `${silentLine(s.days_silent)}${quiet && !partner ? '，太久了' : ''}` : undefined
   const spentText = d.stats.total_spent ? wan(yuanToWan(d.stats.total_spent)) : '—'
   const facts = {
     who: <Fact key="who" label={partner ? '联系人' : '联系人与决策人'} sub={c.decision_maker ?? undefined}>{c.contact_name ?? '—'}{c.contact_title && <span className="ml-1 text-xs font-normal text-muted-foreground">{c.contact_title}</span>}</Fact>,

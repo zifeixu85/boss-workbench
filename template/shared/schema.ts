@@ -3,6 +3,12 @@ import { z } from 'zod'
 
 const date = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, '日期格式应为 YYYY-MM-DD')
 const dateTime = z.string().regex(/^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2})?$/, '时间格式应为 YYYY-MM-DD 或 YYYY-MM-DDTHH:mm')
+/** 钟点 HH:mm（24 小时）；“8:30”自动补成“08:30”。提醒的到期时间、看汇总的时间、免打扰时段都用它 */
+export const HM_RE = /^([01]\d|2[0-3]):[0-5]\d$/
+const padHm = (v: unknown) => (typeof v === 'string' && /^\d:\d\d$/.test(v.trim()) ? `0${v.trim()}` : typeof v === 'string' ? v.trim() : v)
+const hm = z.preprocess(padHm, z.string().regex(HM_RE, '时间写成 15:30 这样（24 小时）'))
+/** 可以写空：空着表示“不设” */
+const hmOrEmpty = z.preprocess(padHm, z.string().regex(/^(([01]\d|2[0-3]):[0-5]\d)?$/, '时间写成 08:30 这样（24 小时），空着表示不设'))
 const optText = z.string().trim().max(2000).optional().nullable()
 const money = z.number().min(0).max(100000)
 
@@ -81,6 +87,8 @@ export const todoInput = z.object({
   status: z.enum(TODO_STATUS).default('待办'),
   priority: z.enum(TODO_PRIORITY).default('普通'),
   due: date.optional().nullable(),
+  /** 到期时间（可不填）。填了的，到期前 1 小时提醒；要先有截止日期 */
+  due_time: hm.optional().nullable(),
   client_id: z.string().optional().nullable(),
   project_id: z.string().optional().nullable(),
   note: optText,
@@ -124,6 +132,14 @@ export const settingsInput = z.object({
   business: z.string().trim().max(40).optional(),
   /** 小红书账号名（手机预览、给 Codex 的提示词用）；空着就用店名 */
   xhs_name: z.string().trim().max(30).optional(),
+  // 提醒（2026-10-12 加，见 server/reminders/）：总开关、每天看汇总的时间、免打扰时段、演示模式下弹不弹系统通知
+  remind_on: z.enum(['0', '1']).optional(),
+  /** 每天几点提醒看汇总（确认页第 4 步老板说的时间）；空着 = 开机 5 分钟后提醒一次 */
+  notify_at: hmOrEmpty.optional(),
+  /** 免打扰时段，两个都空着 = 不设；可以跨午夜（22:00 到 08:00） */
+  quiet_start: hmOrEmpty.optional(),
+  quiet_end: hmOrEmpty.optional(),
+  remind_demo_system: z.enum(['0', '1']).optional(),
 })
 
 

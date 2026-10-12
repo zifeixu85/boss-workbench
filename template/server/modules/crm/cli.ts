@@ -72,7 +72,7 @@ export function runCrmCli(argv: string[]): number {
       if (!a1) throw new Error('写法：follow <客户> <日期|none> [--step "那天做什么"]')
       const c = findClient(a1)
       const r = setFollow(c.id, { next_follow: !a2 || a2 === 'none' ? null : a2, next_step: o.step, reason: o.reason }, ACTOR)
-      out(r, r.next_follow ? `已改 ${c.name} 下次跟进 ${r.next_follow}，跟进待办 [${r.todo_id}]` : `已清空 ${c.name} 的下次跟进，自动待办取消了`)
+      out(r, r.next_follow ? `已改 ${c.name} 下次跟进 ${r.next_follow}${r.todo_id ? `，跟进待办 [${r.todo_id}]` : '（那天已经有这家的待办或日程，没再建跟进待办）'}` : `已清空 ${c.name} 的下次跟进，自动待办取消了`)
       return 0
     }
     if (cmd === 'promise-done') {

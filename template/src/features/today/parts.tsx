@@ -4,7 +4,7 @@ import { Link } from 'react-router'
 import { ArrowRight } from 'lucide-react'
 import { api, useWrite } from '@/lib/api'
 import type { Todo } from '@/lib/types'
-import { relDay } from '@/lib/format'
+import { dueText, relDay } from '@/lib/format'
 import { useOverlay } from '@/app/overlay'
 import { StatusBadge } from '@/components/status'
 import { Button } from '@/components/ui/button'
@@ -35,7 +35,7 @@ export function TodoLine({ t }: { t: Todo }) {
       <button className="min-w-0 flex-1 text-left" onClick={() => ov.openDetail('todo', t.id)}>
         <div className="text-sm leading-snug">{t.title}</div>
         <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
-          <span className={cn(overdue && 'font-medium text-danger')}>{relDay(t.due)}</span>
+          <span className={cn(overdue && 'font-medium text-danger')}>{dueText(t.due, t.due_time)}</span>
           {t.client_name && <span>· {t.client_name}</span>}
           {t.project_name && !t.client_name && <span>· {t.project_name}</span>}
           {t.status !== '待办' && <StatusBadge value={t.status} />}

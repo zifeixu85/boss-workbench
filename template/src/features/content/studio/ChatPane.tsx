@@ -166,9 +166,9 @@ export function ChatPane({ data, ensureSaved, onShowDraft, onCover, className }:
           <div className="flex items-center gap-1 px-2 pb-2">
             <Popover>
               <PopoverTrigger asChild><Button size="xs" variant="ghost"><Paperclip />引用资料</Button></PopoverTrigger>
-              <PopoverContent align="start" className="max-h-72 w-72 overflow-y-auto p-1.5">
-                <div className="px-2 py-1 text-xs text-muted-foreground">下一条一定带上这份</div>
-                {allFiles.map((f) => <button key={f} type="button" onClick={() => setPin(f)} className="block w-full truncate rounded px-2 py-1.5 text-left text-[13px] hover:bg-muted">{kbName(f)}</button>)}
+              <PopoverContent align="start" className="max-h-72 w-72 gap-0 overflow-y-auto p-1.5">
+                <div className="shrink-0 px-2 py-1 text-xs text-muted-foreground">下一条一定带上这份</div>
+                {allFiles.map((f) => <button key={f} type="button" title={kbName(f)} onClick={() => setPin(f)} className="block w-full shrink-0 truncate rounded px-2 py-1.5 text-left text-[13px] leading-5 hover:bg-muted">{kbName(f)}</button>)}
               </PopoverContent>
             </Popover>
             <Button size="xs" variant="ghost" onClick={onCover}><Images />做封面</Button>

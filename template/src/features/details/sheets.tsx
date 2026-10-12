@@ -5,11 +5,11 @@ import { FolderKanban, MapPin, CheckCircle2 } from 'lucide-react'
 import { EVENT_KINDS, MILESTONE_STATUS, PROJECT_STAGES, TODO_PRIORITY, TODO_STATUS } from '@shared/schema'
 import { api, useApi, useWrite } from '@/lib/api'
 import type { CalEvent, KbNote, Milestone, Project, Receivable, Todo } from '@/lib/types'
-import { fullDate, relDay, shortDate, timeOf, wan } from '@/lib/format'
+import { dueText, fullDate, relDay, shortDate, timeOf, wan } from '@/lib/format'
 import { useOverlay } from '@/app/overlay'
 import { DetailSheet, SheetSection } from '@/components/sheet-shell'
 import { StatusBadge, EVENT_COLORS } from '@/components/status'
-import { Choice, ClientChoice, DatePicker, DateTimePicker, ProjectChoice, FormField } from '@/components/form'
+import { Choice, ClientChoice, DatePicker, DateTimePicker, ProjectChoice, FormField, TimeInput } from '@/components/form'
 import { Button } from '@/components/ui/button'
 import { FieldGroup } from '@/components/ui/field'
 import { DeleteButton, EditToggle, HeroFact, InlineText, LinkChip, Prose, ReadRow } from '@/components/detail-parts'
@@ -60,6 +60,17 @@ export function EventSheet({ id }: { id: string }) {
   )
 }
 
+/** 到期时间：改完离开输入框（或按回车）才保存，不在每次按键时保存（删掉一格会变成空，提醒也会跟着乱） */
+function DueTimeEdit({ value, disabled, onSave }: { value: string | null; disabled?: boolean; onSave: (v: string | null) => void }) {
+  const [v, setV] = useState(value)
+  const commit = () => { if (!disabled && v !== value) onSave(v) }
+  return (
+    <div onBlur={commit} onKeyDown={(e) => { if (e.key === 'Enter') commit() }}>
+      <TimeInput label="到期时间" value={v} onChange={setV} className={disabled ? 'opacity-60' : undefined} />
+    </div>
+  )
+}
+
 export function TodoSheet({ id }: { id: string }) {
   const ov = useOverlay()
   const [editing, setEditing] = useState(false)
@@ -77,7 +88,7 @@ export function TodoSheet({ id }: { id: string }) {
       {t && !editing && (
         <div className="grid gap-5">
           <div className="grid grid-cols-2 gap-3">
-            <HeroFact label="截止" value={t.due ? <span className={late ? 'text-danger' : ''}>{relDay(t.due)}</span> : '没定日期'} sub={t.due ? fullDate(t.due) : '点“编辑”定个日子'} />
+            <HeroFact label="截止" value={t.due ? <span className={late ? 'text-danger' : ''}>{dueText(t.due, t.due_time)}</span> : '没定日期'} sub={t.due ? `${fullDate(t.due)}${t.due_time ? ' · 到期前 1 小时提醒' : ''}` : '点“编辑”定个日子'} />
             <HeroFact label="状态" value={<span className="text-base">{t.status}</span>} sub={t.status === '完成' ? `完成于 ${shortDate(t.done_at)}` : `优先级：${t.priority}`} />
           </div>
           <dl>
@@ -95,7 +106,10 @@ export function TodoSheet({ id }: { id: string }) {
             <FormField label="状态"><Choice value={t.status} onChange={(v) => v && patch.mutate({ status: v })} options={TODO_STATUS} /></FormField>
             <FormField label="优先级"><Choice value={t.priority} onChange={(v) => v && patch.mutate({ priority: v })} options={TODO_PRIORITY} /></FormField>
           </div>
-          <FormField label="截止日期"><DatePicker value={t.due} onChange={(v) => patch.mutate({ due: v })} /></FormField>
+          <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-3">
+            <FormField label="截止日期"><DatePicker value={t.due} onChange={(v) => patch.mutate({ due: v })} /></FormField>
+            <FormField label="到期时间" hint={t.due ? '到期前 1 小时提醒' : '先选日期'}><DueTimeEdit key={t.due_time ?? ''} value={t.due_time ?? null} disabled={!t.due} onSave={(v) => patch.mutate({ due_time: v })} /></FormField>
+          </div>
           <div className="grid grid-cols-2 gap-3">
             <FormField label="关联客户"><ClientChoice value={t.client_id} onChange={(v) => patch.mutate({ client_id: v })} /></FormField>
             <FormField label="关联项目"><ProjectChoice value={t.project_id} onChange={(v) => patch.mutate({ project_id: v })} /></FormField>

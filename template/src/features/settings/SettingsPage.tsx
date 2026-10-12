@@ -1,4 +1,4 @@
-// 设置：导航样式、基本信息、数据放在哪里、快捷键
+// 设置：导航样式、基本信息、提醒、数据放在哪里、快捷键
 import type { Settings } from '@/lib/types'
 import { useApi } from '@/lib/api'
 import { fullDate } from '@/lib/format'
@@ -7,12 +7,13 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { NavStylePicker } from './NavStylePicker'
 import { MobileNavPicker, ThemePicker } from './LookPickers'
 import { BasicInfoForm, DataLocations, Shortcuts } from './sections'
+import { ReminderSettings } from './ReminderSettings'
 
 export default function SettingsPage() {
   const { data, error } = useApi<Settings>('/settings')
   return (
     <>
-      <PageHeader eyebrow="系统" title="设置" desc="风格、导航、怎么称呼你，以及数据都放在哪里。" />
+      <PageHeader eyebrow="系统" title="设置" desc="风格、导航、怎么称呼你、什么时候提醒你，以及数据都放在哪里。" />
       <PageBody className="grid max-w-5xl gap-5">
         {error && <p className="rounded-lg bg-danger-soft px-4 py-3 text-sm text-danger">设置没取到：{error.message}。确认本地服务开着，再刷新一下页面。</p>}
         {data?.demo && (
@@ -31,6 +32,9 @@ export default function SettingsPage() {
         </Panel>
         <Panel title="基本信息">
           {data ? <BasicInfoForm key={`${data.owner}|${data.business}|${data.xhs_name}`} settings={data} /> : <div className="grid gap-4 sm:grid-cols-2"><Skeleton className="h-16" /><Skeleton className="h-16" /></div>}
+        </Panel>
+        <Panel title="提醒" desc="待办到期前 1 小时、日程开始前 15 分钟、该跟进的客户、数据异常、每天看汇总。页面关着时由电脑系统通知提醒，电脑要开着、不合盖">
+          {data ? <ReminderSettings key={JSON.stringify(data.reminders ?? {})} settings={data} /> : <Skeleton className="h-48" />}
         </Panel>
         <div className="grid gap-5 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] lg:items-start">
           <Panel title="数据在哪里" desc="都是普通文件，放在你自己的电脑上">

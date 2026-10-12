@@ -26,7 +26,7 @@ export type CalEvent = {
   client_id: string | null; client_name: string | null; project_id: string | null; project_name: string | null; note: string | null; source: string
 }
 export type Todo = {
-  id: string; title: string; status: string; priority: string; due: string | null; client_id: string | null; client_name: string | null
+  id: string; title: string; status: string; priority: string; due: string | null; due_time?: string | null; client_id: string | null; client_name: string | null
   project_id: string | null; project_name: string | null; note: string | null; done_at: string | null; created_at: string; updated_at: string
 }
 export type Receivable = {
@@ -39,7 +39,17 @@ export type ClientDetail = { client: Client; interactions: Interaction[]; deals:
 export type NavMode = 'simple' | 'complex' | 'top'
 export type Theme = 'jade' | 'wood' | 'navy' | 'mono' | 'night'
 /** owner 称呼、business 工作台名称（也当店名）；shop、xhs 是服务端按设置算好的店名和小红书账号名（没设置时是“我的店”“我的账号”），xhs_name 是设置里存的原值 */
-export type Settings = { nav_mode: NavMode; theme: Theme; mobile_nav: 'tabs' | 'drawer'; owner: string; business: string; shop: string; xhs: string; xhs_name: string; today?: string; demo?: boolean }
+export type Settings = { nav_mode: NavMode; theme: Theme; mobile_nav: 'tabs' | 'drawer'; owner: string; business: string; shop: string; xhs: string; xhs_name: string; today?: string; demo?: boolean; reminders?: RemindSettings }
+
+/** 提醒的设置（server/reminders/settings.ts）；改的时候 PATCH /settings 用 remind_on、notify_at、quiet_start、quiet_end、remind_demo_system */
+export type RemindSettings = { on: boolean; notify_at: string; quiet_start: string; quiet_end: string; demo_system: boolean }
+/** 一条提醒（reminders 表） */
+export type Reminder = { id: number; key: string; kind: string; title: string; body: string; link: string | null; at: string; via: '浏览器通知' | '系统通知' | '只记'; note: string | null; read_at: string | null }
+export type ReminderStatus = {
+  settings: RemindSettings; demo: boolean; now: string; browsers: number; platform: 'mac' | 'windows' | 'other'
+  system_supported: boolean; morning: string; now_via: Reminder['via']; now_note: string | null
+}
+export type RemindersData = { items: Reminder[]; unread: number; status: ReminderStatus }
 
 export type FollowUps = {
   due: { id: string; name: string; label: string | null; stage: string; next_follow: string; overdue: number; last_contact: string | null; last_summary: string | null }[]
@@ -49,7 +59,7 @@ export type FollowUps = {
 
 export type Overview = {
   date: string
-  headline: { id: string; title: string; due: string | null } | null
+  headline: { id: string; title: string; due: string | null; due_time?: string | null } | null
   events: CalEvent[]; upcoming: CalEvent[]
   todos: { today: Todo[]; week: Todo[]; open: number }
   follow: { due: FollowUps['due']; dueCount: number; waitingOn: FollowUps['waitingOn'] }
@@ -62,6 +72,9 @@ export type Overview = {
   key_clients: FocusClient[]
   xhs: XhsToday | null
   module_errors: { module: string; error: string }[]
+  /** 提醒页没读的条数（菜单角标）、数据源有几个（数据异常面板的空状态用）。10-12 加 */
+  reminders_unread?: number
+  source_count?: number
 }
 
 /** 经营：某一天各渠道的成绩单（server/modules/biz/service.ts 的 summary()） */

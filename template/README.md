@@ -51,6 +51,9 @@ node server/cli.ts todo-add "给星禾出两版礼盒方案" --due 2026-11-18 --
 node server/cli.ts todo-add "定开业活动" --project 新店开业 --status 进行中
 node server/cli.ts inbox "收件箱里的新材料：2026-11-10-星禾科技-电话纪要.md"
 node server/cli.ts backup                                   # 改功能、换数据前先备份数据库
+node server/cli.ts todo-add "给星禾回电话" --due 2026-11-18 --time 15:30   # 填了到期时间，到期前 1 小时提醒；--in 5 = 今天、5 分钟后到期（试提醒用）
+node server/cli.ts remind-set --at 8:30 --quiet 22:00-08:00 # 每天几点提醒看汇总（确认页第 4 步的时间）、免打扰时段
+node server/cli.ts reminders                                # 最近的提醒、怎么弹的、读没读；remind-check 看这一刻会提醒什么
 ```
 
 **称呼、店名、小红书账号名**：网页文案、给 Codex 的提示词、小红书手机预览、写回知识库的话里，老板的称呼、店名和小红书账号名都从设置读（`settings` 表的 `owner`、`business`、`xhs_name`；代码在 `server/services/identity.ts`、`src/lib/identity.ts`）。搭建时用上面的 `settings-set` 按知识库写进去（称呼看 `02-关于我/`，店名看 `03-生意/`，账号名看 `11-内容与作品/` 的小红书账号定位）；网页“设置 → 基本信息”也能改。没写时用中性说法：“老板”“我的店”，小红书账号名没写就跟店名。改功能时不要在代码里写死某位老板的称呼或店名。
@@ -58,6 +61,33 @@ node server/cli.ts backup                                   # 改功能、换数
 **备份**：都放在数据库旁边的 `备份/`（默认 `<知识库>/工作台/数据/备份/`；程序和数据库放在知识库外面时，就在库外那份数据库旁边，不随知识库同步）。`node server/cli.ts backup` 把数据库存成 `备份/workbench-<日期>T<时分秒>.db`（工作台开着也能备份）；工作台往知识库文件里写之前，原文件先存到 `备份/知识库/<日期时间>-<文件名>`。要回到某个备份：先停掉工作台，把现在的 `workbench.db` 挪开（旁边的 `workbench.db-wal`、`workbench.db-shm` 一起挪），再把那份备份复制回去、改名成 `workbench.db`，然后启动。
 
 客户阶段只能是：新线索、需求确认、方案中、报价中、待签约、交付中、售后、待复购、合作中、维护中、暂停、流失。项目阶段：筹备、进行中、收尾、已完成、暂停。待办状态：待办、进行中、等别人、完成、取消。配色：jade（松石）、wood（原木）、navy（墨蓝）、mono（素白）、night（夜墨）。写错了命令会说“没办成：……只能是……”。
+
+## 提醒和开机自启
+
+**提醒**（`server/reminders/`）：后台服务每 30 秒按规则算一遍，不靠页面开着——待办到期前 1 小时（填了到期时间的）、日程开始前 15 分钟、“下次跟进”是今天的客户（早上）、经营异常新出现、数据源没按时更新，每天看汇总的时间一次。每条只弹一次（记在 `reminders` 表），网页“提醒”页能回看、标已读。
+
+- 页面开着、点过“开启提醒”：浏览器通知，点了打开对应页面。权限只在点按钮时申请（今日页顶上、设置页、提醒页）。
+- 页面关着：电脑系统通知。Mac 用系统自带的 `osascript`（显示为“脚本编辑器”发的，点了打不开工作台的页面；第一次要在“系统设置 → 通知 → 脚本编辑器”里允许）；Windows 用系统自带的 PowerShell 弹 Toast（点了打开对应页面），不行退回气泡提示；其他系统只记。
+- 设置 → 提醒：总开关、每天看汇总的时间、免打扰（默认 22:00—08:00 不弹，到早上还有效的免打扰结束再弹）、发一条测试提醒。演示模式（有演示日期）下按演示日期算，默认不弹电脑系统通知，设置里可以打开。
+- 命令：`reminders`、`remind-check`、`remind-set`、`remind-test`、`remind-read`、`remind-clear --yes`（`node server/cli.ts --help` 里有说明）。
+
+**开机自启**（`scripts/autostart.mjs`）：
+
+```bash
+node scripts/install.mjs --autostart on --name <英文短名>   # 打开：马上在后台启动，以后登录自动开
+node scripts/install.mjs --autostart status               # 开没开、在不在运行、网页能不能打开、日志在哪
+node scripts/install.mjs --autostart off                  # 关掉（后台服务一起停）
+```
+
+Mac 写 `~/Library/LaunchAgents/com.boss-workbench.<短名>.plist` 并用 `launchctl bootstrap / bootout gui/<用户号>`；Windows 在程序文件夹生成 `启动工作台.bat`、`启动工作台.vbs`，建任务计划“老板工作台”（登录时隐藏窗口运行），建不了退回“启动”文件夹快捷方式。日志在 `日志/服务.log`。打开后工作台文件夹里会多一个“关掉开机自启”，双击就能关。测试（`npm test`）用临时文件夹当 HOME、假的 launchctl，不碰真的登录项。
+
+## 怎么停、怎么删（给老板的人话，抄进 `工作台/README.md`，路径换成实际的）
+
+- **暂停提醒**：工作台 → 设置 → 提醒，关掉“到点提醒”。关了以后照样记在“提醒”页，只是不弹。只是晚上不想被吵：改“免打扰”时段。
+- **关掉开机自启**：双击工作台文件夹里的“关掉开机自启”；或者在程序文件夹里运行 `node scripts/install.mjs --autostart off`。后台服务会一起停，下次开机不会再自动开。想再打开：`node scripts/install.mjs --autostart on`。
+- **停后台服务**：开了开机自启的，用上面那条（Mac 上直接结束 node 进程会被系统拉起来）。没开自启、是双击“启动工作台”开的，关掉那个窗口就停了。看现在开没开：`node scripts/install.mjs --autostart status`。
+- **日志在哪**：开机自启的后台服务写在程序文件夹的 `日志/服务.log`（出错的在 `服务-错误.log`）；安装过程的日志是程序文件夹的 `install.log`。
+- **卸载两个 Skill（老板知识库、老板工作台）**：双击课程包里的“装环境”，输入 3“清空课程环境”，再输入“清空”两个字确认。它会把两个 Skill、全局规则里记知识库的那一段、工作台的开机自启都挪进备份（`~/.boss-kb/备份/`，不删除，里面的 `说明.txt` 写着怎么恢复）。知识库和工作台的数据一个字不动；不想要了自己删“工作台”文件夹。
 
 ## 示例数据（--demo）
 
@@ -77,6 +107,7 @@ node server/seed/index.ts --only biz # 只重灌一个模块（biz、content、d
 | 模块 | 网址 | 网页 | 服务端 | 数据库升级文件 |
 |---|---|---|---|---|
 | 公共：今日、日程、待办、项目、收件箱、知识库、设置、组件规范 | `/` `/calendar` `/todos` `/projects` `/inbox` `/kb` `/settings` `/design` | `src/features/today` 等 | `server/services/`、`server/routes.ts` | `001_init.sql` |
+| 公共：提醒（规则、浏览器通知、电脑系统通知） | `/reminders`；设置页“提醒” | `src/features/reminders`、`src/lib/reminders.ts` | `server/reminders/` | `016_reminders.sql` |
 | 客户与跟进（大客户：客户列表、跟进看板、关怀与回访、新材料提取、跟进清单、应收款） | `/clients…` | `src/features/clients`、`src/features/crm` | `server/modules/crm` | `002_crm.sql`、`015_crm_*.sql` |
 | 经营（汇总 + 每个渠道一页、经营早报、异常） | `/biz`、`/channel/<渠道>` | `src/features/biz` | `server/modules/biz` | `003_biz.sql`、`012_biz_reports.sql` |
 | 小红书内容中心（今天、内容、创作、数据、复盘） | `/content…` | `src/features/content` | `server/modules/content` | `004_content.sql`、`013_content_center*.sql` |
@@ -85,7 +116,7 @@ node server/seed/index.ts --only biz # 只重灌一个模块（biz、content、d
 - 菜单只有一个来源：`src/app/nav.ts`；页面登记在 `src/app/router.tsx`。没选的模块从 `nav.ts` 拿掉就行，代码留着，以后加回来。
 - 数据库升级文件（`server/migrations/`）只加不改，程序打开数据库时自动执行没跑过的。
 - 改界面先读 `规范/README.md` 和另外 6 篇，对照网页里的“组件规范”页（`/design`）；加减模块按 Skill 里的 `references/加减模块.md`。
-- 检查：`npm run build`（网页）、`npm run lint`、`npm run check:server`（服务端严格类型检查）、`npm run doctor`。
+- 检查：`npm run build`（网页）、`npm run lint`、`npm run check:server`（服务端严格类型检查）、`npm test`（提醒规则、开机自启、自动跟进待办）、`npm run doctor`。
 
 ## 和示例数据（--demo）的关系
 

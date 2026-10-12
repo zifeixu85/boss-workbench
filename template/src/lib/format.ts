@@ -41,6 +41,10 @@ export function relDay(date?: string | null) {
   if (n < -1 && n >= -30) return `已过${NBSP}${-n}${NBSP}天`
   return shortDate(date)
 }
+/** 待办的截止：“今天 15:30”“明天”；填了到期时间的带上时间 */
+export function dueText(due?: string | null, time?: string | null) {
+  return due && time ? `${relDay(due)}${NBSP}${time}` : relDay(due)
+}
 export function shortDate(date?: string | null) {
   if (!date) return '—'
   const [y, m, d] = dayOf(date).split('-')

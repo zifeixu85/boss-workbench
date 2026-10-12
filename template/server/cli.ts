@@ -18,8 +18,10 @@ import * as content from './modules/content/service.ts'
 import * as dataSources from './modules/data/service.ts'
 import { addTopics } from './modules/content/topics.ts'
 import { writeSnapshots } from './snapshot.ts'
-import { backupDatabase } from './db.ts'
+import { backupDatabase, open } from './db.ts'
 import { today, addDays, dayOf } from './services/common.ts'
+import { now as clockNow } from './clock.ts'
+import { REMIND_HELP, isRemindCommand, runRemindCli } from './reminders/cli.ts'
 
 const ACTOR = 'Codex' as const
 const HELP = `用法：node 工作台/程序/server/cli.ts <命令> [参数] [--json]
@@ -42,8 +44,9 @@ const HELP = `用法：node 工作台/程序/server/cli.ts <命令> [参数] [--
   project-add <名称> [--stage 筹备|进行中|收尾|已完成|暂停] [--due 截止] [--owner 负责人] [--goal 想达到什么] [--step 下一步]
               [--client 客户] [--kb 06-项目/某项目.md] [--milestone "2026-11-05 四平台上线" …（可写多个）]
   client-set <客户> [--next 日期] [--note 备注]    （改阶段用下面的 stage，要写原因）
-  todo-add <标题> [--due 日期] [--client 客户] [--project 项目] [--priority 紧急|重要|普通] [--status 进行中] [--note 来源或备注]
-  todo-set <待办ID> [--status 待办|进行中|等别人|完成|取消] [--due 日期]
+  todo-add <标题> [--due 日期] [--time 15:30] [--client 客户] [--project 项目] [--priority 紧急|重要|普通] [--status 进行中] [--note 来源或备注]
+                                     --time 到期时间：到期前 1 小时提醒；--in 5 = 今天、5 分钟后到期（试提醒用）
+  todo-set <待办ID> [--status 待办|进行中|等别人|完成|取消] [--due 日期] [--time 15:30|none]
   event-add <标题> --start 2026-10-08T15:00 [--end ...] [--kind 会面] [--client 客户] [--location 地点]
   collect <应收ID> <金额(万)> [--date 日期]
   inbox <内容>
@@ -51,6 +54,7 @@ const HELP = `用法：node 工作台/程序/server/cli.ts <命令> [参数] [--
                                      改设置（搭建时按知识库写老板的称呼、店名、小红书账号名、配色、导航）
   snapshot                           导出只读快照到 工作台/快照/
   backup                             改功能、换数据前先备份数据库：存到数据库旁边的 备份/workbench-日期时间.db
+${REMIND_HELP}
 大客户（客户详情加深，E5）
   materials                          知识库收件箱里的新材料：是谁的、提取过没有
   extract <收件箱文件> [--client 客户]  让 Codex 提取一份新材料（最多等 150 秒），结果“待确认”，到网页 /clients/extract 确认后才写入
@@ -88,6 +92,11 @@ if (process.argv[2] === 'import' || process.argv[2]?.startsWith('import-')) {
   if (isCrmCommand(process.argv.slice(2))) process.exit(runCrmCli(process.argv.slice(2)))
 }
 
+// 提醒的命令（reminders、remind- 开头）交给 reminders/cli.ts（公共，2026-10-12 加）
+if (isRemindCommand(process.argv.slice(2))) {
+  try { process.exit(await runRemindCli(process.argv.slice(2))) } catch (err) { console.error(`没办成：${(err as Error).message}`); process.exit(1) }
+}
+
 // 经营模块自己的命令（biz- 开头）交给模块文件夹处理，参数也由它解析（经营模块 10-10 追加）
 if (process.argv[2]?.startsWith('biz-')) {
   const { runBizCli } = await import('./modules/biz/cli.ts')
@@ -108,6 +117,7 @@ function parseCli() {
         file: { type: 'string' }, by: { type: 'string' },
         kb: { type: 'string' }, owner: { type: 'string' }, goal: { type: 'string' }, milestone: { type: 'string', multiple: true },
         project: { type: 'string' }, business: { type: 'string' }, theme: { type: 'string' }, nav: { type: 'string' }, xhs: { type: 'string' },
+        time: { type: 'string' }, in: { type: 'string' },
       },
     })
   } catch (err) {
@@ -130,6 +140,17 @@ function print(data: unknown, text: string) {
 }
 
 type R = Record<string, unknown>
+
+/** --in 5：今天（演示模式下是演示日）、现在起 5 分钟后到期。跨过午夜的写明天 */
+function inMinutes(v?: string) {
+  if (v === undefined) return null
+  const n = Number(v)
+  if (!Number.isInteger(n) || n < 1 || n > 24 * 60) throw new Error('--in 写分钟数，1 到 1440 之间，例：--in 5')
+  open() // 演示日期存在数据库里，先打开再取“现在”
+  const d = new Date(clockNow().getTime() + n * 60000)
+  const p = (x: number) => String(x).padStart(2, '0')
+  return { due: `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`, time: `${p(d.getHours())}:${p(d.getMinutes())}` }
+}
 const line = (xs: R[], f: (x: R) => string) => (xs.length ? xs.map((x) => `- ${f(x)}`).join('\n') : '- （无）')
 
 function main() {
@@ -193,7 +214,7 @@ function main() {
     }
     case 'todos': {
       const xs = schedule.listTodos({ open: true }) as R[]
-      return print(xs, line(xs, (t) => `[${t.id}] ${t.title}（${t.status}·${t.priority}${t.due ? `·截止 ${t.due}` : ''}${t.client_name ? `·${t.client_name}` : ''}）`))
+      return print(xs, line(xs, (t) => `[${t.id}] ${t.title}（${t.status}·${t.priority}${t.due ? `·截止 ${t.due}${t.due_time ? ` ${t.due_time}` : ''}` : ''}${t.client_name ? `·${t.client_name}` : ''}）`))
     }
     case 'events': {
       const from = o.from ?? today()
@@ -235,12 +256,13 @@ function main() {
       return print(c, `已更新：${c.name}，阶段 ${c.stage}，下次跟进 ${c.next_follow ?? '未定'}`)
     }
     case 'todo-add': {
-      const t = schedule.createTodo({ title: a1, due: o.due, client_id: clientId(o.client), project_id: o.project ? projects.getProject(o.project).project.id : undefined, priority: o.priority, status: o.status, note: o.note }, ACTOR) as R
-      return print(t, `已新增待办 [${t.id}] ${t.title}${t.due ? `，截止 ${t.due}` : ''}`)
+      const soon = inMinutes(o.in)
+      const t = schedule.createTodo({ title: a1, due: soon?.due ?? o.due, due_time: soon?.time ?? o.time, client_id: clientId(o.client), project_id: o.project ? projects.getProject(o.project).project.id : undefined, priority: o.priority, status: o.status, note: o.note }, ACTOR) as R
+      return print(t, `已新增待办 [${t.id}] ${t.title}${t.due ? `，截止 ${t.due}${t.due_time ? ` ${t.due_time}（到期前 1 小时提醒）` : ''}` : ''}`)
     }
     case 'todo-set': {
-      const t = schedule.updateTodo(a1, { status: o.status, due: o.due }, ACTOR) as R
-      return print(t, `已更新待办 [${t.id}] ${t.title}：${t.status}`)
+      const t = schedule.updateTodo(a1, { status: o.status, due: o.due, due_time: o.time === 'none' ? null : o.time }, ACTOR) as R
+      return print(t, `已更新待办 [${t.id}] ${t.title}：${t.status}${t.due ? `，截止 ${t.due}${t.due_time ? ` ${t.due_time}` : ''}` : ''}`)
     }
     case 'event-add': {
       const e = schedule.createEvent({ title: a1, start: o.start, end: o.end, kind: o.kind, location: o.location, client_id: clientId(o.client), all_day: !String(o.start ?? '').includes('T') }, ACTOR) as R

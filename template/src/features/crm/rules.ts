@@ -20,6 +20,8 @@ export const levelRule = (owner: string) => `工作台按金额算的，${owner}
 
 /** “35 天”“今天” */
 export const silentText = (n: number | null) => (n === null ? '—' : n <= 0 ? '今天' : `${n}\u00a0天`)
+/** “多久没联系”那一行：当天联系过写“今天联系过”（10-12 修：原来写成“今天没联系”） */
+export const silentLine = (n: number | null) => (n === null ? '' : n <= 0 ? '今天联系过' : `${silentText(n)}没联系`)
 
 /** ISO 时间转本地日期（不能直接 slice：凌晨 0—8 点会差一天） */
 export function toLocal(iso: string) {

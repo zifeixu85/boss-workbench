@@ -9,6 +9,7 @@ import { join, relative } from 'node:path'
 import { open, dataVersion, APP_DIR, ROOT, DB_PATH } from './db.ts'
 import { routes } from './routes.ts'
 import { demoDate } from './clock.ts'
+import { startReminders, type PushPayload } from './reminders/service.ts'
 
 const PORT = Number(process.env.PORT || 4517) // 默认 4517；被占用时启动加 PORT=4527 这样换一个
 const HOST = '127.0.0.1'
@@ -42,17 +43,26 @@ app.onError((err, c: Context) => {
   return c.json({ ok: false, error: status >= 500 ? `服务出错：${err.message}` : err.message }, status as 400)
 })
 
-// 实时推送
-type Sink = (data: string) => Promise<void>
+// 实时推送。页面连上时带 ?notify=on 表示“这个浏览器点过开启提醒、也允许了通知”：有这样的页面开着，提醒走浏览器通知；
+// 一个都没有（页面关了、切到后台超过半分钟会断开、没允许通知），提醒走电脑系统通知（见 reminders/service.ts）
+type Sink = (data: string, event?: string) => Promise<void>
 const sinks = new Set<Sink>()
-function broadcast(payload: Record<string, unknown>) {
+const notifySinks = new Set<Sink>()
+const drop = (s: Sink) => { sinks.delete(s); notifySinks.delete(s) }
+function broadcast(payload: Record<string, unknown>, event = 'change') {
   const data = JSON.stringify({ ...payload, at: Date.now() })
-  for (const s of sinks) s(data).catch(() => sinks.delete(s))
+  for (const s of sinks) s(data, event).catch(() => drop(s))
 }
 app.get('/api/live', (c) => streamSSE(c, async (stream) => {
-  const sink: Sink = (data) => stream.writeSSE({ data, event: 'change' })
+  const sink: Sink = (data, event = 'change') => stream.writeSSE({ data, event })
   sinks.add(sink)
-  stream.onAbort(() => { sinks.delete(sink) })
+  // 只认工作台自己的页面：别的网站也能连这个地址，不能让它“占个名额”把系统通知都改成浏览器通知
+  const origin = c.req.header('origin')
+  const site = c.req.header('sec-fetch-site')
+  const own = (!origin || isLocal(origin.replace(/^https?:\/\//, ''))) && (!site || site === 'same-origin')
+  // notify=on：页面里点过“开启提醒”（老版本页面发的 notify=1 不算：那时只看有没有权限，打开页面就会弹）
+  if (c.req.query('notify') === 'on' && own) notifySinks.add(sink)
+  stream.onAbort(() => { drop(sink) })
   await stream.writeSSE({ data: JSON.stringify({ reason: 'hello' }), event: 'change' })
   while (!stream.aborted) await stream.sleep(25000).then(() => stream.writeSSE({ data: '{}', event: 'ping' }))
 }))
@@ -97,10 +107,22 @@ if (existsSync(DIST)) {
   app.get('/', (c) => c.text('网页还没构建：请先运行 npm run build，或开发时用 npm run dev'))
 }
 
-serve({ fetch: app.fetch, port: PORT, hostname: HOST }, () => {
+const server = serve({ fetch: app.fetch, port: PORT, hostname: HOST }, () => {
   console.log(`工作台已启动：http://${HOST}:${PORT}`)
   console.log(`知识库：${ROOT}`)
   console.log(`数据库：${DB_PATH}`)
   const d = demoDate()
   if (d) console.log(`演示日期：${d}（DEMO_TODAY=off 可以换回真实日期）`)
+  // 提醒：每 30 秒算一遍（不靠页面开着），见 reminders/
+  startReminders({
+    browsers: () => notifySinks.size,
+    push: (p: PushPayload) => broadcast({ ...p }, 'reminder'),
+    base: `http://${HOST}:${PORT}`,
+  })
+})
+// 端口被占了（多半是工作台已经开着一个）：说清楚，正常退出。开机自启（Mac 登录项服务）按“出错才重启”配置，这样不会反复重启
+server.on('error', (err: NodeJS.ErrnoException) => {
+  if (err.code !== 'EADDRINUSE') throw err
+  console.error(`端口 ${PORT} 已经被占用：多半是工作台已经在运行，直接打开 http://${HOST}:${PORT} 就行；不是的话换一个端口启动（PORT=${PORT + 10}）。`)
+  process.exit(0)
 })

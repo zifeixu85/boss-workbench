@@ -1,7 +1,9 @@
 // 和本地服务通信。所有数据都走这里；文件或数据库变了，服务推送事件，页面自动重新取数。
 import { QueryClient, useMutation, useQuery, useQueryClient, type QueryKey } from '@tanstack/react-query'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { useNavigate } from 'react-router'
 import { toast } from 'sonner'
+import { NOTIFY_EVENT, notifyEnabled, showPopups, type PushedPopup } from './reminders'
 
 export class ApiError extends Error {
   issues?: { path: string; message: string }[]
@@ -58,15 +60,23 @@ export type LiveState = 'connecting' | 'live' | 'offline'
  *  否则开多个标签页时请求会排队卡住。 */
 export function useLiveRefresh() {
   const qc = useQueryClient()
+  const navigate = useNavigate()
+  const nav = useRef(navigate) // 放进 ref：换页时不用重连推送
+  useEffect(() => { nav.current = navigate }, [navigate])
   const [state, setState] = useState<LiveState>('connecting')
   useEffect(() => {
     let es: EventSource | null = null
     let idle: ReturnType<typeof setTimeout> | null = null
     const connect = () => {
       if (es) return
-      es = new EventSource('/api/live')
+      // 在这个浏览器点过“开启提醒”、也允许了通知：告诉服务端，到点的提醒推到这里用浏览器通知弹（server/index.ts）
+      es = new EventSource(notifyEnabled() ? '/api/live?notify=on' : '/api/live')
       es.onopen = () => setState('live')
-      es.onerror = () => setState('offline')
+      es.onerror = () => {
+        setState('offline')
+        // 浏览器一般会自己重连；连接被关死了（服务重启时有的浏览器会这样）就过 5 秒自己重连
+        if (es?.readyState === EventSource.CLOSED) { es = null; setTimeout(() => { if (!es && document.visibilityState === 'visible') connect() }, 5000) }
+      }
       es.addEventListener('change', (e) => {
         const msg = JSON.parse((e as MessageEvent).data || '{}')
         if (msg.reason === 'hello') return
@@ -74,7 +84,17 @@ export function useLiveRefresh() {
         if (msg.reason === 'external') toast('Codex 刚更新了数据', { description: '页面已同步' })
         if (msg.reason === 'kb') toast('知识库文件有改动', { description: String(msg.file ?? '').split('/').pop() })
       })
+      // 提醒：新记下的刷新“提醒”页和角标；要弹的用浏览器通知弹，点了打开对应页面、标已读
+      es.addEventListener('reminder', (e) => {
+        const msg = JSON.parse((e as MessageEvent).data || '{}') as { popups?: PushedPopup[] }
+        qc.invalidateQueries()
+        if (msg.popups?.length) showPopups(msg.popups, (link, ids) => {
+          nav.current(link)
+          request('POST', '/reminders/read', { ids }).then(() => qc.invalidateQueries()).catch(() => {})
+        })
+      })
     }
+    const reconnect = () => { es?.close(); es = null; connect() }
     const disconnect = () => { es?.close(); es = null }
     const onVisible = () => {
       if (idle) { clearTimeout(idle); idle = null }
@@ -86,12 +106,14 @@ export function useLiveRefresh() {
     document.addEventListener('visibilitychange', onVisible)
     window.addEventListener('pagehide', disconnect)
     window.addEventListener('pageshow', onShow)
+    window.addEventListener(NOTIFY_EVENT, reconnect) // 刚开启 / 关掉提醒：重连，让服务端知道
     return () => {
       if (idle) clearTimeout(idle)
       disconnect()
       document.removeEventListener('visibilitychange', onVisible)
       window.removeEventListener('pagehide', disconnect)
       window.removeEventListener('pageshow', onShow)
+      window.removeEventListener(NOTIFY_EVENT, reconnect)
     }
   }, [qc])
   return state

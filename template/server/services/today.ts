@@ -14,6 +14,8 @@ import * as biz from '../modules/biz/service.ts'
 import * as crm from '../modules/crm/service.ts'
 import * as content from '../modules/content/service.ts'
 import * as dataSources from '../modules/data/service.ts'
+import { readRemindSettings } from '../reminders/settings.ts'
+import { unreadCount } from '../reminders/store.ts'
 
 const moduleErrors: { module: string; error: string }[] = []
 function safe<T>(module: string, fn: () => T, fallback: T): T {
@@ -24,7 +26,7 @@ function safe<T>(module: string, fn: () => T, fallback: T): T {
   }
 }
 
-type Todo = { id: string; title: string; status: string; priority: string; due: string | null; client_id: string | null; client_name: string | null }
+type Todo = { id: string; title: string; status: string; priority: string; due: string | null; due_time: string | null; client_id: string | null; client_name: string | null }
 
 export function followUps() {
   const t = today()
@@ -63,13 +65,16 @@ export function overview() {
   return {
     date: t,
     sales, alerts, key_clients: keyClients, xhs, module_errors: [...moduleErrors],
-    headline: top ? { id: top.id, title: top.title, due: top.due } : null,
+    headline: top ? { id: top.id, title: top.title, due: top.due, due_time: top.due_time } : null,
     events, upcoming,
     todos: { today: todayTodos, week: weekTodos, open: todos.length },
     follow: { due: fu.due.slice(0, 6), dueCount: fu.due.length, waitingOn: fu.waitingOn.slice(0, 5) },
     risks: risks.slice(0, 5).map((p) => ({ id: p.id, name: p.name, client_name: p.client_name, risks: p.risks })),
     cash: { outstanding: cash.outstanding, overdue: cash.overdue, due_30: cash.due_30, month: cash.month, overdueList: overdueRecs.slice(0, 4), dueSoon: dueRecs.slice(0, 4) },
     changes: recentChanges(8),
+    // 提醒页没读的条数（菜单角标）；数据源有几个（数据异常面板的空状态要分“都正常”和“还没接”）。10-12 加
+    reminders_unread: safe('提醒', () => unreadCount(), 0),
+    source_count: safe('数据源', () => dataSources.sources().length, 0),
   }
 }
 
@@ -106,6 +111,7 @@ export function getSettings() {
     // 店名、小红书账号名（没设置时是中性说法，见 services/identity.ts）；xhs_name 是设置里存的原值，空着就是没设
     shop: id.shop, xhs: id.xhs, xhs_name: s.xhs_name ?? '',
     today: today(), demo: demoDate() !== null,
+    reminders: readRemindSettings(),
   }
 }
 export function saveSettings(input: unknown, actor: Actor) {
@@ -116,8 +122,12 @@ export function saveSettings(input: unknown, actor: Actor) {
     if (key === 'xhs_name' && value === '') { run("DELETE FROM settings WHERE key = 'xhs_name'"); continue }
     run('INSERT INTO settings (key, value) VALUES (:key, :value) ON CONFLICT(key) DO UPDATE SET value = :value', { key, value })
   }
-  const NAMES: Record<string, string> = { nav_mode: '电脑导航', theme: '风格', mobile_nav: '手机导航', owner: '称呼', business: '工作台名称（店名）', xhs_name: '小红书账号名' }
-  logChange(actor, 'settings', 'app', '修改', `设置：改了${Object.keys(data).map((k) => NAMES[k] ?? k).join('、')}`)
+  const NAMES: Record<string, string> = {
+    nav_mode: '电脑导航', theme: '风格', mobile_nav: '手机导航', owner: '称呼', business: '工作台名称（店名）', xhs_name: '小红书账号名',
+    remind_on: '提醒开关', notify_at: '每天看汇总的时间', quiet_start: '免打扰时段', quiet_end: '免打扰时段', remind_demo_system: '演示时弹不弹系统通知',
+  }
+  const changed = [...new Set(Object.entries(data).filter(([, v]) => v !== undefined).map(([k]) => NAMES[k] ?? k))]
+  logChange(actor, 'settings', 'app', '修改', `设置：改了${changed.join('、')}`)
   return getSettings()
 }
 

@@ -6,7 +6,7 @@ import { TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/compon
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { StickyTable } from '@/components/data-view'
 import { FlagChips, KeyMark, LevelHead, LevelMark, wanCell, yuanToWan } from '@/features/crm/parts'
-import { silentText } from '@/features/crm/rules'
+import { silentLine } from '@/features/crm/rules'
 import type { ClientRow } from '@/features/crm/types'
 import { cn } from '@/lib/utils'
 
@@ -49,7 +49,7 @@ export function ClientTable({ rows, showKeyMark }: { rows: ClientRow[]; showKeyM
               <TableCell className="whitespace-nowrap"><div>{c.contact_name ?? '—'}</div><div className="text-xs text-muted-foreground">{c.contact_title}</div></TableCell>
               <TableCell><StatusBadge value={c.stage} /></TableCell>
               <TableCell className="num text-right whitespace-nowrap">{c.total_spent ? wanCell(yuanToWan(c.total_spent)) : <span className="text-muted-foreground">—</span>}{c.order_count > 0 && <div className="text-xs text-muted-foreground">{c.order_count} 单</div>}</TableCell>
-              <TableCell className="num whitespace-nowrap"><div>{c.last_contact ? shortDate(c.last_contact) : '—'}</div><div className={cn('text-xs text-muted-foreground', c.flags.includes('久未联系') && 'font-medium text-warn')}>{c.days_silent !== null ? `${silentText(c.days_silent)}没联系` : ''}</div></TableCell>
+              <TableCell className="num whitespace-nowrap"><div>{c.last_contact ? (c.days_silent !== null && c.days_silent <= 0 ? '今天' : shortDate(c.last_contact)) : '—'}</div><div className={cn('text-xs text-muted-foreground', c.flags.includes('久未联系') && 'font-medium text-warn')}>{silentLine(c.days_silent)}</div></TableCell>
               <TableCell className="max-w-[260px]">
                 <div className={cn('num whitespace-nowrap', late && 'font-medium text-danger')}>{c.next_follow ? dateWithRel(c.next_follow) : <span className="text-muted-foreground">未定</span>}</div>
                 {c.next_step && <div className="truncate text-xs text-muted-foreground">{c.next_step}</div>}

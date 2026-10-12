@@ -11,12 +11,21 @@ import { GoLink } from './parts'
 
 const KIND: Record<string, string> = { 退款: '经营 · 退款', 推广: '经营 · 推广', 库存: '经营 · 库存', 导入失败: '数据源', 更新超时: '数据源' }
 
-export function AlertsPanel({ alerts }: { alerts: Alert[] }) {
+/** 没有异常时说什么：都正常，还是根本还没有数（10-12 修：经营数据、数据源都清空时原来也写“数据都正常”） */
+function emptyText(hasBiz: boolean, sources: number) {
+  if (!hasBiz && !sources) return { desc: '还没有经营数据', note: '还没有经营数据，也还没接数据源。接上以后，退款、推广、库存不对劲，或者数据没按时到，会在这里提醒。' }
+  if (!hasBiz) return { desc: '还没有经营数据', note: '数据源接好了，但还没有各渠道的经营数据。导入以后，这里会按规则检查退款、推广和库存。' }
+  if (!sources) return { desc: '数据都正常', note: '各渠道的退款、推广和库存都在正常范围。还没接数据源，数据是手动导入的。' }
+  return { desc: '数据都正常', note: '各渠道的退款、推广和库存都在正常范围，数据源也都按时更新了。' }
+}
+
+export function AlertsPanel({ alerts, hasBiz = true, sources = 1 }: { alerts: Alert[]; hasBiz?: boolean; sources?: number }) {
   const ov = useOverlay()
   const biz = alerts.filter((a) => a.module === 'biz').length
+  const empty = emptyText(hasBiz, sources)
   return (
-    <Panel title="数据异常提醒" desc={alerts.length ? `${biz} 处经营数据不对劲，${alerts.length - biz} 个数据源没跟上；每条都附了从数据里找到的线索` : '数据都正常'}
-      action={<GoLink to="/sources">数据源</GoLink>} bodyClass="p-0">
+    <Panel title="数据异常提醒" desc={alerts.length ? `${biz} 处经营数据不对劲，${alerts.length - biz} 个数据源没跟上；每条都附了从数据里找到的线索` : empty.desc}
+      action={<GoLink to={hasBiz || sources ? '/sources' : '/imports'}>{hasBiz || sources ? '数据源' : '导入数据'}</GoLink>} bodyClass="p-0">
       {alerts.length ? (
         <ul className="divide-y">
           {alerts.map((a) => (
@@ -37,7 +46,7 @@ export function AlertsPanel({ alerts }: { alerts: Alert[] }) {
             </li>
           ))}
         </ul>
-      ) : <div className="p-5"><EmptyNote>各渠道的退款、推广和库存都在正常范围，数据源也都按时更新了。</EmptyNote></div>}
+      ) : <div className="p-5"><EmptyNote>{empty.note}</EmptyNote></div>}
     </Panel>
   )
 }
