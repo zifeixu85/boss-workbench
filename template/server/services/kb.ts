@@ -1,9 +1,10 @@
 // 知识库：只读浏览知识库根目录下的 Markdown（关于我 / 生意 / 资料 / 原始材料 / 工作台快照，以及根目录的“知识库说明”）。
-// ABC茶社示例的改动：顶层文件夹不再写死，有什么读什么（知识库会按新范式重建，文件夹名可能变）；
+// 顶层文件夹不写死，有什么读什么（不同老板的知识库文件夹名可能不一样）；
 // 根目录的 知识库说明.md、AGENTS.md 也能看；客户背景笔记找不到时，按客户名字在知识库里找（findClientNote）。
-import { readdirSync, readFileSync, statSync, writeFileSync, mkdirSync, existsSync } from 'node:fs'
-import { join, relative, resolve, sep, dirname, basename } from 'node:path'
-import { ROOT } from '../db.ts'
+// 工作台改知识库文件之前，原文件先备份到数据库旁边的 备份/知识库/（backupKbFile）。
+import { readdirSync, readFileSync, statSync, writeFileSync, mkdirSync, existsSync, copyFileSync } from 'node:fs'
+import { join, relative, resolve, sep, dirname, basename, isAbsolute } from 'node:path'
+import { ROOT, BACKUP_DIR } from '../db.ts'
 import { BadRequest, NotFound } from './common.ts'
 
 /** 新建文件时允许的顶层文件夹（已经存在的顶层文件夹都可以读） */
@@ -76,6 +77,19 @@ export function readKb(rel: string) {
   const abs = kbPath(rel)
   if (!existsSync(abs)) throw new NotFound(`知识库里没有这个文件：${rel}`)
   return { path: rel, body: readFileSync(abs, 'utf8'), updated: updatedOf(abs) }
+}
+
+/** 改知识库文件之前先备份原文件：备份/知识库/<时间>-<文件名>（备份/ 在数据库旁边，见 db.ts 的 BACKUP_DIR）。
+ *  返回备份位置：在知识库里面就写相对知识库根目录的路径，在库外写完整路径。原文件不存在时返回 null */
+export function backupKbFile(rel: string, stamp: string): string | null {
+  const abs = kbPath(rel)
+  if (!existsSync(abs)) return null
+  const dir = join(BACKUP_DIR, '知识库')
+  mkdirSync(dir, { recursive: true })
+  const to = join(dir, `${stamp}-${basename(rel)}`)
+  copyFileSync(abs, to)
+  const r = relative(ROOT, to)
+  return r.startsWith('..') || isAbsolute(r) ? to : r.split(sep).join('/')
 }
 
 export function writeKb(rel: string, body: string) {

@@ -7,7 +7,7 @@ CREATE TABLE biz_reports (
   id TEXT PRIMARY KEY,
   date TEXT NOT NULL,             -- 写的是哪一天的数（一般是昨天）
   written_at TEXT NOT NULL,       -- 几点写好的
-  author TEXT NOT NULL,           -- 谁写的：Codex 定时任务 / Codex / 林总
+  author TEXT NOT NULL,           -- 谁写的：Codex 定时任务 / Codex / 老板的称呼
   method TEXT NOT NULL,           -- 怎么来的：定时任务 / 命令行 / 手写
   title TEXT NOT NULL,
   body TEXT NOT NULL,             -- Markdown，按“## 昨天怎么样 / ## 哪里不对劲 / ## 可能的原因 / ## 建议”四段写

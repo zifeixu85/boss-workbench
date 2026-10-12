@@ -1,4 +1,4 @@
-// 今日：林总早上最想看的三件事（各平台昨天卖得怎么样、今天该跟进的大客户、小红书今天发什么），
+// 今日：老板早上最想看的三件事（各平台昨天卖得怎么样、今天该跟进的大客户、小红书今天发什么），
 // 然后是数据异常、日程、待办、该联系的人、钱、卡在哪。数据都从 /api/overview 一次取回。
 import { CalendarPlus, MessageSquarePlus, Sparkles } from 'lucide-react'
 import { api, useApi, useWrite } from '@/lib/api'
@@ -24,7 +24,7 @@ function digest(o: Overview) {
   const parts: string[] = []
   if (o.sales) {
     const d = o.sales.total.vs_prev
-    parts.push(`昨天 5 个渠道卖了 ${yuan(o.sales.total.gmv)}${d === null ? '' : `，比前天${d >= 0 ? '多' : '少'} ${Math.abs(d)}%`}`)
+    parts.push(`昨天 ${o.sales.channels.length} 个渠道卖了 ${yuan(o.sales.total.gmv)}${d === null ? '' : `，比前天${d >= 0 ? '多' : '少'} ${Math.abs(d)}%`}`)
   }
   const biz = o.alerts.filter((a) => a.module === 'biz').length
   const data = o.alerts.length - biz
@@ -32,7 +32,7 @@ function digest(o: Overview) {
   if (o.key_clients.length) parts.push(`${o.key_clients.slice(0, 3).map((c) => c.name).join('、')}等着跟进`)
   const post = o.xhs?.posts[0]
   if (post) parts.push(`小红书 ${post.time ?? '今天'} 发《${post.title}》`)
-  return parts.join('；') + '。'
+  return parts.length ? parts.join('；') + '。' : '今天还没有要特别留意的事。'
 }
 
 export default function TodayPage() {

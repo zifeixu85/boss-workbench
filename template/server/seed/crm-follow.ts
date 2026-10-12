@@ -1,4 +1,4 @@
-// 大客户模块（E5，客户详情加深）的种子：八项客户信息、改阶段留痕、关怀草稿的来源、几处和知识库对齐的数据。归属：大客户模块。
+// 大客户模块（E5，客户详情加深）的种子：概况页签的客户信息、改阶段留痕、关怀草稿的来源、几处和知识库对齐的数据。归属：大客户模块。
 // 在 crm 和 base 之后跑。可以单独重灌：node server/seed/index.ts --only crm-follow
 //   只清空本模块新加的 4 张表（client_facts、crm_edits、crm_extractions、crm_follow_todos）；
 //   对 crm 已有表只做“补字段 / 按固定 ID 插入，已存在就跳过”，重复跑结果一样。
@@ -227,7 +227,7 @@ export const FOLLOW_LINK_SQL = `INSERT OR IGNORE INTO crm_follow_todos (client_i
 
 /** exec 默认是 db.ts 的 run；单独给真库补数据时，可以传一个直接连库的执行函数（不触发别的模块的迁移） */
 export function seedWith(run: Exec) {
-  // 八项客户信息里的文字部分
+  // 概况页签客户信息里的文字部分
   for (const [cid, rows] of Object.entries(FACTS) as [K, [Kind, string][]][]) {
     rows.forEach(([kind, text], i) => run(`INSERT INTO client_facts (id, client_id, kind, text, date, source, author, created_at)
       VALUES (:id, :cid, :kind, :text, '2026-10-25', :src, :author, :at)`, {

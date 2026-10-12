@@ -1,23 +1,23 @@
 -- 015 大客户（crm）模块：跟进加深。归属：大客户模块（E5，2026-10-10）。
 -- 只加不改：已经跑过的迁移不会再跑；以后要改表，新建 015_crm_02_xxx.sql。
--- 1) 往来记录补：对方的状态、决策信号、来源文件（知识库里的原件，网页上能点开）
+-- 1) 往来记录补：对方的状态、怎么定（谁拍板、哪天定）、来源文件（知识库里的原件，网页上能点开）
 -- 2) 答应的事补：谁答应、答应谁、和判断规则对不上的地方（标黄）、来源文件
 -- 3) 关怀建议补：谁写的（例如“Codex 定时任务 10/27 07:12 写”）、哪天发出去的
--- 4) 新表：八项客户信息里的文字部分、改阶段 / 改答应的事的留痕、新材料提取记录、下次跟进自动生成的待办
+-- 4) 新表：概况页签客户信息里的文字部分、改阶段 / 改答应的事的留痕、新材料提取记录、下次跟进自动生成的待办
 
 ALTER TABLE interactions ADD COLUMN their_status TEXT;   -- 对方的状态，例如“合伙人 11/2 开会定，陈静先考虑一下（没定）”
-ALTER TABLE interactions ADD COLUMN signals TEXT;        -- 决策信号：谁拍板、哪天定、在跟谁比
+ALTER TABLE interactions ADD COLUMN signals TEXT;        -- 怎么定：谁拍板、哪天定、在跟谁比
 ALTER TABLE interactions ADD COLUMN source_file TEXT;    -- 来源文件：知识库路径，例如 00-收件箱/2026-10-23-衡言律所-微信聊天.md
 
-ALTER TABLE client_promises ADD COLUMN who TEXT NOT NULL DEFAULT '林总'; -- 谁答应的
+ALTER TABLE client_promises ADD COLUMN who TEXT NOT NULL DEFAULT '林总'; -- 谁答应的（代码写入时都带上设置里的称呼；默认值只给示例数据用）
 ALTER TABLE client_promises ADD COLUMN to_whom TEXT;     -- 答应谁
-ALTER TABLE client_promises ADD COLUMN conflict TEXT;    -- 和判断规则、价格规矩对不上的地方；有值就标黄，等林总定
+ALTER TABLE client_promises ADD COLUMN conflict TEXT;    -- 和判断规则、价格规矩对不上的地方；有值就标黄，等老板定
 ALTER TABLE client_promises ADD COLUMN source_file TEXT;
 
-ALTER TABLE client_care ADD COLUMN author TEXT;          -- 谁写的草稿：林总 / Codex 定时任务 10/27 07:12 写 / Codex 提取时写
-ALTER TABLE client_care ADD COLUMN sent_at TEXT;         -- 林总标记“已发”的时间
+ALTER TABLE client_care ADD COLUMN author TEXT;          -- 谁写的草稿：老板的称呼 / Codex 定时任务 10/27 07:12 写 / Codex 提取时写
+ALTER TABLE client_care ADD COLUMN sent_at TEXT;         -- 老板标记“已发”的时间
 
--- 八项客户信息里要写字的部分（另外三项：买过什么和答应过什么、顾虑、当前进展由订单、答应的事、偏好表现算）
+-- 概况页签客户信息里要写字的部分（买过什么和答应过什么、担心什么、下一步由订单、答应的事、偏好表现算）
 CREATE TABLE client_facts (
   id TEXT PRIMARY KEY,
   client_id TEXT NOT NULL REFERENCES clients(id) ON DELETE CASCADE,
@@ -25,7 +25,7 @@ CREATE TABLE client_facts (
   text TEXT NOT NULL,
   date TEXT,                      -- 这条是哪天知道的
   source TEXT,                    -- 从哪来：知识库文件路径，或“10/26 电话”
-  author TEXT,                    -- 谁整理的：林总 / AI 整理（待确认）/ Codex 提取（林总确认）
+  author TEXT,                    -- 谁整理的：老板的称呼 / AI 整理（待确认）/ Codex 提取（老板确认）
   created_at TEXT NOT NULL
 );
 
@@ -42,7 +42,7 @@ CREATE TABLE crm_edits (
   at TEXT NOT NULL
 );
 
--- 新材料提取：从知识库 00-收件箱 选一份（或粘贴），交给本机 Codex 提取；林总确认后写入
+-- 新材料提取：从知识库 00-收件箱 选一份（或粘贴），交给本机 Codex 提取；老板确认后写入
 CREATE TABLE crm_extractions (
   id TEXT PRIMARY KEY,
   source_kind TEXT NOT NULL CHECK (source_kind IN ('知识库收件箱','粘贴')),

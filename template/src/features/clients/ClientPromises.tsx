@@ -12,6 +12,7 @@ import { SourceLink } from '@/features/crm/parts'
 import type { ClientProfile, ClientPromise } from '@/features/crm/types'
 import { cn } from '@/lib/utils'
 import { toLocal, withoutDue } from '@/features/crm/rules'
+import { useIdentity } from '@/lib/identity'
 
 /** 日期只说一次：“10/28 前 · 明天”（第三轮修产品评审 #10） */
 function dueBadge(p: ClientPromise) {
@@ -27,12 +28,13 @@ const said = (p: ClientPromise) => `${shortDate(p.said_on ?? toLocal(p.created_a
 /** 标黄的地方：还没定就给两个按钮；定了就是一行灰字 */
 function ConflictLine({ p, clientName }: { p: ClientPromise; clientName: string }) {
   const [mode, setMode] = useState<'例外' | '改规则' | null>(null)
+  const { owner } = useIdentity()
   if (!p.conflict) return null
   if (p.decision) {
     return (
       <p className="mt-2 flex items-start gap-1.5 rounded-md bg-muted/70 px-2.5 py-1.5 text-[12.5px] text-muted-foreground">
         <Scale className="mt-0.5 size-3.5 shrink-0" />
-        <span>林总 {shortDate(p.decision_at)}{p.decision === '例外' ? '定为例外' : '说规则该改，已记进知识库“待确认的发现”'}：{p.decision_note}<span className="block text-[11.5px] opacity-80">原来对不上的地方：{p.conflict}</span></span>
+        <span>{owner} {shortDate(p.decision_at)}{p.decision === '例外' ? '定为例外' : '说规则该改，已记进知识库“待确认的发现”'}：{p.decision_note}<span className="block text-[11.5px] opacity-80">原来对不上的地方：{p.conflict}</span></span>
       </p>
     )
   }
@@ -95,6 +97,7 @@ function Fold({ title, count, children }: { title: React.ReactNode; count: numbe
 
 /** 做到了 / 不做了 + 改动留痕，折起来放在往来记录下面 */
 export function PromiseHistory({ d }: { d: ClientProfile }) {
+  const { owner } = useIdentity()
   const closed = d.promises.filter((p) => p.status !== '待兑现')
   const time = (iso: string) => { const x = new Date(iso); return `${shortDate(toLocal(iso))} ${String(x.getHours()).padStart(2, '0')}:${String(x.getMinutes()).padStart(2, '0')}` }
   return (
@@ -120,7 +123,7 @@ export function PromiseHistory({ d }: { d: ClientProfile }) {
                 <span className="min-w-0">
                   <span className="font-medium">{e.entity}</span>
                   <span className="mx-1.5 text-muted-foreground">{e.old_value ?? '无'} → {e.new_value ?? '无'}</span>
-                  <span className="block text-muted-foreground">原因：{e.reason}<span className="ml-1.5 opacity-70">（{e.actor === '网页' ? '林总在网页上改' : `${e.actor} 改`}）</span></span>
+                  <span className="block text-muted-foreground">原因：{e.reason}<span className="ml-1.5 opacity-70">（{e.actor === '网页' ? `${owner}在网页上改` : `${e.actor} 改`}）</span></span>
                 </span>
               </li>
             ))}

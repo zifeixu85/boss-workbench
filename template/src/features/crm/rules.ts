@@ -15,7 +15,8 @@ export const PARKED = ['暂停', '流失'] as const
 /** 看板列最小宽：5 列 × 220 + 4 × 12 间距，侧栏展开时 1440 宽刚好放下（第三轮修产品评审 #2） */
 export const BOARD_MIN_COL = 220
 
-export const LEVEL_RULE = '工作台按金额算的，林总没定过：A 级＝近 12 个月买了 3 万以上，或报价中、待签约的单 2 万以上；B 级＝5000 元以上，或报价中、待签约 0.5 万以上；其余 C 级。方案里的金额、按去年估的复购不算'
+/** 等级口径（悬停提示）；owner 是设置里的称呼 */
+export const levelRule = (owner: string) => `工作台按金额算的，${owner}没定过：A 级＝近 12 个月买了 3 万以上，或报价中、待签约的单 2 万以上；B 级＝5000 元以上，或报价中、待签约 0.5 万以上；其余 C 级。方案里的金额、按去年估的复购不算`
 
 /** “35 天”“今天” */
 export const silentText = (n: number | null) => (n === null ? '—' : n <= 0 ? '今天' : `${n}\u00a0天`)

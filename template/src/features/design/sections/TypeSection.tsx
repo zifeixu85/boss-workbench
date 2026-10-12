@@ -1,13 +1,14 @@
 // 2. 文字：标题字体 vs 正文字体，全站用到的几档字号
 import { Markdown } from '@/components/markdown'
 import { Code, Example, Rules, Section } from '../parts'
+import { useIdentity } from '@/lib/identity'
 
 const SIZES: { name: string; cls: string; sample: string; where: string }[] = [
   { name: '页面标题', cls: 'font-heading text-[26px] font-semibold', sample: '客户与跟进', where: 'PageHeader 的标题；文章标题' },
   { name: '大数字', cls: 'num font-heading text-[26px] font-semibold', sample: '25,559 元', where: 'Stat 指标卡的数值' },
   { name: '分节标题', cls: 'font-heading text-[18px] font-semibold', sample: '这周卖得怎么样', where: '正文里的 ## 小标题、本页的分节' },
   { name: '面板标题', cls: 'text-[15px] font-semibold', sample: '各平台昨天卖得怎么样？', where: 'Panel 的标题、抽屉里的分组名' },
-  { name: '正文', cls: 'text-[14px]', sample: '周明远说春节可能还要，11 月再聊。', where: '列表、表格、表单（body 默认 14px）' },
+  { name: '正文', cls: 'text-[14px]', sample: '客户说春节可能还要，11 月再聊。', where: '列表、表格、表单（body 默认 14px）' },
   { name: '小字', cls: 'text-[13px] text-muted-foreground', sample: '上次联系：10月16日 · 电话', where: '列表第二行、说明文字' },
   { name: '注释', cls: 'text-xs text-muted-foreground', sample: '截至 10月26日 · 来源：各平台导出文件', where: '图表下的截至日期和来源、眉题、提示' },
   { name: '标签字', cls: 'text-[11.5px] font-medium', sample: '已签约', where: 'StatusBadge、角标' },
@@ -21,12 +22,13 @@ const SAMPLE_MD = `## 卡在哪
 > 正文行宽控制在 72 个字左右，行距放宽，读起来不累。`
 
 export function TypeSection() {
+  const { shop } = useIdentity()
   return (
     <Section title="文字" desc="只用系统黑体（苹方 / 微软雅黑），标题和正文靠字号、粗细区分；网页里不用宋体（10/10 定）。都不用联网下载字体。">
       <div className="grid gap-5 lg:grid-cols-2">
         <Example title="标题字体" tag="font-heading" desc="页面标题、文章标题、大数字。所有风格都是黑体（苹方 / 微软雅黑），靠字号和粗细拉开层次。"
           use="每屏只有少数几处：页面标题、指标数值、文章标题。" avoid="不要用在按钮、表格、长段正文里。">
-          <div className="font-heading text-[30px] leading-tight font-semibold">ABC茶社</div>
+          <div className="font-heading text-[30px] leading-tight font-semibold">{shop}</div>
           <div className="mt-1 font-heading text-[18px]">当前风格的标题字体 · 0123456789</div>
         </Example>
         <Example title="正文字体" tag="font-sans" desc="其余一切。数字要上下对齐的地方（表格、金额、日期）加 num 类，用等宽数字。"

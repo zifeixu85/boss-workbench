@@ -11,9 +11,11 @@ import { cn } from '@/lib/utils'
 import { BizError } from '../errors'
 import { useBizOverlay } from '../state'
 import type { Report } from '../types'
+import { useIdentity } from '@/lib/identity'
 
 export function ReportSheet({ id, onClose }: { id: string; onClose: () => void }) {
   const ov = useBizOverlay()
+  const { owner } = useIdentity()
   const { data: r, isError, error, refetch } = useApi<Report>(`/biz/reports/${encodeURIComponent(id)}`)
   const { data: list = [] } = useApi<Report[]>('/biz/reports?limit=10')
   return (
@@ -36,7 +38,7 @@ export function ReportSheet({ id, onClose }: { id: string; onClose: () => void }
 
           <SheetSection title="这份早报怎么来的">
             <p className="rounded-lg bg-surface-2/70 px-4 py-3 text-[13px] leading-relaxed text-muted-foreground">
-              Codex 每天 07:55（各平台的数都导完以后）读工作台里的数，按“日报设置”的指标和阈值写好送回来；网页只读，数字以工作台为准。涉及价格、出价、发货方式的建议，要林总拍板。
+              Codex 每天 07:55（各平台的数都导完以后）读工作台里的数，按“日报设置”的指标和阈值写好送回来；网页只读，数字以工作台为准。涉及价格、出价、发货方式的建议，要{owner}拍板。
               <Button variant="link" size="sm" className="h-auto px-1 py-0 text-[13px]" onClick={ov.openSettings}>看日报设置</Button>
             </p>
           </SheetSection>

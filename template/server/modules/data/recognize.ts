@@ -10,6 +10,7 @@ import {
 } from './fields.ts'
 import type { Table } from './csv.ts'
 import { activeRules, listRules, type Rule } from './rules.ts'
+import { identity } from '../../services/identity.ts'
 
 export type ColState = '已对上' | '拿不准' | '用不上'
 export type ColHow = '规则' | '旧规则' | '常见叫法' | '知识库' | '名字像' | 'Codex' | '你选的' | '没见过'
@@ -58,7 +59,7 @@ export type Analysis = {
 
 const KB_FILE = '10-渠道与经营/数据口径.md'
 let kbCache: { at: number; text: string | null; confirmed: boolean } | null = null
-/** 知识库的《数据口径》：各平台的叫法写在这里，读得到就拿来对字段（只读）。文件开头“确认: 已确认”才算林总点过头 */
+/** 知识库的《数据口径》：各平台的叫法写在这里，读得到就拿来对字段（只读）。文件开头“确认: 已确认”才算老板点过头 */
 function kbDoc(): { text: string | null; confirmed: boolean } {
   if (kbCache && Date.now() - kbCache.at < 30_000) return kbCache
   const p = join(ROOT, KB_FILE)
@@ -219,13 +220,13 @@ export function analyze(table: Table, choices: Choices = {}): Analysis {
         why: `旧规则里${who} ${cnDay(old.at ?? retired!.created_at)}确认过，改版后这一列名字没变` }
     }
     const g = guessByName(header)
-    // 常见叫法里确定的直接对上；有歧义的，知识库写了也只在林总确认过口径时才算数，没确认就标拿不准并说明
+    // 常见叫法里确定的直接对上；有歧义的，知识库写了也只在老板确认过口径时才算数，没确认就标拿不准并说明
     if (g && (g.sure || g.field === null)) return { ...base, field: g.field, state: g.field === null ? '用不上' : '已对上', how: '常见叫法', why: g.why }
     const kb = kbSays(header, channel_id)
     if (kb) {
       return kb.confirmed
         ? { ...base, field: kb.field, state: '已对上', how: '知识库', why: kb.why }
-        : { ...base, field: kb.field, state: '拿不准', how: '知识库', prefer: g?.prefer, why: `${kb.why}，但这份口径林总还没确认（待确认）${g?.why && !g.why.includes('知识库') ? `；${g.why}` : ''}` }
+        : { ...base, field: kb.field, state: '拿不准', how: '知识库', prefer: g?.prefer, why: `${kb.why}，但这份口径${identity().owner}还没确认（待确认）${g?.why && !g.why.includes('知识库') ? `；${g.why}` : ''}` }
     }
     if (g) return { ...base, field: g.field, state: '拿不准', how: '常见叫法', prefer: g.prefer, why: g.why }
     const numeric = base.samples.length > 0 && base.samples.every((v) => /^[-¥￥\d,.%万]+$/.test(v))

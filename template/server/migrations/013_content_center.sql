@@ -16,7 +16,7 @@ CREATE TABLE xhs_pieces (
   warn TEXT,                       -- 提醒（例：公道杯正在退款，先放一放）
   status TEXT NOT NULL DEFAULT '灵感池' CHECK (status IN ('灵感池','已选','写稿中','待发布','已发布','已放弃')),
   topic_date TEXT,                 -- 哪天早上出的选题（每天的 10 个）
-  created_by TEXT NOT NULL,        -- Codex 定时任务 / 本机 Codex / 小艾 / 林总 / 复盘 / 导入
+  created_by TEXT NOT NULL,        -- Codex 定时任务 / 本机 Codex / 团队成员或老板的称呼 / 复盘 / 导入
   scheduled_date TEXT,             -- 排期日
   scheduled_time TEXT,             -- HH:mm
   published_at TEXT,
@@ -36,7 +36,7 @@ CREATE TABLE xhs_versions (
   version INTEGER NOT NULL,
   data TEXT NOT NULL,
   origin TEXT NOT NULL CHECK (origin IN ('AI 写稿','手动修改','采用候选','恢复','导入')),
-  author TEXT,                     -- 本机 Codex / 小艾 / 林总
+  author TEXT,                     -- 本机 Codex / 团队成员或老板的称呼
   note TEXT,
   message_id TEXT,
   created_at TEXT NOT NULL,
@@ -48,7 +48,7 @@ CREATE TABLE xhs_messages (
   id TEXT PRIMARY KEY,
   piece_id TEXT NOT NULL REFERENCES xhs_pieces(id) ON DELETE CASCADE,
   role TEXT NOT NULL CHECK (role IN ('user','ai')),
-  author TEXT NOT NULL,            -- 小艾 / 林总 / Codex
+  author TEXT NOT NULL,            -- 团队成员或老板的称呼 / Codex
   text TEXT NOT NULL DEFAULT '',
   status TEXT NOT NULL DEFAULT 'done' CHECK (status IN ('running','done','failed','stopped')),
   kind TEXT NOT NULL DEFAULT 'chat',-- chat / options

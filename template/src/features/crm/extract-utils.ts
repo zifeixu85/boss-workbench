@@ -1,6 +1,6 @@
 // 新材料提取：把 Codex 的结果变成可以改的表单、再变成写入的内容。归属：大客户模块
 // 第二轮：待办默认只勾“我们要做、有日子、和已有待办不重复”的，最多 3 条；和已记的答应重复的不勾；
-//         标黄的答应可以当场定“例外 / 规则该改了”；商机金额要不要改，默认不改，由林总勾。
+//         标黄的答应可以当场定“例外 / 规则该改了”；商机金额要不要改，默认不改，由老板勾。
 // 第四轮（数据评审 #15）：“之前记着、还没做的”改成勾选，确认写入时一起关（撤销时一起恢复）；
 //         去联系对方的关怀草稿（回访、问候、重新联系），这份材料就是对方来聊过了，默认勾“不做了”；答应的事、待办默认不勾。
 import { md } from '@/lib/format'
@@ -76,14 +76,15 @@ function birthday(s: string) {
   return m ? `--${m[1].padStart(2, '0')}-${m[2].padStart(2, '0')}` : null
 }
 
-export function initialDraft(x: Extraction): Draft {
+/** owner：设置里的称呼，Codex 没写谁答应的就算老板本人 */
+export function initialDraft(x: Extraction, owner = '老板'): Draft {
   const r = x.result!
   const contact = x.client?.contact_name ?? ''
   const promises: PromiseDraft[] = x.promises.map((p) => {
     const due = day(p.due)
     const dup = findDup(p.text, due, x.open_promises)
     return {
-      on: !dup, text: p.text, due, who: p.who || '林总', to_whom: p.to_whom || contact, conflict: p.conflict, rule: p.rule, by: p.conflict_by ?? [], quote: p.quote,
+      on: !dup, text: p.text, due, who: p.who || owner, to_whom: p.to_whom || contact, conflict: p.conflict, rule: p.rule, by: p.conflict_by ?? [], quote: p.quote,
       dup: dup ? `${dup.text}${dup.due ? `（${md(dup.due)} 前）` : ''}` : null, decision: null, decision_note: '',
     }
   })
@@ -135,14 +136,14 @@ export function initialDraft(x: Extraction): Draft {
 /** 标黄那条写进去时的说法：规则 + 为什么对不上 */
 export const conflictText = (p: Pick<PromiseDraft, 'rule' | 'conflict'>) => [p.rule, p.conflict].map((s) => s.trim().replace(/[。；;]+$/, '')).filter(Boolean).join('。')
 
-/** 林总改好的表单 → 写入接口要的内容 */
+/** 老板改好的表单 → 写入接口要的内容（没写谁答应的，服务端按设置里的称呼补） */
 export function payloadOf(d: Draft) {
   const amount = d.deal ? Number(d.deal.amount) : NaN
   return {
     client_id: d.client_id, date: d.date, channel: d.channel, with_whom: d.with_whom || null, summary: d.summary,
     their_status: d.their_status || null, signals: d.signals || null, concerns: d.concerns || null,
     promises: d.promises.filter((p) => p.on && p.text.trim()).map((p) => ({
-      text: p.text.trim(), due: p.due, who: p.who || '林总', to_whom: p.to_whom || null, conflict: p.conflict ? conflictText(p) : null,
+      text: p.text.trim(), due: p.due, who: p.who || undefined, to_whom: p.to_whom || null, conflict: p.conflict ? conflictText(p) : null,
       decision: p.conflict ? p.decision : null, decision_note: p.conflict && p.decision ? p.decision_note : null,
     })),
     todos: d.todos.filter((t) => t.on && t.title.trim()).map((t) => ({ title: t.title.trim(), due: t.due })),

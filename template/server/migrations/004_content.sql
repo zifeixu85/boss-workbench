@@ -115,7 +115,7 @@ CREATE TABLE xhs_assets (
   created_at TEXT NOT NULL
 );
 
--- 创作页的对话：围绕一篇草稿，林总 / 小艾 和 AI 来回改
+-- 创作页的对话（旧表，新页面不读；角色值是示例数据用的）：围绕一篇草稿，老板 / 运营 和 AI 来回改
 CREATE TABLE content_chat (
   id TEXT PRIMARY KEY,
   draft_id TEXT NOT NULL REFERENCES xhs_drafts(id) ON DELETE CASCADE,

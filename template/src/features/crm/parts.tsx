@@ -13,12 +13,18 @@ import { Markdown } from '@/components/markdown'
 import { StatusBadge } from '@/components/status'
 import { cn } from '@/lib/utils'
 import type { AuthorKind, Flag, Level } from './types'
-import { LEVEL_RULE } from './rules'
+import { levelRule } from './rules'
+import { useIdentity } from '@/lib/identity'
 
 const LEVEL_CLS: Record<Level, string> = {
   A: 'bg-accent text-accent-foreground ring-primary/35',
   B: 'bg-card text-foreground ring-border',
   C: 'bg-transparent text-muted-foreground ring-border',
+}
+
+/** 等级口径的文字（称呼从设置读） */
+function LevelRuleText() {
+  return <>{levelRule(useIdentity().owner)}</>
 }
 
 /** 等级章：方角小章“A 级”，悬停看规则 */
@@ -30,7 +36,7 @@ export function LevelMark({ level, className }: { level: Level; className?: stri
           {level}{NBSP}级
         </span>
       </TooltipTrigger>
-      <TooltipContent className="max-w-64">{LEVEL_RULE}</TooltipContent>
+      <TooltipContent className="max-w-64"><LevelRuleText /></TooltipContent>
     </Tooltip>
   )
 }
@@ -42,19 +48,19 @@ export function LevelHead() {
       <TooltipTrigger asChild>
         <span className="inline-flex cursor-help items-center gap-1">等级<Info className="size-3.5 text-muted-foreground" /></span>
       </TooltipTrigger>
-      <TooltipContent className="max-w-64">{LEVEL_RULE}</TooltipContent>
+      <TooltipContent className="max-w-64"><LevelRuleText /></TooltipContent>
     </Tooltip>
   )
 }
 
-/** 大客户：名字前的小星标（知识库里有档案的 10 位） */
+/** 大客户：名字前的小星标（知识库里有档案的） */
 export function KeyMark({ className }: { className?: string }) {
   return (
     <Tooltip>
       <TooltipTrigger asChild>
         <Star className={cn('size-3.5 shrink-0 fill-primary text-primary', className)} aria-label="大客户" />
       </TooltipTrigger>
-      <TooltipContent>大客户：知识库里有档案，林总亲自跟</TooltipContent>
+      <TooltipContent>大客户：知识库里有档案，<OwnerName />亲自跟</TooltipContent>
     </Tooltip>
   )
 }
@@ -122,7 +128,7 @@ export function CopyButton({ text, label = '复制', done = '已复制', size = 
 export function codexEditPrompt(clientName: string, kbPath: string | null | undefined, occasion: string, draft: string) {
   return `帮我改一下给${clientName}的“${occasion}”消息草稿。先读${kbPath ? ` ${kbPath} 和` : ''} 05-方法与判断/大客户关怀.md、02-关于我/说话方式.md。
 现在的草稿：「${draft}」
-要求：话短，像我平常发微信；送礼和问候里不提单子、不报价；新品 11/5 上线前不提名字；只出草稿，我自己发。改好后用工作台命令存回去（care-set），或者直接给我看。`
+要求：话短，像我平常发微信；送礼和问候里不提单子、不报价；还没上线的新品不提名字；只出草稿，我自己发。改好后用工作台命令存回去（care-set），或者直接给我看。`
 }
 
 // ───────────── 谁写的 ─────────────
@@ -132,7 +138,7 @@ const KIND_LOOK: Record<AuthorKind, { icon: typeof Sparkles; cls: string; label:
   现场写: { icon: Sparkles, cls: 'text-info', label: 'Codex 现场写' },
   知识库: { icon: BookOpen, cls: 'text-primary', label: '知识库草稿' },
   模板: { icon: LayoutTemplate, cls: 'text-muted-foreground', label: '模板' },
-  林总: { icon: UserRound, cls: 'text-foreground/70', label: '林总' },
+  本人: { icon: UserRound, cls: 'text-foreground/70', label: '' }, // 老板自己写的：显示设置里的称呼
 }
 
 /** 前端兜底：没给作者类型时按开头判断（和服务端 authors.ts 同一套） */
@@ -142,18 +148,24 @@ export function kindOf(author: string | null | undefined): AuthorKind {
   if (a.startsWith('Codex 定时任务')) return '定时任务'
   if (a.startsWith('Codex 现场写')) return '现场写'
   if (a.startsWith('知识库')) return '知识库'
-  return '林总'
+  return '本人'
+}
+
+/** 设置里的称呼（“张总”；没设置时“老板”） */
+export function OwnerName() {
+  return <>{useIdentity().owner}</>
 }
 
 /** 草稿来源：“图标 类型 · 细节 · 细节”，最多两行、不截断；模型名只放悬停提示 */
 export function AuthorNote({ author, kind, className, extra }: { author: string | null; kind?: AuthorKind; className?: string; extra?: ReactNode }) {
+  const owner = useIdentity().owner
   const k = kind ?? kindOf(author)
   const look = KIND_LOOK[k]
-  const raw = author ?? '林总'
+  const raw = author ?? owner
   const model = raw.match(/（(gpt[^）]*|o\d[^）]*)）/)?.[1] ?? null
   const parts = raw.replace(/（(gpt[^）]*|o\d[^）]*)）/, '').split(/\s*·\s*/).filter(Boolean)
-  const first = parts[0] ?? '林总'
-  const label = k !== '林总' && first.startsWith(look.label.slice(0, 4)) ? look.label : first
+  const first = parts[0] ?? owner
+  const label = k !== '本人' && first.startsWith(look.label.slice(0, 4)) ? look.label : first
   const rest = parts.slice(1)
   const Icon = look.icon
   const body = (

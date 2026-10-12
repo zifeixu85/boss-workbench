@@ -66,7 +66,7 @@ export const NAV: NavItem[] = [
   { key: 'design', to: '/design', label: '组件规范', icon: Palette, group: '系统' },
 ]
 
-/** 手机底栏的 4 个：林总每天最常看的 */
+/** 手机底栏的 4 个：老板每天最常看的 */
 export const MOBILE_TABS = ['today', 'biz', 'clients', 'content']
 
 export function navFor(pathname: string) {

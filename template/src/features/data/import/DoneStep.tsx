@@ -81,9 +81,9 @@ export function DoneStep({ v, onAgain }: { v: DraftView; onAgain: () => void }) 
           <div className="text-[14px] font-semibold">接下来做什么</div>
           <ol className="mt-2.5 grid gap-3 text-[13px]">
             {one && (
-              <Step n={1} title={one.id === 'tmall' ? '去天猫页看推广 ROI 掉的那几天' : `去${one.name}页看导进来的数`}
+              <Step n={1} title={sampleTmall ? '去天猫页看推广 ROI 掉的那几天' : `去${one.name}页看导进来的数`}
                 action={<Button size="sm" variant="outline" asChild><Link to={`/channel/${one.id}`}>去{one.name}页<ArrowRight /></Link></Button>}>
-                {one.id === 'tmall' ? '10/22 万相台「秋冬白茶」出价 1.20 → 3.60，近 3 天天猫推广 ROI 从约 3.3 掉到约 1.6；天猫页的异常就是这份数算出来的。' : '经营页、今日页用的就是这份数。'}
+                {sampleTmall ? '10/22 万相台「秋冬白茶」出价 1.20 → 3.60，近 3 天天猫推广 ROI 从约 3.3 掉到约 1.6；天猫页的异常就是这份数算出来的。' : '经营页、今日页用的就是这份数。'}
               </Step>
             )}
             {sampleTmall && (

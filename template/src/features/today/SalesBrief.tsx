@@ -1,4 +1,4 @@
-// 林总早上最想看的第 1 件：各平台昨天卖得怎么样、哪里不对劲（数据来自经营模块 summary()）
+// 老板早上最想看的第 1 件：各平台昨天卖得怎么样、哪里不对劲（数据来自经营模块 summary()）
 import { Link } from 'react-router'
 import type { Alert, SalesSummary } from '@/lib/types'
 import { shortDate, thousands, weekday, yuan } from '@/lib/format'
@@ -17,7 +17,7 @@ export function SalesBrief({ sales, alerts }: { sales: SalesSummary | null; aler
   const t = sales.total
   const flags = (id: string) => alerts.filter((a) => a.module === 'biz' && a.channel_id === id)
   return (
-    <Panel title="各平台昨天卖得怎么样" desc={`${shortDate(sales.date)} ${weekday(sales.date)} · 5 个渠道，企业茶礼另算`} action={<GoLink to="/biz">经营汇总</GoLink>} bodyClass="p-0">
+    <Panel title="各平台昨天卖得怎么样" desc={`${shortDate(sales.date)} ${weekday(sales.date)} · ${sales.channels.length} 个渠道，大客户订单另算`} action={<GoLink to="/biz">经营汇总</GoLink>} bodyClass="p-0">
       <div className="grid grid-cols-[1.4fr_1fr_1fr] divide-x border-b">
         <div className="min-w-0 px-3.5 py-3 sm:px-5 sm:py-3.5">
           <div className="text-xs text-muted-foreground">合计成交</div>

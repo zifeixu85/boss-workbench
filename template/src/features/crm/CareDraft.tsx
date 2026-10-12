@@ -13,6 +13,7 @@ import { StatusBadge } from '@/components/status'
 import { cn } from '@/lib/utils'
 import { AuthorNote, codexEditPrompt, copyText } from './parts'
 import type { AuthorKind } from './types'
+import { useIdentity } from '@/lib/identity'
 
 const dayLabel = (d: string) => { const n = daysFromToday(d); return n === 0 ? '今天' : n === 1 ? '明天' : n > 0 ? `${n} 天后` : `已过 ${-n} 天` }
 
@@ -25,12 +26,13 @@ export type DraftLike = {
 function useCareWrite() {
   const create = useWrite((b: Record<string, unknown>) => api.post('/crm/care', b))
   const patch = useWrite(({ id, ...b }: Record<string, unknown> & { id: string }) => api.patch(`/crm/care/${id}`, b))
+  const { owner } = useIdentity()
   return {
     pending: create.isPending || patch.isPending,
     save: (x: DraftLike, change: { status?: string; message?: string }, done: string) => {
       const opts = { onSuccess: () => toast.success(done) }
       if (x.id) patch.mutate({ id: x.id, ...change }, opts)
-      else create.mutate({ client_id: x.client_id, occasion: x.occasion, date: x.date ?? todayStr(), gift: x.gift, message: change.message ?? x.message, status: change.status ?? '建议', author: change.message ? '林总（在工作台模板上改的）' : x.author, note: x.note }, opts)
+      else create.mutate({ client_id: x.client_id, occasion: x.occasion, date: x.date ?? todayStr(), gift: x.gift, message: change.message ?? x.message, status: change.status ?? '建议', author: change.message ? `${owner}（在工作台模板上改的）` : x.author, note: x.note }, opts)
     },
   }
 }

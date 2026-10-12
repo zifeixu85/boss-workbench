@@ -10,6 +10,8 @@ import { ROOT, all } from '../../db.ts'
 import { today } from '../../services/common.ts'
 import { runChecks, type CheckRule, type CheckSource, type CheckResult } from '../../../shared/xhs-check.ts'
 import type { Draft } from './draft.ts'
+import { identity } from '../../services/identity.ts'
+import { storeClosure } from '../crm/closure.ts'
 
 const VOICE = '03-生意/品牌与口吻.md'
 const PRODUCTS = '03-生意/产品与服务/零售商品清单.md'
@@ -42,8 +44,9 @@ function voiceRules(): CheckRule[] {
 function clientRules(): CheckRule[] {
   const SUFFIX = /(律师事务所|会计师事务所|建筑设计院|设计工作室|医疗器械|精品酒店|跨境电商|科技|置业|资本|瑜伽|财税|广告|物流|教育|建设|地产|医药|民宿|咖啡)$/
   const out: CheckRule[] = []
+  const owner = identity().owner
   for (const r of all<{ name: string }>("SELECT name FROM clients WHERE segment IN ('企业茶礼', '渠道合作') ORDER BY name")) {
-    out.push({ word: r.name, category: '企业客户名字', level: 'block', suggest: '要讲案例就说“一家科技公司”，而且先问林总' })
+    out.push({ word: r.name, category: '企业客户名字', level: 'block', suggest: `要讲案例就说“一家科技公司”，而且先问${owner}` })
     const short = r.name.replace(SUFFIX, '')
     if (short !== r.name && short.length >= 2) out.push({ word: short, category: '企业客户名字', level: 'warn', suggest: '看一下是不是在说这家客户' })
   }
@@ -79,10 +82,15 @@ function launchRules(): CheckRule[] {
   return out
 }
 
+/** 门店停业的日子（排期时提醒“品茶会、门店活动别排”）：按项目里程碑和日程算，不写死；没有就是 null。读的是大客户模块的同一套算法，只读 */
+function storeClosed() {
+  try { const c = storeClosure(); return c ? { from: c.from, to: c.to } : null } catch { return null }
+}
+
 /** 现在的词表（网页拿去边改边查；文件或客户变了自动重读） */
 export function checkRules() {
   const key = [VOICE, PRODUCTS, PROJECT].map(mtime).join('|') + `|${all<{ n: number }>('SELECT COUNT(*) AS n FROM clients')[0]?.n}`
-  if (cache?.key === key) return { rules: cache.rules, sources: cache.sources, today: today() }
+  if (cache?.key === key) return { rules: cache.rules, sources: cache.sources, today: today(), store_closed: storeClosed() }
   const v = voiceRules(), c = clientRules(), l = launchRules()
   const launch = l.find((r) => r.category === '新品名字' && r.level === 'block')
   cache = {
@@ -93,7 +101,7 @@ export function checkRules() {
       { label: '零售商品清单', path: PRODUCTS, count: l.length, note: launch ? `待上线：${launch.word}${launch.until ? `，${Number(launch.until.slice(5, 7))}/${Number(launch.until.slice(8, 10))} 上线` : ''}` : '没有待上线的' },
     ],
   }
-  return { rules: cache.rules, sources: cache.sources, today: today() }
+  return { rules: cache.rules, sources: cache.sources, today: today(), store_closed: storeClosed() }
 }
 
 export type { CheckResult }

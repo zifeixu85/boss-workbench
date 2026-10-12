@@ -6,7 +6,7 @@ const dateTime = z.string().regex(/^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2})?$/, '时间�
 const optText = z.string().trim().max(2000).optional().nullable()
 const money = z.number().min(0).max(100000)
 
-// ABC茶社用词：企业茶礼按“线索 → 方案报价 → 交付售后 → 待复购”走；渠道伙伴是“合作中”，门店老茶客是“维护中”
+// 客户阶段用词（示例是茶社）：企业茶礼按“线索 → 方案报价 → 交付售后 → 待复购”走；渠道伙伴是“合作中”，门店老茶客是“维护中”
 export const CLIENT_STAGES = ['新线索', '需求确认', '方案中', '报价中', '待签约', '交付中', '售后', '待复购', '合作中', '维护中', '暂停', '流失'] as const
 export const DEAL_STAGES = ['需求确认', '方案中', '报价中', '待签约', '已签约', '没成'] as const
 export const PROJECT_STAGES = ['筹备', '进行中', '收尾', '已完成', '暂停'] as const
@@ -122,6 +122,8 @@ export const settingsInput = z.object({
   mobile_nav: z.enum(['tabs', 'drawer']).optional(),
   owner: z.string().trim().max(20).optional(),
   business: z.string().trim().max(40).optional(),
+  /** 小红书账号名（手机预览、给 Codex 的提示词用）；空着就用店名 */
+  xhs_name: z.string().trim().max(30).optional(),
 })
 
 

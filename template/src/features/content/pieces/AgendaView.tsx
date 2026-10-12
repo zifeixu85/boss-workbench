@@ -4,13 +4,14 @@ import { cn } from '@/lib/utils'
 import { usePieceParam } from '../lib'
 import { StatusTag } from '../badges'
 import { CoverArt } from '../phone/Cover'
-import { STORE_CLOSED } from '../dialogs'
+import { inRange, useStoreClosed } from '../dialogs'
 import { useLaunchDay } from './CalendarView'
 import type { Piece } from '../types'
 
 export function AgendaView({ pieces }: { pieces: Piece[] }) {
   const sheet = usePieceParam()
   const launch = useLaunchDay()
+  const shut = useStoreClosed()
   const t = todayStr()
   const days = Array.from({ length: 29 }, (_, i) => addDays(t, i - 7))
   const on = (d: string) => pieces.filter((p) => p.status !== '已放弃' && (p.status === '已发布' ? p.published_at?.slice(0, 10) : p.scheduled_date) === d)
@@ -20,8 +21,8 @@ export function AgendaView({ pieces }: { pieces: Piece[] }) {
       <ol className="divide-y overflow-hidden rounded-xl border bg-card shadow-paper">
         {days.map((d) => {
           const items = on(d)
-          const closed = d >= STORE_CLOSED[0] && d <= STORE_CLOSED[1]
-          if (!items.length && d !== t && d !== launch && d !== STORE_CLOSED[0]) return null
+          const closed = inRange(shut, d)
+          if (!items.length && d !== t && d !== launch && d !== shut?.from) return null
           return (
             <li key={d} className={cn('px-4 py-3', d === t && 'bg-accent/40')}>
               <div className="flex items-center gap-2 text-xs">

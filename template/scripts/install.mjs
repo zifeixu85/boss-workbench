@@ -2,7 +2,7 @@
 // 工作台安装 / 体检脚本。故意写成普通 JS：老版本 Node 也能跑起来，告诉你该升级什么。
 //
 //   node 工作台/程序/scripts/install.mjs            安装（检测环境 → 装依赖 → 构建网页 → 建数据库）
-//   node 工作台/程序/scripts/install.mjs --demo     安装并写入示例数据（ABC茶社，演示日期 2026-10-27）
+//   node 工作台/程序/scripts/install.mjs --demo     安装并写入示例数据（虚构的茶社，演示日期 2026-10-27）
 //   node 工作台/程序/scripts/install.mjs --check    只体检，不改任何东西
 //   可选：--registry=<地址>  指定 npm 源；--mirror  直接用国内镜像；--skip-build  不重新构建
 import { spawnSync } from 'node:child_process'
@@ -122,14 +122,14 @@ function initDb() {
   const db = DB
   if (existsSync(db) && !args.has('--demo')) { ok(`已有数据库，保留原数据：${C.dim(db)}`); return true }
   if (existsSync(db) && args.has('--demo')) {
-    // 已有的不是示例库（老板自己的真数据）就不覆盖：--demo 会整库换成 ABC茶社
+    // 已有的不是示例库（老板自己的真数据）就不覆盖：--demo 会整库换成示例数据
     const probe = "const{DatabaseSync}=require('node:sqlite');const d=new DatabaseSync(process.argv[1],{readOnly:true});const r=d.prepare(\"SELECT value FROM settings WHERE key='demo_today'\").get();console.log(r&&r.value?'demo':'real')"
     const kind = run(process.execPath, ['-e', probe, db], { stdio: ['ignore', 'pipe', 'pipe'] }).stdout?.trim()
-    if (kind !== 'demo') { bad('现有数据库不是示例库，--demo 会把它整个换成示例数据（ABC茶社）', `确实要看示例：先把 ${db} 挪到别处备份，再运行 --demo`); return false }
+    if (kind !== 'demo') { bad('现有数据库不是示例库，--demo 会把它整个换成示例数据', `确实要看示例：先把 ${db} 挪到别处备份，再运行 --demo`); return false }
   }
   const script = args.has('--demo') ? ['server/seed/index.ts', '--demo', '--reset'] : ['-e', "import('./server/db.ts').then(m=>{m.open();console.log('ok')})"]
   const res = run(process.execPath, script, { stdio: ['ignore', 'pipe', 'pipe'] })
-  if (res.status === 0) { ok(args.has('--demo') ? '已写入示例数据（ABC茶社）' : '已建好空数据库'); return true }
+  if (res.status === 0) { ok(args.has('--demo') ? '已写入示例数据（全部虚构）' : '已建好空数据库'); return true }
   bad('数据库初始化失败', `详细原因在 ${LOG}`)
   return false
 }

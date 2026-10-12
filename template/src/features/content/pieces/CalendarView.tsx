@@ -18,7 +18,7 @@ import { usePatchPiece } from '../api'
 import { useParam, usePieceParam } from '../lib'
 import { StatusTag } from '../badges'
 import { CoverArt } from '../phone/Cover'
-import { STORE_CLOSED } from '../dialogs'
+import { inRange, useStoreClosed } from '../dialogs'
 import { AgendaView } from './AgendaView'
 import type { Piece, PieceStatus, Rules } from '../types'
 import './calendar.css'
@@ -33,7 +33,6 @@ export const COLORS: Record<PieceStatus, { bg: string; border: string; text: str
   已放弃: { bg: 'var(--muted)', border: 'var(--border)', text: 'var(--muted-foreground)' },
 }
 const VIEWS = { month: 'dayGridMonth', week: 'dayGridWeek' } as const
-const inClosed = (d: string) => d >= STORE_CLOSED[0] && d <= STORE_CLOSED[1]
 
 /** 新品上线日：从发布前检查的词表里拿（商品清单“待上线”那一行），不写死 */
 export function useLaunchDay() {
@@ -54,6 +53,8 @@ function MonthWeek({ pieces }: { pieces: Piece[] }) {
   const [view, setView] = useParam<keyof typeof VIEWS>('cal', 'month')
   const [title, setTitle] = useState('')
   const launch = useLaunchDay()
+  const shut = useStoreClosed()
+  const inClosed = (d: string) => inRange(shut, d)
   const unscheduled = pieces.filter((p) => ['已选', '写稿中'].includes(p.status) && !p.scheduled_date)
   const byId = useMemo(() => new Map(pieces.map((p) => [p.id, p])), [pieces])
 
@@ -79,7 +80,7 @@ function MonthWeek({ pieces }: { pieces: Piece[] }) {
   const guard = (id: string, date: string) => {
     if (date < todayStr()) { toast.error('这天已经过了，排到今天以后'); return false }
     const p = byId.get(id)
-    if (p && inClosed(date) && /品茶会|门店/.test(p.title)) toast.warning(`门店 ${md(STORE_CLOSED[0])}—${md(STORE_CLOSED[1])} 停业改造，「${p.title}」排在这几天要改一下`)
+    if (p && inClosed(date) && /品茶会|门店/.test(p.title)) toast.warning(`门店 ${md(shut!.from)}—${md(shut!.to)} 停业，「${p.title}」排在这几天要改一下`)
     return true
   }
   const onDrop = (a: EventDropArg) => {
@@ -104,7 +105,7 @@ function MonthWeek({ pieces }: { pieces: Piece[] }) {
     const d = toDateStr(a.date)
     return (
       <span className="flex w-full items-center gap-1">
-        {inClosed(d) && <span className="xhs-tag xhs-tag-closed" title="门店停业改造（11/13 恢复营业）">停业</span>}
+        {inClosed(d) && <span className="xhs-tag xhs-tag-closed" title={shut ? `门店停业（${md(shut.from)}—${md(shut.to)}）` : undefined}>停业</span>}
         {d === launch && <span className="xhs-tag xhs-tag-launch" title="新品上线，这天起能说名字和上线日">新品上线</span>}
         {a.dayNumberText && <span className={cn('xhs-num ml-auto', a.isToday && 'xhs-num-today', a.isOther && 'opacity-45')}>{a.dayNumberText.replace('日', '')}</span>}
       </span>
@@ -179,7 +180,7 @@ function MonthWeek({ pieces }: { pieces: Piece[] }) {
           {(['待发布', '写稿中', '已选', '已发布'] as PieceStatus[]).map((s) => (
             <span key={s} className="inline-flex items-center gap-1.5"><span className="size-2.5 rounded-[2px] border-l-[3px]" style={{ background: COLORS[s].bg, borderColor: COLORS[s].border, boxShadow: `inset 0 0 0 1px ${COLORS[s].border}` }} />{s}{s === '已发布' && '（弱化）'}</span>
           ))}
-          <span className="inline-flex items-center gap-1.5"><span className="xhs-swatch-closed size-2.5 rounded-[2px]" />门店停业 {md(STORE_CLOSED[0])}—{md(STORE_CLOSED[1])}</span>
+          {shut && <span className="inline-flex items-center gap-1.5"><span className="xhs-swatch-closed size-2.5 rounded-[2px]" />门店停业 {md(shut.from)}—{md(shut.to)}</span>}
           {launch && <span className="inline-flex items-center gap-1.5"><span className="xhs-tag xhs-tag-launch">新品上线</span>{md(launch)} 起能说名字</span>}
           <span className="ml-auto">拖动改日子；过去的日子拖不进去</span>
         </div>
@@ -206,7 +207,7 @@ function MonthWeek({ pieces }: { pieces: Piece[] }) {
           <div className="font-medium">排的时候留意</div>
           <ul className="mt-1.5 list-disc space-y-1 pl-4 text-muted-foreground">
             <li>新品{launch ? ` ${md(launch)} ` : ''}上线，之前的预热不说名字和日子；当天起可以说。</li>
-            <li>门店 {md(STORE_CLOSED[0])} 起停业约 10 天，品茶会类的别排在这几天。</li>
+            {shut && <li>门店 {md(shut.from)}—{md(shut.to)} 停业，品茶会类的别排在这几天。</li>}
             <li>账号常发的时间：12:10、18:30、20:00 前后。</li>
           </ul>
         </div>

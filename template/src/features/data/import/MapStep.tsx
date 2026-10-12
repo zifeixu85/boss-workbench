@@ -87,7 +87,7 @@ export function MapStep({ v, onNext, onLeave }: { v: DraftView; onNext: () => vo
             <ViewTabs label="按把握" value={filter} onChange={setFilter} items={FILTERS.map((f) => ({ value: f.value, label: f.label, count: f.value === 'all' ? a.columns.length : a.columns.filter((c) => c.state === f.value).length }))} />
             <Tooltip>
               <TooltipTrigger asChild><span className="inline-flex cursor-help items-center gap-1 text-xs text-muted-foreground"><Info className="size-3.5" />怎么自动对的</span></TooltipTrigger>
-              <TooltipContent className="max-w-72">依次看：存过的导入规则 → 同一平台停用的旧规则（人确认过、名字没变的列）→ 常见叫法 → 知识库《数据口径》（林总确认过的才算数）。有两种意思、没见过的，一律标黄“拿不准”，不猜。</TooltipContent>
+              <TooltipContent className="max-w-72">依次看：存过的导入规则 → 同一平台停用的旧规则（人确认过、名字没变的列）→ 常见叫法 → 知识库《数据口径》（老板确认过的才算数）。有两种意思、没见过的，一律标黄“拿不准”，不猜。</TooltipContent>
             </Tooltip>
             <div className="ml-auto flex flex-wrap items-center gap-2">
               {Object.keys(v.choices.columns ?? {}).length > 0 && <Button size="sm" variant="ghost" disabled={patch.isPending} onClick={() => patch.mutate({ reset: true })}><RotateCcw />恢复自动对的</Button>}

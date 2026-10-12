@@ -7,6 +7,7 @@ import { charCount } from '../../../shared/xhs-check.ts'
 import { normalizeDraft, emptyDraft, type Draft } from './draft.ts'
 import { checkDraft } from './checks.ts'
 import { relatedAlerts, topComments } from './related.ts'
+import { identity } from '../../services/identity.ts'
 
 export const STATUSES = ['灵感池', '已选', '写稿中', '待发布', '已发布', '已放弃'] as const
 export const SOURCES = ['评论区问题', '热点和节气', '同行爆款', '知识库客户常问', '自己想的', '复盘建议', '旧笔记翻新', '从一款茶开始', '对标笔记'] as const
@@ -158,7 +159,7 @@ export function createPiece(input: unknown, actor: Actor | string, extra: Partia
   run(`INSERT INTO xhs_pieces (id, title, angle, format, pillar_id, source, reason, ref, warn, status, topic_date, job_id, created_by, scheduled_date, scheduled_time, start, sort, created_at, updated_at)
     VALUES (:id, :title, :angle, :format, :pillar_id, :source, :reason, :ref, :warn, :status, :topic_date, :job_id, :created_by, :scheduled_date, :scheduled_time, :start, :sort, :at, :at)`, {
     id, title: v.title, angle: v.angle ?? null, format: v.format, pillar_id: v.pillar_id ?? null, source: v.source, reason: v.reason ?? null, ref: v.ref ?? null,
-    warn: extra.warn ?? null, status: v.status, topic_date: extra.topic_date ?? null, job_id: extra.job_id ?? null, created_by: extra.created_by ?? (actor === '网页' ? '林总' : String(actor)),
+    warn: extra.warn ?? null, status: v.status, topic_date: extra.topic_date ?? null, job_id: extra.job_id ?? null, created_by: extra.created_by ?? (actor === '网页' ? identity().owner : String(actor)),
     scheduled_date: v.scheduled_date ?? null, scheduled_time: v.scheduled_time ?? null, start: v.start ? JSON.stringify(v.start) : null, sort: extra.sort ?? 0, at,
   })
   logChange(actor === '网页' || actor === 'Codex' ? actor : 'Codex', 'xhs_piece', id, '新建', `小红书：新建「${v.title}」（${v.status}）`)
@@ -218,7 +219,7 @@ export function saveVersion(id: string, data: unknown, opts: { origin: 'AI 写�
 export function restoreVersion(id: string, version: number, actor: Actor) {
   const v = get<VersionDb>('SELECT * FROM xhs_versions WHERE piece_id = :id AND version = :version', { id, version })
   if (!v) throw new NotFound(`没有 v${version}`)
-  return saveVersion(id, parseJson(v.data, {}), { origin: '恢复', author: actor === '网页' ? '林总' : actor, note: `从 v${version} 恢复` })
+  return saveVersion(id, parseJson(v.data, {}), { origin: '恢复', author: actor === '网页' ? identity().owner : actor, note: `从 v${version} 恢复` })
 }
 
 /** 已发布：记发布时间（默认现在，不能晚于现在）、链接（可不填，导入数据时按标题和日期对上） */

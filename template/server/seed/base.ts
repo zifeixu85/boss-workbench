@@ -2,7 +2,7 @@
 // 客户 ID 来自 crm-data.ts（c_lantuo 澜拓科技、c_hengyan 衡言律师事务所……），所以要在 crm 之后跑。
 import { insert, iso, DEMO_TODAY, type SeedModule } from './lib.ts'
 
-const SETTINGS = { owner: '林总', business: 'ABC茶社', nav_mode: 'complex', theme: 'jade', mobile_nav: 'tabs', demo_today: DEMO_TODAY }
+const SETTINGS = { owner: '林总', business: 'ABC茶社', xhs_name: 'ABC茶社', nav_mode: 'complex', theme: 'jade', mobile_nav: 'tabs', demo_today: DEMO_TODAY }
 
 type P = { id: string; name: string; kb: string; stage: string; owner: string; goal: string; next: string; waiting?: string; due: string; risk?: string; budget?: number; updated: string; created: string; miles: [date: string, title: string, status: string, note?: string][] }
 const PROJECTS: P[] = [

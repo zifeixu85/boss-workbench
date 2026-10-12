@@ -44,7 +44,7 @@ git clone https://github.com/zifeixu85/boss-workbench.git "$HOME/.claude/skills/
 
 建议同时装上[老板知识库](https://github.com/zifeixu85/boss-kb)。装好以后**新开一个对话**，在知识库文件夹里输入 `$boss-workbench`（Claude Code 里是 `/boss-workbench`），说“帮我搭工作台”。
 
-> **工作台模板（`template/`，React + SQLite）是测试版**：示例数据和部分界面文字还是照着示例茶社写的，给别的老板搭时由 Skill 按他的称呼、店名和行业改。模板会继续更新。
+> **工作台模板（`template/`，React + SQLite）是测试版**：老板称呼、店名、账号名从设置里读（`node server/cli.ts settings-set --owner … --business …`）；`--demo` 演示模式带一套虚构的示例茶社数据。不含依赖包和构建产物，安装时自动装、自动构建。模板会继续更新。
 
 ## 常用说法
 

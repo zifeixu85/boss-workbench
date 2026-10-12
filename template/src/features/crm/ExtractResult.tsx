@@ -1,5 +1,5 @@
 // 新材料提取的结果：顶上一句结论；各段默认只读排版，右上角“改”才变输入框；和判断规则对不上的只在那条答应里展开，当场能定；
-// 待办默认只勾我们要做、有日子、不重复的；商机金额要不要改由林总勾；确认后才写入。归属：大客户模块
+// 待办默认只勾我们要做、有日子、不重复的；商机金额要不要改由老板勾；确认后才写入。归属：大客户模块
 // 第四轮（产品评审 #15、数据评审 #4 #8 #9 #15 #19）：写回知识库的预览用人话分组说（开头几处、答应过的事、偏好与重要日子、顾虑、往来、收件箱备注），原文收进“看原文”；
 //   “之前记着、还没做的”改成勾选、确认写入时一起关（撤销能恢复），过时的回访草稿默认勾上；预先跑的结果写“事先”，不写日子；
 //   Codex 那句改成“只能看、不能改文件”（只读沙箱也能看本机别的文件，不说“只读了知识库”）。
@@ -22,12 +22,14 @@ import { initialDraft, payloadOf, similar, type Draft } from './extract-utils'
 import { ConflictBox, Section, ShortDate } from './extract-parts'
 import { KbChanges } from './kb-changes'
 import type { Extraction, KbPreview } from './types'
+import { useIdentity } from '@/lib/identity'
 
 type Preview = KbPreview
 
 export function ExtractResult({ x }: { x: Extraction }) {
   const mobile = useIsMobile()
-  const [d, setD] = useState<Draft>(() => initialDraft(x))
+  const { owner } = useIdentity()
+  const [d, setD] = useState<Draft>(() => initialDraft(x, owner))
   const [edit, setEdit] = useState<Record<string, boolean>>({})
   const [preview, setPreview] = useState<Preview | null>(null)
   const [showPlan, setShowPlan] = useState(false)
@@ -130,11 +132,11 @@ export function ExtractResult({ x }: { x: Extraction }) {
           {r.not_decided && <p className="mb-1.5 flex flex-wrap items-center gap-1.5 text-[12.5px]"><StatusBadge value="还没定" tone="warn" />不算成交，阶段不改（现在是“{x.client?.stage ?? '—'}”）</p>}
           <p className="text-[13.5px] leading-relaxed">{d.their_status || <span className="text-muted-foreground">没说</span>}</p>
         </Section>
-        <Section title="顾虑 · 决策信号" {...ed('signals')}
-          edit={<div className="grid gap-2"><Textarea rows={2} value={d.concerns} onChange={(e) => set('concerns', e.target.value)} placeholder="顾虑" /><Textarea rows={2} value={d.signals} onChange={(e) => set('signals', e.target.value)} placeholder="决策信号" /></div>}>
+        <Section title="顾虑 · 怎么定" {...ed('signals')}
+          edit={<div className="grid gap-2"><Textarea rows={2} value={d.concerns} onChange={(e) => set('concerns', e.target.value)} placeholder="顾虑" /><Textarea rows={2} value={d.signals} onChange={(e) => set('signals', e.target.value)} placeholder="怎么定：谁拍板、哪天定、在跟谁比" /></div>}>
           <dl className="grid gap-1.5 text-[13px] leading-relaxed">
             <div className="flex gap-2"><dt className="w-[4.5em] shrink-0 text-muted-foreground">顾虑</dt><dd className="min-w-0">{d.concerns || '没听到'}</dd></div>
-            <div className="flex gap-2"><dt className="w-[4.5em] shrink-0 text-muted-foreground">决策信号</dt><dd className="min-w-0">{d.signals || '没有'}</dd></div>
+            <div className="flex gap-2"><dt className="w-[4.5em] shrink-0 text-muted-foreground">怎么定</dt><dd className="min-w-0">{d.signals || '没有'}</dd></div>
           </dl>
         </Section>
       </div>

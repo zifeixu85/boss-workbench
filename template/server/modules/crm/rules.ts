@@ -3,6 +3,7 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { ROOT } from '../../db.ts'
+import { identity, ownerRe } from '../../services/identity.ts'
 import { AT_STORE, overlaps, storeVisitRange, type Closure } from './closure.ts'
 
 export const PRICE_FILE = '03-生意/产品与服务/企业茶礼礼盒.md'
@@ -30,7 +31,7 @@ export function catalog(): { name: string; price: number; alias: string[] }[] {
   return out
 }
 
-/** 找出一句话里的单价（“做到 240”“每份 240”“240 一份”）；“150 份”这种份数不算 */
+/** 找出一句话里的单价（“做到 260”“每份 260”“260 一份”）；“80 份”这种份数不算 */
 export function pricesIn(text: string): number[] {
   const out = new Set<number>()
   for (const m of text.matchAll(/(?:做到|单价|每份|一份|降到|报价?|按)\s*(\d{2,4})\s*(?:元|块)?/g)) out.add(Number(m[1]))
@@ -58,7 +59,7 @@ export function checkPromises(promises: { text: string; quote?: string }[], mate
       rule: '规则 2｜新客户只比单价：单价不降，改送包装或印 logo（待确认）',
       rule_file: RULE_FILE,
       why: `${ref.name}标价 ${ref.price} 元，这里答应 ${low} 元，每份低了 ${ref.price - low} 元。对方是新客户、在比价。`,
-      suggestion: '按规则 2：单价不降，改成送升级包装或免费印 logo。要是这次就想降，算“例外”，请林总定。',
+      suggestion: `按规则 2：单价不降，改成送升级包装或免费印 logo。要是这次就想降，算“例外”，请${identity().owner}定。`,
       by: ['工作台核对'],
     }
   })
@@ -74,7 +75,7 @@ export function checkClosure(promises: { text: string; due?: string; quote?: str
     return {
       about: p.text, rule: `${c.label}`, rule_file: c.source ?? '',
       why: `${mdOf(p.due)} 门店在停业装修，那天没法在门店接待。`,
-      suggestion: '换到复业以后，或者改去对方那里、送样品上门。请林总定。', by: ['工作台核对'],
+      suggestion: `换到复业以后，或者改去对方那里、送样品上门。请${identity().owner}定。`, by: ['工作台核对'],
     }
   })
 }
@@ -93,11 +94,15 @@ export function checkVisit(material: string, materialDate: string | null, c: Clo
 
 export type Hint = { line: string; tags: string[] }
 
-/** 等 Codex 的时候先给演示的人看：材料里要核对的几句（价格、日子、“考虑一下”、来门店、账期合同、喜好生日），工作台自己按字面挑的，不用 AI。
+/** 等 Codex 的时候先给你看：材料里要核对的几句（价格、日子、“考虑一下”、来门店、账期合同、喜好生日），工作台自己按字面挑的，不用 AI。
  *  第四轮：“之前”“目前”不算日子；“门店微信收到语音”不算来门店；对方提的账期、框架协议单独标出来（不算我们答应） */
 export function precheck(material: string): Hint[] {
   const body = material.replace(/^---[\s\S]*?---/, '').replace(/```\w*/g, '')
   const out: Hint[] = []
+  // 老板自己说的：聊天里按设置的称呼（“张总：”“张总说”）或“我：”；标签写成“张总答应”
+  const me = identity().owner
+  const mine = new RegExp(`${ownerRe()}\\s*(说|答应|[：:])`)
+  const promised = `${me}答应`
   for (const raw of body.split('\n')) {
     const line = raw.replace(/^[-*>\s]+/, '').trim()
     if (!line || line.startsWith('#')) continue
@@ -107,10 +112,10 @@ export function precheck(material: string): Hint[] {
     if (/生日/.test(bare)) tags.push('生日')
     else if (/\d{1,2}\s*[号日](?!常)|\d{1,2}\s*月\s*\d{0,2}|下周|下个月|月底|月中|年会/.test(bare)) tags.push('日子')
     if (/考虑|再看|可能|商量|跟合伙人说|开会定|等.{0,10}给/.test(bare)) tags.push('还没定')
-    // 林总自己说的（“林总：”“林总说”），不是别人跟林总说话
-    if (/林总\s*(说|答应|[：:])/.test(line) && /不加钱|做到|给您|给他|我给|可以|会带|答应|寄到|发您/.test(bare)) tags.push('林总答应')
+    // 老板自己说的（“张总：”“张总说”“我：”），不是别人跟老板说话
+    if ((mine.test(line) || /^我\s*[：:]/.test(bare)) && /不加钱|做到|给您|给他|我给|可以|会带|答应|寄到|发您/.test(bare)) tags.push(promised)
     if (/账期|框架协议|合同|发票|定金/.test(bare)) tags.push('账期、合同')
-    if (/喝.{0,4}(岩茶|白茶|花草|肉桂|水仙)|留了一罐|喜欢|不要那种/.test(bare) && !tags.includes('林总答应')) tags.push('喜好')
+    if (/喝.{0,4}(岩茶|白茶|花草|肉桂|水仙)|留了一罐|喜欢|不要那种/.test(bare) && !tags.includes(promised)) tags.push('喜好')
     if (/过来|来店|到店|来门店|来坐|来喝|喝喝茶|留.{0,4}包间/.test(bare) && AT_STORE.test(bare.replace(/门店微信/g, ''))) tags.push('来门店')
     // 纪要第一行“10 月 26 日上午 10:30，谁打过来的”只是记哪天，不算要核对的
     if (tags.length === 1 && tags[0] === '日子' && /打过来|打来|来电|说了.{0,4}分钟/.test(bare)) continue

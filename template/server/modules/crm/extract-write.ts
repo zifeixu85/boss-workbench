@@ -1,5 +1,5 @@
 // 新材料提取的写入、撤销、放弃。归属：大客户模块。
-// 林总确认后才写：往来记录、答应的事（标黄的可以当场定“例外 / 规则该改了”）、待办、下次跟进（自动待办）、喜好和重要日子、商机金额（勾了才改）、
+// 老板确认后才写：往来记录、答应的事（标黄的可以当场定“例外 / 规则该改了”）、待办、下次跟进（自动待办）、喜好和重要日子、商机金额（勾了才改）、
 // 这份材料让之前记着的事不用做了（答应的事、待办、关怀草稿，勾了才关）；
 // 勾了“写回知识库”：客户文件开头几行、答应过的事、偏好与重要日子、顾虑、往来记录一起改（先备份）；收件箱原件末尾加一行备注；
 // “规则该改了”在 90-持续生长/待确认的发现.md 加一节。
@@ -15,6 +15,7 @@ import { findingAppend, findingRemove, findingRemoveFor, inboxNote, inboxNoteRev
 import { extractConfirm, type ExtractConfirm } from './schema.ts'
 import { getExtraction, type Row } from './extract.ts'
 import { plain, sameTrait, similar, tidy } from './tidy.ts'
+import { identity, ownerRe } from '../../services/identity.ts'
 
 const md = (d: string) => `${Number(d.slice(5, 7))}/${Number(d.slice(8, 10))}`
 const stampNow = () => { const d0 = now(); const p = (n: number) => String(n).padStart(2, '0'); return `${today()}T${p(d0.getHours())}${p(d0.getMinutes())}${p(d0.getSeconds())}` }
@@ -25,24 +26,28 @@ const clean = (x: string) => x.trim().replace(/[。；;，,.\s]+$/, '')
 /** 知识库里的日期照客户文件的写法：10/28、1/20；跨年的写 2027/1/10（第三轮修数据评审 #21：一行里不再混“11月2日”和“10/30 前”） */
 const kbDates = (s: string) => s.replace(/(\d{4})年(\d{1,2})月(\d{1,2})日/g, '$1/$2/$3').replace(/(\d{1,2})月(\d{1,2})日/g, '$1/$2')
 const kbText = (s: string, y: string) => kbDates(clean(tidy(s, y)))
+/** 写回知识库的话里，老板用设置里的称呼（“张总 10/28 确认”） */
+const me = () => identity().owner
 const DECIDED = (p: { decision?: string | null; decision_note?: string | null }) =>
-  p.decision === '例外' ? `林总 ${md(today())} 定为例外${p.decision_note ? `：${p.decision_note.replace(/[（）()]/g, ' ').trim()}` : ''}`
-    : p.decision === '改规则' ? `林总 ${md(today())} 说规则该改，见待确认的发现` : null
+  p.decision === '例外' ? `${me()} ${md(today())} 定为例外${p.decision_note ? `：${p.decision_note.replace(/[（）()]/g, ' ').trim()}` : ''}`
+    : p.decision === '改规则' ? `${me()} ${md(today())} 说规则该改，见待确认的发现` : null
 
 /** 写回知识库“往来记录”的那一行，格式照客户文件的规矩：日期｜渠道｜说了什么；答应：…（没有写“无”）；来源：… */
 export function kbLineOf(d: Pick<ExtractConfirm, 'date' | 'channel' | 'summary' | 'their_status' | 'promises'>, source: string | null) {
   const y = today().slice(0, 4)
+  const owner = me()
+  const lead = new RegExp(`^(${ownerRe()})?(答应)?`)
   const promised = d.promises.length
     ? d.promises.map((p) => {
-      const what = kbText(p.text, y).replace(/^(林总)?(答应)?/, '')
+      const what = kbText(p.text, y).replace(lead, '')
       const when = p.due && !hasDate(what) ? ` ${kbDates(md(p.due))} 前` : ''
       const decided = DECIDED(p)
-      const flag = p.conflict ? `（和判断规则对不上，${decided ?? '等林总定'}）` : ''
+      const flag = p.conflict ? `（和判断规则对不上，${decided ?? `等${owner}定`}）` : ''
       return `${p.who}答应${when}${what}${flag}`
     }).join('、')
     : '无'
   const undecided = d.their_status && /考虑|再看|没定|未定|未成交|尚未/.test(d.their_status) && !/考虑|没定|未定|未成交|尚未/.test(d.summary) ? '；对方还没定' : ''
-  return `- ${d.date}｜${d.channel}｜${kbText(d.summary, y)}${undecided}；答应：${promised}；来源：${source ?? '林总粘贴的文字'}（工作台 Codex 提取，林总 ${md(today())} 确认）`
+  return `- ${d.date}｜${d.channel}｜${kbText(d.summary, y)}${undecided}；答应：${promised}；来源：${source ?? `${owner}粘贴的文字`}（工作台 Codex 提取，${owner} ${md(today())} 确认）`
 }
 
 /** “答应过的事”表格要加的行：| 谁答应 | 答应了什么 | 哪天前 | 状态 | */
@@ -50,7 +55,7 @@ export function kbRowsOf(d: Pick<ExtractConfirm, 'date' | 'channel' | 'promises'
   const y = today().slice(0, 4)
   return d.promises.map((p) => {
     const decided = DECIDED(p)
-    const status = p.conflict ? `待兑现（和规则对不上，${decided ?? '等林总定'}）` : '待兑现'
+    const status = p.conflict ? `待兑现（和规则对不上，${decided ?? `等${me()}定`}）` : '待兑现'
     return `| ${p.who} | ${kbText(p.text, y).replace(/\|/g, '／')} | ${p.due ?? '没说'} | ${status}（${md(d.date)} ${d.channel}） |`
   })
 }
@@ -84,7 +89,7 @@ export function previewKb(id: string, input: unknown) {
   try { return { ok: true as const, ...kbPreview(d.client_id, kbInput(d, line)), inbox } } catch (err) { return { ok: false as const, error: (err as Error).message, line, inbox } }
 }
 
-const inboxLine = (d: ExtractConfirm, kb: boolean) => `${today()} 已由工作台提取，写进工作台${kb ? '和客户档案' : ''}（${md(d.date)} ${d.channel}），林总确认。原件还在这里，整理时再移走。`
+const inboxLine = (d: ExtractConfirm, kb: boolean) => `${today()} 已由工作台提取，写进工作台${kb ? '和客户档案' : ''}（${md(d.date)} ${d.channel}），${me()}确认。原件还在这里，整理时再移走。`
 
 type TodoSnap = { id: string; title: string; status: string; priority: string; due: string | null; note: string | null; done_at: string | null; updated_at: string }
 type Written = {
@@ -103,7 +108,7 @@ type Written = {
 const TODO_COLS = 'id, title, status, priority, due, note, done_at, updated_at'
 const snapTodos = (cid: string) => all<TodoSnap>(`SELECT ${TODO_COLS} FROM todos WHERE client_id = :cid`, { cid })
 
-/** 林总确认：写进工作台；勾了“写回知识库”就改客户文件几处 */
+/** 老板确认：写进工作台；勾了“写回知识库”就改客户文件几处 */
 export function confirmExtraction(id: string, input: unknown, actor: Actor) {
   const r = get<Row>('SELECT * FROM crm_extractions WHERE id = :id', { id })
   if (!r) throw new NotFound('找不到这次提取')
@@ -153,7 +158,7 @@ export function confirmExtraction(id: string, input: unknown, actor: Actor) {
       const tid = uid('t')
       run(`INSERT INTO todos (id, title, status, priority, due, client_id, note, created_at, updated_at)
            VALUES (:id, :title, '待办', :pri, :due, :cid, :note, :at, :at)`, {
-        id: tid, title: clean(tidy(x.title, y)), pri: c.kind === '客户' ? '重要' : '普通', due: x.due ?? null, cid: c.id, note: `从新材料提取（${r.source_path ?? '粘贴的文字'}），林总确认`, at,
+        id: tid, title: clean(tidy(x.title, y)), pri: c.kind === '客户' ? '重要' : '普通', due: x.due ?? null, cid: c.id, note: `从新材料提取（${r.source_path ?? '粘贴的文字'}），${me()}确认`, at,
       })
       return tid
     })
@@ -178,7 +183,7 @@ export function confirmExtraction(id: string, input: unknown, actor: Actor) {
     if (d.next_follow !== undefined && (d.next_follow !== before.next_follow || d.next_step)) {
       follow = applyFollow(c.id, { next_follow: d.next_follow ?? null, next_step: d.next_step ?? undefined, reason: `新材料提取：${md(d.date)} ${d.channel}` }, actor, { allowPast: true })
     }
-    // 之前记着、这份材料让它不用做了的：林总勾了才关，关之前记下原来的状态
+    // 之前记着、这份材料让它不用做了的：老板勾了才关，关之前记下原来的状态
     const why = `${md(d.date)} ${d.channel}后不用做了（新材料提取时关掉）`
     const closed: NonNullable<Written['closed']> = { promises: [], todos: [], care: [] }
     for (const pid of d.close_promises) {
@@ -200,7 +205,7 @@ export function confirmExtraction(id: string, input: unknown, actor: Actor) {
       run("UPDATE client_care SET status = '不做' WHERE id = :id", { id: cid2 })
       closed.care.push({ id: cid2, status: x.status })
     }
-    // 商机金额：林总勾了才改，改成“谈过的”，留痕
+    // 商机金额：老板勾了才改，改成“谈过的”，留痕
     let dealBefore: Written['deal_before'] = null
     if (d.deal) {
       const old = get<{ id: string; client_id: string; title: string; amount: number | null; estimated: number; basis: string | null }>('SELECT id, client_id, title, amount, estimated, basis FROM deals WHERE id = :id', { id: d.deal.id })

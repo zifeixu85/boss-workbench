@@ -8,7 +8,7 @@ const EVENT_SQL = `SELECT e.*, c.name AS client_name, p.name AS project_name FRO
 
 // 时间一律换成“YYYY-MM-DDTHH:MM”再比（底座审查 #5）：全天日程的 start 只有日期（'2026-10-31'），
 // 直接和 '2026-10-31T00:00' 比字符串会被当成更早，提前一天漏进查询范围。
-// 全天日程的 end 是“结束后的那一天”（FullCalendar 的写法：门店改造 11/3—11/13 = 11/3—11/12 停业），没写 end 就是只占当天。
+// 全天日程的 end 是“结束后的那一天”（FullCalendar 的写法：end 写 5/13 = 实际到 5/12），没写 end 就是只占当天。
 const START_N = `CASE WHEN length(e.start) = 10 THEN e.start || 'T00:00' ELSE e.start END`
 const END_N = `CASE WHEN e.end IS NOT NULL THEN (CASE WHEN length(e.end) = 10 THEN e.end || 'T00:00' ELSE e.end END)
   WHEN length(e.start) = 10 THEN date(e.start, '+1 day') || 'T00:00' ELSE e.start END`

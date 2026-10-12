@@ -7,6 +7,7 @@ import { findClient } from '../../services/clients.ts'
 import { syncFollowTodo } from './follow.ts'
 import { findingAppend, findingPreview, kbDecisionNote, type FindingInput } from './materials.ts'
 import { careInput, careUpdate, decisionInput, followInput, promiseInput, promiseUpdate, stageInput } from './schema.ts'
+import { identity } from '../../services/identity.ts'
 
 /** 记一笔改动留痕 */
 export function recordEdit(clientId: string, entity: '阶段' | '答应的事' | '下次跟进' | '关怀' | '商机', entityId: string | null, oldValue: string | null, newValue: string | null, reason: string, actor: Actor) {
@@ -73,7 +74,7 @@ export function updatePromise(id: string, input: unknown, actor: Actor) {
 
 type ConflictRow = PromiseRow & { conflict: string | null; decision: string | null; interaction_id: string | null; source_file: string | null }
 
-/** “规则该改了”要追加进知识库的那一节（先给林总看） */
+/** “规则该改了”要追加进知识库的那一节（先给老板看） */
 function findingOf(id: string, note: string): { p: ConflictRow; input: FindingInput } {
   const p = get<ConflictRow>('SELECT * FROM client_promises WHERE id = :id', { id })
   if (!p) throw new NotFound('找不到这件答应的事')
@@ -90,7 +91,7 @@ export function previewDecision(id: string, input: unknown) {
   return findingPreview(x)
 }
 
-/** 标黄的答应林总定了：这次算例外（写原因），或者规则该改了（在知识库待确认的发现里加一节，先备份）。定了以后不再标黄 */
+/** 标黄的答应老板定了：这次算例外（写原因），或者规则该改了（在知识库待确认的发现里加一节，先备份）。定了以后不再标黄 */
 export function decidePromise(id: string, input: unknown, actor: Actor) {
   const data = decisionInput.parse(input)
   const { p, input: x } = findingOf(id, data.note)
@@ -104,15 +105,15 @@ export function decidePromise(id: string, input: unknown, actor: Actor) {
     finding = findingAppend(x, stamp)
     logChange(actor, 'kb', finding.path, '追加', `待确认的发现：${finding.title}（备份在 ${finding.backup}）`)
   }
-  // 第三轮修数据评审 #8：客户文件“答应过的事”那一行后面追加林总怎么定的（找不到那一行就只记在工作台）
+  // 第三轮修数据评审 #8：客户文件“答应过的事”那一行后面追加老板怎么定的（找不到那一行就只记在工作台）
   let kbNote: { path: string; backup: string } | null = null
   try {
     const n = kbDecisionNote(c.id, p.text, data.decision, data.note, today(), stamp)
-    if (n) { kbNote = { path: n.path, backup: n.backup }; logChange(actor, 'kb', n.path, '追加', `${c.name}“答应过的事”：${p.text.slice(0, 20)}后面记了林总怎么定的（备份在 ${n.backup}）`) }
+    if (n) { kbNote = { path: n.path, backup: n.backup }; logChange(actor, 'kb', n.path, '追加', `${c.name}“答应过的事”：${p.text.slice(0, 20)}后面记了${identity().owner}怎么定的（备份在 ${n.backup}）`) }
   } catch { kbNote = null }
   tx(() => {
     run('UPDATE client_promises SET decision = :d, decision_note = :n, decision_at = :at WHERE id = :id', { d: data.decision, n: data.note, at: today(), id })
-    recordEdit(c.id, '答应的事', id, '和判断规则对不上，等林总定', data.decision === '例外' ? '这次算例外' : '规则该改了（记进待确认的发现）', data.note, actor)
+    recordEdit(c.id, '答应的事', id, `和判断规则对不上，等${identity().owner}定`, data.decision === '例外' ? '这次算例外' : '规则该改了（记进待确认的发现）', data.note, actor)
     logChange(actor, 'promise', id, '修改', `${c.name}答应的“${p.text.slice(0, 24)}”：${data.decision === '例外' ? '这次算例外' : '规则该改了'}（${data.note}）`)
   })
   return { ...get('SELECT * FROM client_promises WHERE id = :id', { id }), finding, kb_note: kbNote }
@@ -131,7 +132,7 @@ export function addPromise(input: unknown, actor: Actor) {
 
 // ───────────── 关怀 ─────────────
 
-/** 存一条关怀草稿（工作台按模板拼的、Codex 写的、林总自己写的都存这里；author 写清是谁写的） */
+/** 存一条关怀草稿（工作台按模板拼的、Codex 写的、老板自己写的都存这里；author 写清是谁写的） */
 export function addCare(input: unknown, actor: Actor) {
   const data = careInput.parse(input)
   const c = findClient(data.client_id)
@@ -140,7 +141,7 @@ export function addCare(input: unknown, actor: Actor) {
   run(`INSERT INTO client_care (id, client_id, occasion, date, gift, message, status, note, author, sent_at, created_at)
        VALUES (:id, :cid, :occasion, :date, :gift, :message, :status, :note, :author, :sent, :at)`,
   params({ id, cid: c.id, occasion: data.occasion, date: data.date ?? null, gift: data.gift ?? null, message: data.message ?? null, status: data.status,
-    note: data.note ?? null, author: data.author ?? '林总', sent: data.status === '已送出' ? at : null, at }))
+    note: data.note ?? null, author: data.author ?? identity().owner, sent: data.status === '已送出' ? at : null, at }))
   logChange(actor, 'care', id, '新建', `${c.name}：${data.occasion}${data.status === '已送出' ? '（已发出）' : '的关怀草稿'}`)
   return get('SELECT * FROM client_care WHERE id = :id', { id })
 }
@@ -153,9 +154,10 @@ export function updateCare(id: string, input: unknown, actor: Actor) {
   const c = findClient(x.client_id)
   const at = nowIso()
   const status = data.status ?? x.status
-  // 林总改了草稿：来源后面记一笔“林总改过”，不把改过的话还算成 AI 写的
+  // 老板改了草稿：来源后面记一笔“张总改过”（设置里的称呼），不把改过的话还算成 AI 写的
   const edited = !!data.message && data.message !== x.message
-  const author = edited && !(x.author ?? '').includes('林总改过') ? `${x.author ?? '林总'} · 林总改过` : x.author
+  const me = identity().owner
+  const author = edited && !/改过$|改过 ·/.test(x.author ?? '') ? `${x.author ?? me} · ${me}改过` : x.author
   run(`UPDATE client_care SET status = :status, gift = COALESCE(:gift, gift), message = COALESCE(:message, message), author = :author,
        sent_at = CASE WHEN :status = '已送出' THEN COALESCE(sent_at, :at) ELSE NULL END WHERE id = :id`,
   { status, gift: data.gift ?? null, message: data.message ?? null, author, at, id })

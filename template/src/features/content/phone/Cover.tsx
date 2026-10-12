@@ -1,12 +1,14 @@
 // 封面和图片页：用模板实时画（大字 + 茶具垫图 + 品牌色，3:4），稿件一改就跟着变，不依赖生图。归属：小红书内容模块。
 // 四个模板对应素材库：a_cover1 大字 + 实拍、a_cover2 三宫格步骤、a_cover3 左右对比、a_cover4 一周茶单日历。
 // 同一张垫图在不同篇里换裁切位置和左右方向（按标题算，固定不变），内页按每页说的东西换垫图，不会一排缩略图都一个样。
-// 同行的笔记（对标收藏）不套自家模板：中性底色、写对方账号名，没有 ABC茶社 的角标。
+// 同行的笔记（对标收藏）不套自家模板：中性底色、写对方账号名，没有自家账号的角标。
+// 自家账号名从设置读（设置里的小红书账号名，没设就用店名）。
 import type { CSSProperties, ReactNode } from 'react'
 import { cn } from '@/lib/utils'
 import { Pad } from './pads'
 import type { Cover as CoverT, PageLite } from '../types'
 import './phone.css'
+import { useIdentity } from '@/lib/identity'
 
 export const TEMPLATE_NAMES: Record<string, string> = { a_cover1: '大字 + 实拍', a_cover2: '三宫格步骤', a_cover3: '左右对比', a_cover4: '一周茶单' }
 export const TONE_NAMES = ['米白', '茶绿', '暖棕', '雾蓝'] as const
@@ -45,10 +47,11 @@ export function padFor(text: string, coverPad: string, index: number) {
 }
 
 function Mark() {
+  const { xhs } = useIdentity()
   return (
     <span className="xc-mark">
       <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"><path d="M3 6h8v3.5A3.5 3.5 0 0 1 7.5 13h-1A3.5 3.5 0 0 1 3 9.5z" /><path d="M11 7h1.2a1.6 1.6 0 0 1 0 3.2H11" /><path d="M6 2.5c-.6.8.6 1.2 0 2M8.5 2.5c-.6.8.6 1.2 0 2" /></svg>
-      ABC茶社
+      {xhs}
     </span>
   )
 }
@@ -85,6 +88,7 @@ function PeerCover({ text, account, className }: { text: string; account: string
 export function CoverArt({ text, cover, pages = [], kicker, className, peer, seed }: {
   text: string; cover: CoverT | null; pages?: PageLite[]; kicker?: string; className?: string; peer?: string; seed?: string
 }) {
+  const { xhs } = useIdentity()
   if (peer || !cover) return <PeerCover text={text} account={peer ?? '同行'} className={className} />
   const ls = lines(text || '还没有封面大字')
   const key = seed ?? text
@@ -142,7 +146,7 @@ export function CoverArt({ text, cover, pages = [], kicker, className, peer, see
     <Frame cover={cover} className={className} label={`封面：${ls.join(' ')}`}>
       <div className="xc-pad"><div className="xc-crop" style={crop(key)}><Pad pad={cover.pad} /></div></div>
       <div className="xc-fade" />
-      <div className="xc-kicker">{kicker ?? 'ABC茶社'}</div><Title ls={ls} />
+      <div className="xc-kicker">{kicker ?? xhs}</div><Title ls={ls} />
       <Mark />
     </Frame>
   )

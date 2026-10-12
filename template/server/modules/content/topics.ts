@@ -5,6 +5,7 @@ import { runCodex, TIMEOUT_MS } from './codex.ts'
 import { parseReply } from './parse.ts'
 import { accountFacts } from './stats.ts'
 import { SOURCES } from './pieces.ts'
+import { identity } from '../../services/identity.ts'
 
 export type TopicIn = { title?: unknown; source?: unknown; reason?: unknown; pillar?: unknown; angle?: unknown; ref?: unknown; warn?: unknown }
 
@@ -81,7 +82,7 @@ export function generateTopics(input: { direction?: string | null; count?: numbe
   const jobId = startJob('出选题', direction || null)
   const pool = all<{ title: string }>("SELECT title FROM xhs_pieces WHERE status IN ('灵感池','已选','写稿中','待发布') ORDER BY updated_at DESC LIMIT 30").map((r) => r.title)
   const prompt = [
-    `你在 ABC茶社 工作台的「小红书内容中心」。今天是 ${today()}。按项目里的「小红书创作」Skill（.agents/skills/xhs-creator/SKILL.md）出 ${count} 个小红书选题${direction ? `，这次往这个方向想：${direction}` : ''}。`,
+    `你在 ${identity().shop} 的工作台「小红书内容中心」。今天是 ${today()}。按项目里的「小红书创作」Skill（.agents/skills/xhs-creator/SKILL.md）出 ${count} 个小红书选题${direction ? `，这次往这个方向想：${direction}` : ''}。`,
     '先读 11-内容与作品/小红书账号定位.md 和 11-内容与作品/作品索引.md（别和最近 30 天发过的重复），需要时看 04-客户/客户原话与顾虑.md 和 03-生意/品牌与口吻.md。只读，不改文件。这次没开联网，热点按日期、节气和天气常识判断，说清楚是推测。',
     '回复：先 1—3 句中文说明，再单独一行“参考了：文件路径、文件路径”，最后：',
     '<topics>[{"title":"20 字以内","source":"评论区|热点节气|同行爆款|知识库","reason":"为什么现在写（一句话，带依据）","pillar":"四个内容支柱之一的名字，都不是就写空","angle":"切入角度"}]</topics>',

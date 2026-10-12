@@ -1,5 +1,5 @@
 // 关怀与回访：未来 30 天的生日、纪念日、节日（立冬）和太久没联系的人，每人一条建议（送什么、怎么说）；右边是春节要提前问的老客户。归属：大客户模块
-// 第二轮：每张卡只留三个按钮，“谁写的”单独一行不截断；林总的规矩从知识库《大客户关怀》读（读不到只留看原文）。
+// 第二轮：每张卡只留三个按钮，“谁写的”单独一行不截断；老板的规矩从知识库《大客户关怀》读（读不到只留看原文）。
 // 第三轮（产品评审 #11 #12、数据评审 #7）：类型用中性灰标签、4—6 个字，下一行不再重复；依据拆成“口味 / 送礼对象 / 习惯”几小块、各带出处；
 //   约好的日子已经过了的单独一组、写“已过 X 天”（青砚原定 10/20 联系）；右栏春节名单改成“去年买了什么 + 右边一个状态小标签”。
 import { useSearchParams } from 'react-router'
@@ -16,6 +16,7 @@ import { cn } from '@/lib/utils'
 import { CareDraftCard } from './CareDraft'
 import { SourceLink, yuanToWan } from './parts'
 import type { CareData, CareItem, CareRules } from './types'
+import { useIdentity } from '@/lib/identity'
 
 const STATUS = [{ value: 'todo', label: '待处理' }, { value: 'sent', label: '已发出' }, { value: 'skip', label: '不做' }] as const
 
@@ -31,6 +32,7 @@ function weekOf(date: string | null, overdue?: CareItem['overdue']) {
 
 export default function CarePage() {
   const { data, error, refetch, isLoading } = useApi<CareData>('/crm/care?days=30')
+  const { owner } = useIdentity()
   const [sp, setSp] = useSearchParams()
   const status = (STATUS.find((s) => s.value === sp.get('status'))?.value ?? 'todo')
   const t = todayStr()
@@ -42,7 +44,7 @@ export default function CarePage() {
   return (
     <>
       <PageHeader eyebrow="客户" title="关怀与回访"
-        desc={`未来 30 天（${shortDate(t)}—${shortDate(addDays(t, 30))}）该关心一下的人，每人一条建议：送什么、怎么说。话都是草稿，林总自己改、自己发；送礼的消息里不提单子。`}>
+        desc={`未来 30 天（${shortDate(t)}—${shortDate(addDays(t, 30))}）该关心一下的人，每人一条建议：送什么、怎么说。话都是草稿，${owner}自己改、自己发；送礼的消息里不提单子。`}>
         <SubTabs items={CLIENT_TABS} />
       </PageHeader>
       <PageBody className="grid gap-5">
@@ -120,11 +122,12 @@ function CareRow({ x }: { x: CareItem }) {
   )
 }
 
-/** 林总的关怀规矩：从知识库《大客户关怀》读原话；读不到就只给原文链接 */
+/** 老板的关怀规矩：从知识库《大客户关怀》读原话；读不到就只给原文链接 */
 function RulesPanel({ rules }: { rules: CareRules }) {
+  const { owner } = useIdentity()
   return (
-    <Panel title={<span className="flex items-center gap-1.5"><Leaf className="size-4 text-primary" />林总的规矩</span>}
-      desc={rules.found ? `林总的原话，摘自知识库《大客户关怀》${rules.confirm ? `（${rules.confirm}）` : ''}；知识库改了这里跟着变` : '知识库里没读到《大客户关怀》'} bodyClass="px-5 py-4">
+    <Panel title={<span className="flex items-center gap-1.5"><Leaf className="size-4 text-primary" />{owner}的规矩</span>}
+      desc={rules.found ? `${owner}的原话，摘自知识库《大客户关怀》${rules.confirm ? `（${rules.confirm}）` : ''}；知识库改了这里跟着变` : '知识库里没读到《大客户关怀》'} bodyClass="px-5 py-4">
       {rules.found && rules.rules.length > 0 && (
         <ul className="grid gap-2 text-[13px] leading-relaxed">
           {rules.rules.map((r) => <li key={r} className="flex gap-1.5"><span className="text-muted-foreground">“</span><span className="min-w-0">{r}<span className="text-muted-foreground">”</span></span></li>)}

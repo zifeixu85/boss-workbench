@@ -27,14 +27,15 @@ export type ClientPromise = {
   done_at: string | null; note: string | null; who: string; to_whom: string | null; conflict: string | null; source_file: string | null; created_at: string
   /** 哪天说的（所属往来记录的日期） */
   said_on?: string | null; said_channel?: string | null
-  /** 标黄的林总定了没有：例外 / 改规则 */
+  /** 标黄的老板定了没有：例外 / 改规则 */
   decision?: '例外' | '改规则' | null; decision_note?: string | null; decision_at?: string | null
 }
 export type Order = { id: string; date: string; channel: string; occasion: string | null; item: string; qty: number; unit: string; unit_price: number | null; amount: number; status: string; note: string | null; room_fee?: boolean }
 export type TraitKind = '口味' | '包装' | '送礼对象' | '禁忌' | '顾虑' | '习惯'
 export type Trait = { id: string; kind: TraitKind; text: string; source: string | null }
 export type KeyDate = { id: string; date: string; label: string; kind: string; who: string | null; note: string | null; next: string; days_left: number; recurring: boolean }
-export type AuthorKind = '定时任务' | '现场写' | '知识库' | '模板' | '林总'
+/** 本人 = 老板自己写的（显示时用设置里的称呼） */
+export type AuthorKind = '定时任务' | '现场写' | '知识库' | '模板' | '本人'
 export type Care = { id: string; client_id: string; occasion: string; date: string | null; gift: string | null; message: string | null; status: string; note: string | null; author: string | null; sent_at: string | null; author_kind?: AuthorKind }
 export type Talk = Interaction & {
   with_whom: string | null; concerns: string | null; their_status: string | null; signals: string | null; source_file: string | null; promises: ClientPromise[]

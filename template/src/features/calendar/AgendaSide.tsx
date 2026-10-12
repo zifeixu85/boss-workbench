@@ -18,7 +18,7 @@ export function AgendaSide() {
   const to = `${toDateStr(new Date(month.getFullYear(), month.getMonth() + 1, 1))}T00:00`
   const { data: monthEvents = [] } = useApi<CalEvent[]>(`/events?from=${addDays(from, -7)}&to=${to}`)
   const busy = new Set(monthEvents.map((e) => e.start.slice(0, 10)))
-  // 全天日程的 end 是“结束后的那一天”（门店改造 11/3—11/13 = 11/3—11/12），所以那天不算（底座审查 #5）
+  // 全天日程的 end 是“结束后的那一天”（end 写 5/13 = 实际到 5/12），所以那天不算（底座审查 #5）
   const list = monthEvents.filter((e) => e.start.slice(0, 10) <= day && (e.all_day && e.end ? e.end.slice(0, 10) > day : (e.end ?? e.start).slice(0, 10) >= day))
   return (
     <div className="grid content-start gap-4 sm:grid-cols-2 xl:grid-cols-1">

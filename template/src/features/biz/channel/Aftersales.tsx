@@ -12,6 +12,7 @@ import { cn } from '@/lib/utils'
 import { BizBadge } from '../parts'
 import { yuanNum } from '../fmt'
 import type { ChannelData } from '../types'
+import { useIdentity } from '@/lib/identity'
 
 type Tab = 'batch' | 'open' | 'all'
 const money = (v: number) => v.toLocaleString('zh-CN', { minimumFractionDigits: 0, maximumFractionDigits: 2 })
@@ -19,6 +20,7 @@ const money = (v: number) => v.toLocaleString('zh-CN', { minimumFractionDigits: 
 export function AftersalesPanel({ d }: { d: ChannelData }) {
   const a = d.extras.aftersales
   const [tab, setTab] = useState<Tab>('batch')
+  const { owner } = useIdentity()
   if (!a) return null
   const batch = a.batches[0]
   const isOpen = (s: string) => s === '待处理' || s === '退款中'
@@ -83,7 +85,7 @@ export function AftersalesPanel({ d }: { d: ChannelData }) {
           </TableBody>
         </StickyTable>
       ) : <div className="px-5 pb-2"><EmptyNote>没有这样的售后单。</EmptyNote></div>}
-      <div className="px-5 pb-4"><ChartNote>来源：千帆后台导出的售后表（晓雯每天 07:30 前导出）· 客服{a.handlers.join('、')}处理 · 零售小件碎了客服可以直接补发或退，不用等林总 · 退款金额到分，和平台售后表一致</ChartNote></div>
+      <div className="px-5 pb-4"><ChartNote>来源：千帆后台导出的售后表（晓雯每天 07:30 前导出）· 客服{a.handlers.join('、')}处理 · 零售小件碎了客服可以直接补发或退，不用等{owner} · 退款金额到分，和平台售后表一致</ChartNote></div>
     </Panel>
   )
 }

@@ -4,6 +4,7 @@
 import { all, get } from '../../db.ts'
 import { today, addDays, isoWeek, daysBetween } from '../../services/common.ts'
 import { normalizeDraft } from './draft.ts'
+import { identity } from '../../services/identity.ts'
 
 type Stat = { impressions: number; reads: number; likes: number; saves: number; comments: number; new_followers: number; spend: number }
 type NoteJoined = {
@@ -196,7 +197,8 @@ function takeaway(series: DailyPoint[]): string | null {
 
 /** 发现页里放在旁边的卡：自己最近的笔记 + 对标收藏（同行的笔记不套自家的封面和水印） */
 export function feed() {
-  const own = noteRows().slice(0, 14).map((n) => ({ id: n.id, piece_id: n.piece_id, title: n.title, cover_text: n.cover_text, cover: n.cover, pages: n.pages, likes: n.total ? n.total.likes : null, own: true, account: 'ABC茶社' }))
+  const account = identity().xhs // 自家账号名：设置里的小红书账号名（没设就用店名）
+  const own = noteRows().slice(0, 14).map((n) => ({ id: n.id, piece_id: n.piece_id, title: n.title, cover_text: n.cover_text, cover: n.cover, pages: n.pages, likes: n.total ? n.total.likes : null, own: true, account }))
   const bench = all<{ id: string; account: string; title: string; cover_text: string | null; pad: string | null; likes: number | null }>('SELECT id, account, title, cover_text, pad, likes FROM xhs_benchmarks ORDER BY saved_at DESC')
     .map((b) => ({ id: b.id, piece_id: null, title: b.title, cover_text: b.cover_text, cover: null, pages: [], likes: b.likes, own: false, account: b.account }))
   return { own, bench }

@@ -1,4 +1,4 @@
-// 林总早上最想看的第 3 件：小红书今天发什么（数据来自内容模块 todayPlan()）
+// 老板早上最想看的第 3 件：小红书今天发什么（数据来自内容模块 todayPlan()）
 import { Link } from 'react-router'
 import { Clock, ImageIcon } from 'lucide-react'
 import type { XhsToday as Plan } from '@/lib/types'

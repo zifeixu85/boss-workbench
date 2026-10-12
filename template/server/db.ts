@@ -1,5 +1,5 @@
 // 数据库：用 Node 自带的 node:sqlite，不需要编译原生模块。
-// 位置：<知识库根>/工作台/数据/workbench.db。网页接口和 Codex 命令行共用这一份。
+// 位置：<知识库根>/工作台/数据/workbench.db（程序放库外时用 WORKBENCH_ROOT、WORKBENCH_DB 指定）。网页接口和 Codex 命令行共用这一份。
 import { DatabaseSync, type SQLInputValue } from 'node:sqlite'
 import { mkdirSync, readdirSync, readFileSync, existsSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
@@ -12,6 +12,9 @@ export const APP_DIR = resolve(HERE, '..')
 export const ROOT = resolve(process.env.WORKBENCH_ROOT || join(APP_DIR, '..', '..'))
 export const DATA_DIR = join(ROOT, '工作台', '数据')
 export const DB_PATH = process.env.WORKBENCH_DB || join(DATA_DIR, 'workbench.db')
+/** 备份都放数据库旁边的 备份/：数据库备份直接放这里，知识库文件改之前的原样放 备份/知识库/。
+ *  程序和数据库放在知识库外面时（知识库在云盘里），备份也跟着在库外，不随知识库同步 */
+export const BACKUP_DIR = join(dirname(DB_PATH), '备份')
 
 type Params = Record<string, SQLInputValue>
 export type Row = Record<string, unknown>
@@ -68,6 +71,17 @@ export function tx<T>(fn: () => T): T {
     d.exec('ROLLBACK')
     throw err
   }
+}
+
+/** 备份数据库到 备份/workbench-<日期>T<时分秒>.db（VACUUM INTO 写一份完整副本，-wal 里的改动也在），返回备份文件位置 */
+export function backupDatabase(): string {
+  const d = new Date()
+  const p = (n: number) => String(n).padStart(2, '0')
+  const file = join(BACKUP_DIR, `workbench-${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}.db`)
+  mkdirSync(BACKUP_DIR, { recursive: true })
+  if (existsSync(file)) throw new Error(`这一秒已经备份过了：${file}`)
+  open().prepare('VACUUM INTO ?').run(file)
+  return file
 }
 
 export const uid = (prefix: string) => `${prefix}_${randomUUID().slice(0, 8)}`

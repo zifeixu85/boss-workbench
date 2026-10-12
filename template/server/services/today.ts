@@ -6,6 +6,7 @@ import { demoDate } from '../clock.ts'
 import { inboxInput, settingsInput } from '../../shared/schema.ts'
 import { type Actor, NotFound, today, addDays, daysBetween, dayOf } from './common.ts'
 import { listClients, escapeLike } from './clients.ts'
+import { identity } from './identity.ts'
 import { listProjects } from './projects.ts'
 import { listEvents, listTodos } from './schedule.ts'
 import { cashSummary, listReceivables } from './money.ts'
@@ -96,11 +97,14 @@ export function doneInbox(id: string, result: string, actor: Actor) {
 export function getSettings() {
   const rows = all<{ key: string; value: string }>('SELECT * FROM settings')
   const s = Object.fromEntries(rows.map((r) => [r.key, r.value]))
+  const id = identity()
   return {
     nav_mode: (s.nav_mode as 'simple' | 'complex' | 'top') ?? 'complex',
     theme: s.theme ?? 'jade',
     mobile_nav: (s.mobile_nav as 'tabs' | 'drawer') ?? 'tabs',
-    owner: s.owner ?? '老板', business: s.business ?? '我的工作台',
+    owner: id.owner, business: s.business || '我的工作台',
+    // 店名、小红书账号名（没设置时是中性说法，见 services/identity.ts）；xhs_name 是设置里存的原值，空着就是没设
+    shop: id.shop, xhs: id.xhs, xhs_name: s.xhs_name ?? '',
     today: today(), demo: demoDate() !== null,
   }
 }
@@ -108,9 +112,11 @@ export function saveSettings(input: unknown, actor: Actor) {
   const data = settingsInput.parse(input)
   for (const [key, value] of Object.entries(data)) {
     if (value === undefined) continue
+    // 小红书账号名写空 = 不单独设，跟着店名走
+    if (key === 'xhs_name' && value === '') { run("DELETE FROM settings WHERE key = 'xhs_name'"); continue }
     run('INSERT INTO settings (key, value) VALUES (:key, :value) ON CONFLICT(key) DO UPDATE SET value = :value', { key, value })
   }
-  const NAMES: Record<string, string> = { nav_mode: '电脑导航', theme: '风格', mobile_nav: '手机导航', owner: '称呼', business: '工作台名称' }
+  const NAMES: Record<string, string> = { nav_mode: '电脑导航', theme: '风格', mobile_nav: '手机导航', owner: '称呼', business: '工作台名称（店名）', xhs_name: '小红书账号名' }
   logChange(actor, 'settings', 'app', '修改', `设置：改了${Object.keys(data).map((k) => NAMES[k] ?? k).join('、')}`)
   return getSettings()
 }

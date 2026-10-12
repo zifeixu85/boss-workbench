@@ -12,6 +12,7 @@ import { ConflictDialog } from './dialogs'
 import { SourceLink } from './parts'
 import type { PromiseDraft } from './extract-utils'
 import { conflictText } from './extract-utils'
+import { useIdentity } from '@/lib/identity'
 
 /** 结果里的一段：默认只读排版；右上角“改”，点了才出现输入框 */
 export function Section({ title, hint, icon, children, edit, editing, onEdit, tone, id, className }: {
@@ -109,7 +110,7 @@ function PlainLines({ text, hot }: { text: string; hot: (line: string) => boolea
   )
 }
 
-/** 原件只读：开头的说明（说话人、记录人）一行灰字；```text 里一行一句“14:02 陈静：……”的聊天排成三栏；别的一行一行排。
+/** 原件只读：开头的说明（说话人、记录人）一行灰字；```text 里一行一句“14:02 客户：……”的聊天排成三栏；别的一行一行排。
  *  highlight：工作台按字面先标出来要核对的几句，浅黄底 */
 export function MaterialView({ body, highlight = [] }: { body: string; path?: string; highlight?: string[] }) {
   const fm = body.match(/^---\n([\s\S]*?)\n---\n?/)
@@ -117,6 +118,7 @@ export function MaterialView({ body, highlight = [] }: { body: string; path?: st
   const rest = fm ? body.slice(fm[0].length) : body
   const blocks = rest.split(/```\w*\n?/)
   const hot = (line: string) => highlight.some((h) => h && line.includes(h.slice(0, 16)))
+  const { owner } = useIdentity()
   return (
     <div className="grid gap-3">
       {(meta['说话人'] || meta['记录人']) && <p className="text-[12px] text-muted-foreground">{[meta['说话人'] && `说话人：${meta['说话人']}`, meta['记录人'] && `记录：${meta['记录人']}`].filter(Boolean).join(' · ')}</p>}
@@ -129,7 +131,7 @@ export function MaterialView({ body, highlight = [] }: { body: string; path?: st
             {lines.map((l, j) => {
               const m = l.trim().match(CHAT)
               if (!m) return <li key={j} className="px-2 py-1 text-[13.5px] text-muted-foreground">{l}</li>
-              const me = /林总|我/.test(m[2])
+              const me = m[2].includes(owner) || /^我/.test(m[2]) // 老板自己说的（设置里的称呼或“我”）
               return (
                 <li key={j} className={cn('grid grid-cols-[44px_52px_minmax(0,1fr)] items-baseline gap-2 rounded-md px-2 py-1 text-[14px] leading-relaxed', hot(l) && 'bg-warn-soft/70')}>
                   <span className="num text-[12px] text-muted-foreground">{m[1]}</span>

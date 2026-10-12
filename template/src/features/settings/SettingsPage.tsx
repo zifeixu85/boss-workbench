@@ -30,7 +30,7 @@ export default function SettingsPage() {
           <MobileNavPicker value={data?.mobile_nav} />
         </Panel>
         <Panel title="基本信息">
-          {data ? <BasicInfoForm key={`${data.owner}|${data.business}`} settings={data} /> : <div className="grid gap-4 sm:grid-cols-2"><Skeleton className="h-16" /><Skeleton className="h-16" /></div>}
+          {data ? <BasicInfoForm key={`${data.owner}|${data.business}|${data.xhs_name}`} settings={data} /> : <div className="grid gap-4 sm:grid-cols-2"><Skeleton className="h-16" /><Skeleton className="h-16" /></div>}
         </Panel>
         <div className="grid gap-5 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] lg:items-start">
           <Panel title="数据在哪里" desc="都是普通文件，放在你自己的电脑上">

@@ -94,5 +94,6 @@ export type Starts = {
   benchmarks: { id: string; account: string; title: string; cover_text: string | null; pad: string | null; likes: number | null; saves: number | null; comments: number | null; structure: string | null; borrow: string | null; saved_at: string }[]
 }
 export type CodexStatus = { available: boolean; detail: string; version: string | null; timeout_s: number; slow_s: number }
-export type Rules = { rules: CheckRule[]; sources: CheckSource[]; today: string }
+/** store_closed：门店停业的日子（服务端按项目里程碑、日程算的；没有就是 null） */
+export type Rules = { rules: CheckRule[]; sources: CheckSource[]; today: string; store_closed?: { from: string; to: string } | null }
 export type Pillar = { id: string; name: string; description: string | null }

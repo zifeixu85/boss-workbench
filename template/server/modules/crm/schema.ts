@@ -2,6 +2,7 @@
 // 第二轮：日期要是真实存在的日子（2026-13-40 不收）；阶段写错给中文提示（原来报英文 Invalid option）。
 import { z } from 'zod'
 import { CHANNELS, CLIENT_STAGES } from '../../../shared/schema.ts'
+import { identity } from '../../services/identity.ts'
 
 /** 真实存在的日子：格式对、月份 1—12、这个月真有这一天 */
 export function isRealDate(s: string) {
@@ -32,10 +33,10 @@ export const promiseInput = z.object({
   client_id: z.string().min(1),
   text: text(300).min(1, '写清答应了什么'),
   due: date.nullable().optional(),
-  who: text(20).default('林总'),
+  who: text(20).default(() => identity().owner), // 没写谁答应的：默认是老板本人（设置里的称呼）
   to_whom: text(40).optional().nullable(),
 })
-/** 标黄的答应林总怎么定：这次算例外（写原因），或者规则该改了（预览后追加进知识库的待确认发现） */
+/** 标黄的答应老板怎么定：这次算例外（写原因），或者规则该改了（预览后追加进知识库的待确认发现） */
 export const decisionInput = z.object({
   decision: z.enum(['例外', '改规则'], { error: '选“这次算例外”还是“规则该改了”' }),
   note: z.string({ error: '写一句原因' }).trim().min(2, '写一句原因（至少两个字）').max(300),
@@ -67,7 +68,7 @@ export const extractStart = z.object({
   // 第三轮：粘贴的太短（“短”“好的”）就不白跑一次 Codex
   .refine((x) => !!x.source_path || (x.text ?? '').replace(/\s/g, '').length >= 20, { message: '粘贴的文字太短了（至少 20 个字）：写清谁说了什么、哪天说的' })
 
-/** 确认写入：网页上林总看过、改过的提取结果 */
+/** 确认写入：网页上老板看过、改过的提取结果 */
 export const extractConfirm = z.object({
   client_id: z.string().min(1, '先选是哪位客户'),
   date,
@@ -78,7 +79,7 @@ export const extractConfirm = z.object({
   signals: text(300).optional().nullable(),
   concerns: text(300).optional().nullable(),
   promises: z.array(z.object({
-    text: text(300).min(1), due: date.nullable().optional(), who: text(20).default('林总'), to_whom: text(40).optional().nullable(), conflict: text(400).optional().nullable(),
+    text: text(300).min(1), due: date.nullable().optional(), who: text(20).default(() => identity().owner), to_whom: text(40).optional().nullable(), conflict: text(400).optional().nullable(),
     decision: z.enum(['例外', '改规则']).optional().nullable(), decision_note: text(300).optional().nullable(),
   })).max(10).default([]),
   todos: z.array(z.object({ title: text(120).min(1), due: date.nullable().optional() })).max(10).default([]),
@@ -86,7 +87,7 @@ export const extractConfirm = z.object({
   next_step: text(200).optional().nullable(),
   traits: z.array(z.object({ kind: z.enum(['口味', '包装', '送礼对象', '禁忌', '顾虑', '习惯']), text: text(200).min(1) })).max(10).default([]),
   dates: z.array(z.object({ date: z.string().regex(/^(\d{4}|-)-\d{2}-\d{2}$/, '日期写 2026-11-12，每年重复的写 --11-12'), label: text(40).min(1), kind: z.enum(['生日', '纪念日', '节日', '公司节点']), who: text(20).optional().nullable() })).max(5).default([]),
-  /** 商机金额要不要改（林总勾了才改）：改成谈过的金额，写清依据 */
+  /** 商机金额要不要改（老板勾了才改）：改成谈过的金额，写清依据 */
   deal: z.object({ id: z.string().min(1), amount: z.number().positive().max(999), title: text(80).optional().nullable(), basis: text(200).optional().nullable() }).optional().nullable(),
   kb_append: z.boolean().default(false),
   kb_line: text(1000).optional().nullable(),

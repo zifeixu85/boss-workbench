@@ -20,6 +20,7 @@ import { OneLine, StartPicker } from './starts'
 import { WeekStrip, TopicsPanel, RemindersPanel } from './TodayParts'
 import { PublishDialog } from './dialogs'
 import type { CenterToday, PieceDetail, PieceStatus } from './types'
+import { useIdentity } from '@/lib/identity'
 
 export default function TodayPage() {
   const { data, isLoading, error, refetch } = useCenter()
@@ -89,11 +90,12 @@ function MainPiece({ m, next }: { m: PieceDetail; next: Next[] }) {
   const sheet = usePieceParam()
   const [pub, setPub] = useState(false)
   const checks = useChecks(m.has_draft ? m.draft : null, p.scheduled_date)
-  const patch = usePatchPiece('记下了：林总看过了')
+  const { owner } = useIdentity()
+  const patch = usePatchPiece(`记下了：${owner}看过了`)
   const last = m.versions[0]
   const published = p.status === '已发布'
   const bad = checks?.items.filter((i) => i.level !== 'ok') ?? []
-  const seen = /林总.*看过/.test(p.memo ?? '')
+  const seen = (p.memo ?? '').includes(owner) && /看过/.test(p.memo ?? '')
   return (
     <section className="relative flex min-w-0 flex-col overflow-hidden rounded-xl border bg-card shadow-paper">
       <div aria-hidden className="pointer-events-none absolute inset-y-0 left-0 hidden w-[40%] bg-gradient-to-br from-accent/80 via-accent/30 to-transparent sm:block" />
@@ -135,8 +137,8 @@ function MainPiece({ m, next }: { m: PieceDetail; next: Next[] }) {
           {!published && (
             <div className={cn('mt-3 flex flex-wrap items-center gap-2 rounded-lg px-3 py-2 text-[13px]', seen ? 'bg-ok-soft text-ok' : 'bg-warn-soft text-warn')}>
               {seen ? <CircleCheck className="size-4 shrink-0" /> : <Eye className="size-4 shrink-0" />}
-              <span className="min-w-0 flex-1">{seen ? p.memo : p.memo ?? '发之前请林总看一眼'}</span>
-              {!seen && <Button size="xs" variant="outline" className="bg-card" disabled={patch.isPending} onClick={() => patch.mutate({ id: p.id, memo: `林总 ${md(todayStr())} ${nowHm()} 看过了，可以发` })}><CheckCheck />林总看过了</Button>}
+              <span className="min-w-0 flex-1">{seen ? p.memo : p.memo ?? `发之前请${owner}看一眼`}</span>
+              {!seen && <Button size="xs" variant="outline" className="bg-card" disabled={patch.isPending} onClick={() => patch.mutate({ id: p.id, memo: `${owner} ${md(todayStr())} ${nowHm()} 看过了，可以发` })}><CheckCheck />{owner}看过了</Button>}
             </div>
           )}
 

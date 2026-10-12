@@ -16,6 +16,8 @@ export const SAMPLE_DIR = join(ROOT, '工作台', '示例数据')
 type Day = { date: string; channel_id: string; gmv: number; orders: number; visitors: number; refund_amount: number; refund_orders: number; ad_spend: number; ad_gmv: number; new_buyers: number; old_buyers: number }
 
 const db = new DatabaseSync(DB_PATH, { readOnly: true })
+/** 表头里写的店名：设置里的店名（工作台名称），没设置时“我的店” */
+const SHOP = String((db.prepare("SELECT value FROM settings WHERE key = 'business'").get() as { value?: string } | undefined)?.value ?? '').trim() || '我的店'
 const days = (ch: string, from = FROM, to = TO) =>
   db.prepare('SELECT * FROM channel_daily WHERE channel_id = ? AND date BETWEEN ? AND ? ORDER BY date').all(ch, from, to) as unknown as Day[]
 const liveShare = new Map((db.prepare(`SELECT date, ROUND(SUM(CASE WHEN source = '直播' THEN visitors END) * 100.0 / SUM(visitors), 1) AS s
@@ -44,7 +46,7 @@ const files: File[] = []
     name: '抖店_罗盘经营数据_20260927-20261026.csv', title: '抖店（罗盘 · 经营数据，按日）',
     what: '日期 2026/09/27；金额带“¥”和千分位；有“直播间成交占比”（工作台不导，自己会算）。工作台里已经存了这种表的导入规则，拖进去会直接按规则对上。',
     rows: [
-      ['抖店罗盘 · 经营 · 核心数据（按日）'], ['店铺：ABC茶社官方旗舰店（示例数据，数字全部虚构）'], [`时间范围：${fmt.slash(FROM)} - ${fmt.slash(TO)}`], ['导出时间：2026/10/27 07:14'], [],
+      ['抖店罗盘 · 经营 · 核心数据（按日）'], [`店铺：${SHOP}官方旗舰店（示例数据，数字全部虚构）`], [`时间范围：${fmt.slash(FROM)} - ${fmt.slash(TO)}`], ['导出时间：2026/10/27 07:14'], [],
       ['日期', '成交金额', '成交订单数', '商品访客数', '退款金额', '退款订单数', '千川消耗', '千川成交金额', '新客数', '老客数', '直播间成交占比'],
       ...xs.map((r) => [fmt.slash(r.date), yen(r.gmv), r.orders, comma(r.visitors, 0), yen(r.refund_amount), r.refund_orders, comma(r.ad_spend), comma(r.ad_gmv), r.new_buyers, r.old_buyers, `${(liveShare.get(r.date) ?? 40).toFixed(1)}%`]),
     ],
@@ -71,13 +73,13 @@ function tmallRows(xs: Day[], withSpend: boolean, lateRefund = false) {
   files.push({
     name: '天猫_生意参谋取数_店铺日报_20260927-20261026.csv', title: '天猫（生意参谋 · 取数 · 店铺日报，10/20 改版后的新表头）',
     what: '日期 20260927；“支付金额”“访客数”这些名字没变的列，按停用的旧规则（晓雯 9/20 确认过）直接对上；“万相台无界花费”“万相台无界成交金额”“支付新买家数”“支付老买家数”是改版后的新叫法，工作台没见过，标黄“拿不准”，一共 4 列，可以自己选，也可以让 Codex 看看；最后一行“合计”会跳过。演示时先拖这一份。',
-    rows: [['生意参谋 · 取数 · 店铺整体日报'], ['店铺名称：ABC茶社旗舰店（示例数据，数字全部虚构）'], [`统计时间：${FROM} ~ ${TO}`], ['导出时间：2026-10-27 07:26'], [], ...tmallRows(xs, true)],
+    rows: [['生意参谋 · 取数 · 店铺整体日报'], [`店铺名称：${SHOP}旗舰店（示例数据，数字全部虚构）`], [`统计时间：${FROM} ~ ${TO}`], ['导出时间：2026-10-27 07:26'], [], ...tmallRows(xs, true)],
   })
   const week = days('tmall', '2026-10-20', TO)
   files.push({
     name: '天猫_生意参谋取数_近7天_缺推广花费.csv', title: '天猫（同一种表，但少了“万相台无界花费”这一列）',
     what: '10/20—10/26 共 7 天，06:52 一早导的，导出时漏勾了推广花费；10/26 的退款生意参谋还没更新（写的是“-”）。工作台会停下来提醒：天猫每天都有推广花费，缺了这一列不能当 0；选“这次先不导推广花费”后，预览会说 10/26 的退款没有数、保留工作台里原来的。其余的数和上面那份同一天完全一样。演示时第二个拖。',
-    rows: [['生意参谋 · 取数 · 店铺整体日报'], ['店铺名称：ABC茶社旗舰店（示例数据，数字全部虚构）'], ['统计时间：2026-10-20 ~ 2026-10-26'], ['导出时间：2026-10-27 06:52'], [], ...tmallRows(week, false, true)],
+    rows: [['生意参谋 · 取数 · 店铺整体日报'], [`店铺名称：${SHOP}旗舰店（示例数据，数字全部虚构）`], ['统计时间：2026-10-20 ~ 2026-10-26'], ['导出时间：2026-10-27 06:52'], [], ...tmallRows(week, false, true)],
   })
 }
 
@@ -88,7 +90,7 @@ function tmallRows(xs: Day[], withSpend: boolean, lateRefund = false) {
     name: '小红书店_千帆店铺数据_20260927-20261026.csv', title: '小红书店（千帆 · 店铺数据）',
     what: '日期 2026年09月27日；金额表头写了“(元)”；推广叫“聚光”。已有导入规则。',
     rows: [
-      ['小红书千帆 · 数据 · 店铺概览'], ['店铺：ABC茶社的茶（示例数据，数字全部虚构）'], [`日期：${fmt.cn(FROM)} 至 ${fmt.cn(TO)}`], [],
+      ['小红书千帆 · 数据 · 店铺概览'], [`店铺：${SHOP}的茶（示例数据，数字全部虚构）`], [`日期：${fmt.cn(FROM)} 至 ${fmt.cn(TO)}`], [],
       ['日期', '支付金额(元)', '支付订单数', '店铺访客数', '退款金额(元)', '退款订单数', '聚光消耗(元)', '聚光成交金额(元)', '首购人数', '复购客数'],
       ...xs.map((r) => [fmt.cn(r.date), comma(r.gmv), r.orders, r.visitors, comma(r.refund_amount), r.refund_orders, comma(r.ad_spend), comma(r.ad_gmv), r.new_buyers, r.old_buyers]),
     ],
@@ -102,7 +104,7 @@ function tmallRows(xs: Day[], withSpend: boolean, lateRefund = false) {
     name: '视频号小店_经营数据_20260927-20261026.csv', title: '视频号小店（微信小店 · 经营数据）',
     what: '日期 2026-09-27；推广叫“加热”；表头用全角括号写单位“（元）”。已有导入规则。',
     rows: [
-      ['微信小店 · 数据 · 经营数据'], ['小店名称：ABC茶社（示例数据，数字全部虚构）'], [`时间：${FROM} 至 ${TO}`], [],
+      ['微信小店 · 数据 · 经营数据'], [`小店名称：${SHOP}（示例数据，数字全部虚构）`], [`时间：${FROM} 至 ${TO}`], [],
       ['日期', '成交金额（元）', '成交订单数', '访问人数', '退款金额（元）', '退款订单数', '加热花费（元）', '加热带来成交（元）', '新客户数', '老客户数'],
       ...xs.map((r) => [r.date, money(r.gmv), r.orders, r.visitors, money(r.refund_amount), r.refund_orders, money(r.ad_spend), money(r.ad_gmv), r.new_buyers, r.old_buyers]),
     ],
@@ -117,7 +119,7 @@ function tmallRows(xs: Day[], withSpend: boolean, lateRefund = false) {
     name: '门店_收银系统日汇总_20260927-20261026.csv', title: '门店（收银系统 · 营业日汇总）',
     what: '假设门店装了收银机、能导出营业日汇总（平常门店的数是宋姐在飞书「门店日报」里填的，见数据源）。日期写成“9月27日”没写年份（工作台按 2026 年算）；“营业额”是打折前的、“实收金额”是客人真付的，两列都像成交额，做成二选一、默认选实收；会员 / 非会员按知识库《数据口径》对成老客 / 新客，口径还没确认，也要你点头。',
     rows: [
-      ['茶空间门店 · 收银系统 · 营业日汇总'], ['门店：ABC茶社茶空间（示例数据，数字全部虚构）'], ['营业日期：9月27日—10月26日'], [],
+      ['茶空间门店 · 收银系统 · 营业日汇总'], [`门店：${SHOP}茶空间（示例数据，数字全部虚构）`], ['营业日期：9月27日—10月26日'], [],
       ['营业日期', '营业额', '优惠金额', '实收金额', '交易笔数', '客流', '会员消费人数', '非会员人数', '退款金额', '退款笔数', '收银员'],
       ...xs.map((x) => {
         const off = Math.round(x.gmv * r.between(0.03, 0.07))
@@ -145,7 +147,7 @@ function tmallRows(xs: Day[], withSpend: boolean, lateRefund = false) {
 function readme() {
   return `# 示例数据：平台导出表
 
-> 示例数据：ABC茶社和所有数字都是虚构的，只用于演示。每份表开头几行写了“示例数据”。
+> 示例数据：${SHOP}和所有数字都是虚构的，只用于演示。每份表开头几行写了“示例数据”。
 
 这些表是从工作台数据库里 9/27—10/26 的经营数据导出来的，**数字和经营页对得上**；列名、日期格式、数字写法照各平台后台导出的样子做，故意各不相同，用来演示“拖进来 → 认出是哪家的表 → 对字段 → 预览 → 导入”。
 

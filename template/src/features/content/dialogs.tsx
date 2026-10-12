@@ -6,16 +6,20 @@ import { FormDialog } from '@/features/forms/FormDialog'
 import { FormField, TextInput, TextArea, Choice, DatePicker } from '@/components/form'
 import { ViewTabs } from '@/components/view-tabs'
 import { useApi } from '@/lib/api'
-import { todayStr } from '@/lib/format'
+import { md, todayStr } from '@/lib/format'
 import { now } from '@/lib/clock'
 import { issuesToErrors } from '@/components/form'
 import { useCreatePiece, useGenerateTopics, usePatchPiece, usePiece, usePublish } from './api'
 import { verdictOf } from './ChecksPanel'
-import type { Piece, Pillar } from './types'
+import type { Piece, Pillar, Rules } from './types'
 
 const TIMES = ['08:00', '10:30', '12:10', '18:30', '20:00', '21:30']
-/** 门店停业改造（知识库 06-项目/门店改造.md）：11/3 开工停业约 10 天，11/13 恢复营业 */
-export const STORE_CLOSED = ['2026-11-03', '2026-11-12'] as const
+/** 门店停业的日子：服务端按“门店改造”这类项目的里程碑和日程算（/content/check-rules 的 store_closed），不写死；没有就是 null */
+export function useStoreClosed(): { from: string; to: string } | null {
+  const { data } = useApi<Rules>('/content/check-rules')
+  return data?.store_closed ?? null
+}
+export const inRange = (r: { from: string; to: string } | null, d: string) => !!r && d >= r.from && d <= r.to
 
 export function NewPieceDialog({ onClose, status = '灵感池' }: { onClose: () => void; status?: '灵感池' | '已选' }) {
   const { data: pillars = [] } = useApi<Pillar[]>('/content/pillars')
@@ -82,7 +86,8 @@ export function ScheduleDialog({ piece, onClose, finalize }: { piece: Piece; onC
   const [time, setTime] = useState<string | null>(piece.scheduled_time ?? '12:10')
   const [err, setErr] = useState('')
   const past = !!date && date < todayStr()
-  const closed = !!date && date >= STORE_CLOSED[0] && date <= STORE_CLOSED[1] && /品茶会|门店/.test(piece.title)
+  const shut = useStoreClosed()
+  const closed = !!date && inRange(shut, date) && /品茶会|门店/.test(piece.title)
   const noDraft = finalize && data && !data.has_draft
   const risky = finalize && (data?.checks?.blocks ?? 0) > 0
   return (
@@ -95,7 +100,7 @@ export function ScheduleDialog({ piece, onClose, finalize }: { piece: Piece; onC
         patch.mutate({ id: piece.id, scheduled_date: date, scheduled_time: time, ...(finalize ? { status: '待发布' } : {}) }, { onSuccess: onClose, onError: (e) => setErr((e as Error).message) })
       }}>
       {finalize && <CheckNotice id={piece.id} mode="final" />}
-      <FormField label="哪天发" error={err || (past ? '这天已经过了' : undefined)} hint={closed ? '门店 11/3—11/12 停业改造，品茶会、门店活动这几天别排' : '12:10 午休、18:30 下班、20:00 前后是账号常发的时间'}><DatePicker value={date} onChange={(v) => { setDate(v); setErr('') }} clearable={false} /></FormField>
+      <FormField label="哪天发" error={err || (past ? '这天已经过了' : undefined)} hint={closed && shut ? `门店 ${md(shut.from)}—${md(shut.to)} 停业，品茶会、门店活动这几天别排` : '12:10 午休、18:30 下班、20:00 前后是账号常发的时间'}><DatePicker value={date} onChange={(v) => { setDate(v); setErr('') }} clearable={false} /></FormField>
       <FormField label="几点"><Choice value={time} onChange={setTime} options={TIMES} /></FormField>
     </FormDialog>
   )

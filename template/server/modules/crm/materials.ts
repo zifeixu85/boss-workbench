@@ -2,14 +2,15 @@
 // 读：列出还没整理的材料，猜是哪位客户的（文件名、正文里出现客户名或联系人）。拿不准就不猜。
 // 写（第二轮修 #17）：客户文件里几处跟着改——开头的“上次联系 / 下次跟进 / 更新”、“答应过的事”表格加行、“往来记录”末尾加一行；
 //      第三轮：“偏好与重要日子”对应那一行后面追加（不删原文）、“还缺：…”后面补一句、“顾虑”加一条；收件箱原件末尾加一行备注；
-//      标黄的答应林总定了以后，客户文件“答应过的事”那一行后面追加怎么定的。
-//      写之前先把原文件备份到 工作台/数据/知识库备份/，网页上先给看要改哪几处。撤销时按记下的改动逐处退回（不整份覆盖）。
-import { existsSync, mkdirSync, readFileSync, readdirSync, statSync, copyFileSync, writeFileSync } from 'node:fs'
-import { basename, join } from 'node:path'
-import { all, get, ROOT, DATA_DIR } from '../../db.ts'
+//      标黄的答应老板定了以后，客户文件“答应过的事”那一行后面追加怎么定的。
+//      写之前先把原文件备份到数据库旁边的 备份/知识库/（services/kb.ts 的 backupKbFile），网页上先给看要改哪几处。撤销时按记下的改动逐处退回（不整份覆盖）。
+import { existsSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs'
+import { join } from 'node:path'
+import { all, get, ROOT } from '../../db.ts'
 import { BadRequest, NotFound } from '../../services/common.ts'
-import { findClientNote, kbPath } from '../../services/kb.ts'
+import { backupKbFile, findClientNote, kbPath } from '../../services/kb.ts'
 import { preparedFor } from './prepared.ts'
+import { identity } from '../../services/identity.ts'
 
 export const INBOX_DIR = '00-收件箱'
 
@@ -143,7 +144,7 @@ function planPrefs(lines: string[], x: ClientKbInput) {
   const sec = sectionOf(lines, /^##\s*偏好与重要日子/)
   if (!sec) return { edits, adds, missing: true }
   const said = x.said ?? md(x.date)
-  const src = `${x.date} ${said.replace(/^\d+\/\d+\s*/, '')}（工作台提取，林总 ${md(x.today)} 确认）`
+  const src = `${x.date} ${said.replace(/^\d+\/\d+\s*/, '')}（工作台提取，${identity().owner} ${md(x.today)} 确认）`
   const cur = new Map<number, string>()
   const value = (i: number) => cur.get(i) ?? lines[i]
   let lastRow = -1
@@ -190,7 +191,7 @@ function planConcerns(lines: string[], x: ClientKbInput) {
   for (const c of x.concerns) {
     const t = c.replace(/[。；;\s]+$/, '')
     if (!t || have.includes(t.slice(0, 8))) continue
-    out.push({ label: '顾虑 · 加一条', line: `- ${t}（${x.said ?? md(x.date)}；工作台提取，林总 ${md(x.today)} 确认）。`, at })
+    out.push({ label: '顾虑 · 加一条', line: `- ${t}（${x.said ?? md(x.date)}；工作台提取，${identity().owner} ${md(x.today)} 确认）。`, at })
   }
   return out
 }
@@ -244,14 +245,12 @@ export function kbPreview(clientId: string, x: ClientKbInput) {
 }
 
 function backupOf(rel: string, stamp: string) {
-  const backupDir = join(DATA_DIR, '知识库备份')
-  mkdirSync(backupDir, { recursive: true })
-  const backup = join(backupDir, `${stamp}-${basename(rel)}`)
-  copyFileSync(kbPath(rel), backup)
-  return backup.slice(ROOT.length + 1)
+  const backup = backupKbFile(rel, stamp)
+  if (!backup) throw new NotFound(`知识库里没有这个文件：${rel}`)
+  return backup
 }
 
-/** 写进客户文件。先备份原文件（工作台/数据/知识库备份/日期时间-文件名），返回改了哪几处和备份位置 */
+/** 写进客户文件。先备份原文件（备份/知识库/日期时间-文件名），返回改了哪几处和备份位置 */
 export function kbAppend(clientId: string, x: ClientKbInput, stamp: string) {
   if (!x.line.trim() || x.line.includes('\n')) throw new BadRequest('往来记录只能追加一行')
   const p = plan(clientId, { ...x, line: x.line.trim() })
@@ -270,15 +269,15 @@ export function kbAppend(clientId: string, x: ClientKbInput, stamp: string) {
   return { path: p.path, line: p.line, backup, header: p.header, rows: p.rows, new_section: !p.section, edits: publicEdits(p), adds: publicAdds(p) }
 }
 
-/** 撤销：把加进去的行删掉（只删第一处一模一样的），原地追加的改回原样，开头几行还是写进去的值就改回原来的。林总之后自己改过的地方不动 */
+/** 撤销：把加进去的行删掉（只删第一处一模一样的），原地追加的改回原样，开头几行还是写进去的值就改回原来的。老板之后自己改过的地方不动 */
 export function kbRevert(rel: string, w: { line: string; header: HeaderChange[]; rows: string[]; new_section?: boolean; edits?: LineEdit[]; adds?: LineAdd[] }) {
   const abs = kbPath(rel)
   if (!existsSync(abs)) return { ok: false, why: '文件不在了' }
   let lines = readFileSync(abs, 'utf8').split('\n')
-  // 写入后林总又在工作台定了例外 / 规则该改，那一行后面多了“（工作台：林总 … ）”：去掉这句再比（第四轮修：crm-reset 后衡言多一行）
+  // 写入后老板又在工作台定了例外 / 规则该改，那一行后面多了“（工作台：张总 … ）”：去掉这句再比（第四轮修：crm-reset 后衡言多一行）
   const drop = (t: string) => {
     let i = lines.indexOf(t)
-    if (i < 0) i = lines.findIndex((l) => l.includes('（工作台：林总') && l.replace(DECISION_RE, '') === t)
+    if (i < 0) i = lines.findIndex((l) => l.includes('（工作台：') && l.replace(DECISION_RE, '') === t)
     if (i >= 0) lines = [...lines.slice(0, i), ...lines.slice(i + 1)]
     return i >= 0
   }
@@ -335,11 +334,12 @@ export function inboxNotesRemoveAll() {
   return n
 }
 
-// ───────────── 标黄的答应林总定了：客户文件“答应过的事”那一行后面追加怎么定的 ─────────────
+// ───────────── 标黄的答应老板定了：客户文件“答应过的事”那一行后面追加怎么定的 ─────────────
 
-const DECISION_RE = /（工作台：林总 \d+\/\d+ (?:定为例外|说规则该改)[^）]*）/g
+// 称呼按设置写（“张总”），认的时候不管是谁的称呼：改过称呼以后也能撤销
+const DECISION_RE = /（工作台：[^\s（）]{1,20} \d+\/\d+ (?:定为例外|说规则该改)[^）]*）/g
 
-/** 在客户文件“答应过的事”表格里找这件事那一行，最后一格后面追加“（工作台：林总 10/27 定为例外：…）”。找不到就不改 */
+/** 在客户文件“答应过的事”表格里找这件事那一行，最后一格后面追加“（工作台：张总 10/27 定为例外：…）”。找不到就不改 */
 export function kbDecisionNote(clientId: string, promise: string, decision: '例外' | '改规则', note: string, today: string, stamp: string) {
   const c = get<{ id: string; name: string; kb_path: string | null }>('SELECT id, name, kb_path FROM clients WHERE id = :id', { id: clientId })
   if (!c) return null
@@ -353,14 +353,14 @@ export function kbDecisionNote(clientId: string, promise: string, decision: '例
   if (i < 0) return null
   const cs = cells(lines[i])
   const what = decision === '例外' ? `定为例外：${noParen(note)}` : `说规则该改：${noParen(note)}，见待确认的发现`
-  cs[cs.length - 1] = `${cs[cs.length - 1]}（工作台：林总 ${md(today)} ${what}）`
+  cs[cs.length - 1] = `${cs[cs.length - 1]}（工作台：${identity().owner} ${md(today)} ${what}）`
   const backup = backupOf(kb.path, stamp)
   const next = rowOf(cs)
   writeFileSync(kbPath(kb.path), lines.map((l, j) => (j === i ? next : l)).join('\n'), 'utf8')
   return { path: kb.path, old: lines[i], new: next, backup }
 }
 
-/** 演示复原：客户文件里工作台追加的“林总定为例外 / 规则该改”都去掉 */
+/** 演示复原：客户文件里工作台追加的“定为例外 / 规则该改”都去掉 */
 export function kbDecisionNotesRemoveAll() {
   const paths = all<{ id: string; name: string; kb_path: string | null }>('SELECT id, name, kb_path FROM clients WHERE key_account = 1')
     .map((c) => findClientNote(c).path).filter((p): p is string => !!p)
@@ -380,7 +380,9 @@ export function kbDecisionNotesRemoveAll() {
 // ───────────── “规则该改了”：在 90-持续生长/待确认的发现.md 加一节（照 90-持续生长/README.md 的发现卡） ─────────────
 
 export const FINDINGS_FILE = '90-持续生长/待确认的发现.md'
-export const FINDING_MARK = '工作台“答应过的事”里林总点了“规则该改了”'
+/** 工作台加的发现卡末尾的标记：写的时候带老板的称呼，认的时候不管称呼 */
+const findingMark = () => `工作台“答应过的事”里${identity().owner}点了“规则该改了”`
+const FINDING_MARK_RE = /工作台“答应过的事”里\S{0,20}点了“规则该改了”/
 const RULE_FILE_REL = '../05-方法与判断/企业茶礼报价与接单/判断规则.md'
 
 export type FindingInput = { client: string; promise: string; said: string; source: string | null; conflict: string; note: string; today: string }
@@ -390,20 +392,21 @@ function findingSection(x: FindingInput, n: number) {
   const ruleText = x.conflict.match(/规则\s*\d+\s*[｜|][^。；]*/)?.[0]?.trim() ?? null
   const why = x.conflict.replace(/规则\s*\d+\s*[｜|][^。；]*[。；]?/, '').replace(/[。\s]+$/, '').trim()
   const short = x.promise.length > 18 ? `${x.promise.slice(0, 18)}…` : x.promise
+  const owner = identity().owner
   return [
-    `## 发现 ${n}｜${x.client}“${short}”和${rule}${/\d$/.test(rule) ? ' ' : ''}对不上，林总说规则该改`,
-    `- 看到的：${x.said}，林总答应${x.client}：${x.promise}。${why ? `${why}。` : ''}`,
+    `## 发现 ${n}｜${x.client}“${short}”和${rule}${/\d$/.test(rule) ? ' ' : ''}对不上，${owner}说规则该改`,
+    `- 看到的：${x.said}，${owner}答应${x.client}：${x.promise}。${why ? `${why}。` : ''}`,
     `- 原来的做法：[判断规则](${RULE_FILE_REL}) ${ruleText ?? rule}。`,
-    `- 可能的规律或建议：林总说“${x.note.replace(/[。\s]+$/, '')}”。可以考虑把这种情况写成规则的例外条件。（工作台记下的，待确认）`,
+    `- 可能的规律或建议：${owner}说“${x.note.replace(/[。\s]+$/, '')}”。可以考虑把这种情况写成规则的例外条件。（工作台记下的，待确认）`,
     `- 想问你：${rule}${/\d$/.test(rule) ? ' ' : ''}要不要改、怎么改？改之前这一单按“例外”算。`,
     `- 证据强度：1 次（这一单），是事实不是推测${x.source ? `；原件 ${x.source}` : ''}。`,
     '- 状态：待确认',
-    `- 提出：${x.today}，${FINDING_MARK}`,
+    `- 提出：${x.today}，${findingMark()}`,
     '',
   ]
 }
 
-/** 要加的那一节（先给林总看） */
+/** 要加的那一节（先给老板看） */
 export function findingPreview(x: FindingInput) {
   const abs = kbPath(FINDINGS_FILE)
   const text = existsSync(abs) ? readFileSync(abs, 'utf8') : ''
@@ -437,12 +440,12 @@ export function findingRemove(title: string) {
   return true
 }
 
-/** 撤销一次提取写入：写入后林总在工作台对这件事点了“规则该改了”，那一节跟着删（按标题里的客户和答应的事找） */
+/** 撤销一次提取写入：写入后老板在工作台对这件事点了“规则该改了”，那一节跟着删（按标题里的客户和答应的事找） */
 export function findingRemoveFor(client: string, promise: string) {
   const abs = kbPath(FINDINGS_FILE)
   if (!existsSync(abs)) return 0
   const short = promise.length > 18 ? `${promise.slice(0, 18)}…` : promise
-  const titles = readFileSync(abs, 'utf8').split('\n\n## ').filter((sec) => sec.includes(FINDING_MARK) && sec.split('\n')[0].includes(`${client}“${short}”`))
+  const titles = readFileSync(abs, 'utf8').split('\n\n## ').filter((sec) => FINDING_MARK_RE.test(sec) && sec.split('\n')[0].includes(`${client}“${short}”`))
     .map((sec) => sec.split('\n')[0].replace(/^##\s*/, ''))
   return titles.filter(findingRemove).length
 }
@@ -451,6 +454,6 @@ export function findingRemoveFor(client: string, promise: string) {
 export function findingRemoveAllFromWorkbench() {
   const abs = kbPath(FINDINGS_FILE)
   if (!existsSync(abs)) return 0
-  const titles = readFileSync(abs, 'utf8').split('\n\n## ').filter((sec) => sec.includes(FINDING_MARK)).map((sec) => sec.split('\n')[0].replace(/^##\s*/, ''))
+  const titles = readFileSync(abs, 'utf8').split('\n\n## ').filter((sec) => FINDING_MARK_RE.test(sec)).map((sec) => sec.split('\n')[0].replace(/^##\s*/, ''))
   return titles.filter(findingRemove).length
 }

@@ -5,8 +5,10 @@ import { EmptyNote } from '@/components/chart-kit'
 import { StatusBadge } from '@/components/status'
 import type { ClientProfile } from '@/features/crm/types'
 import { CareDraftCard, CodexDraftButton } from '@/features/crm/CareDraft'
+import { useIdentity } from '@/lib/identity'
 
 export function ClientCareTab({ d }: { d: ClientProfile }) {
+  const { owner } = useIdentity()
   const c = d.client
   const soon = d.dates.filter((x) => x.days_left <= 120)
   const open = d.care.filter((x) => ['建议', '已安排'].includes(x.status))
@@ -34,7 +36,7 @@ export function ClientCareTab({ d }: { d: ClientProfile }) {
         </div>
         {open.length ? <div className="grid gap-3">{open.map((x) => <CareDraftCard key={x.id} care={x} clientName={c.name} kbPath={d.kb_note.path} />)}</div>
           : <EmptyNote>还没有关怀草稿。点右上角“让 Codex 写一版”，它会读这位客户的档案和《大客户关怀》的做法来写；也可以去“关怀与回访”页看这个月该关心谁。</EmptyNote>}
-        <p className="mt-2 text-[11.5px] text-muted-foreground">话都是草稿，林总自己改、自己发。送自家的茶加手写卡，不送贵的；送礼的消息里不提单子。</p>
+        <p className="mt-2 text-[11.5px] text-muted-foreground">话都是草稿，{owner}自己改、自己发；送什么、怎么说照知识库《大客户关怀》的规矩，送礼的消息里不提单子。</p>
       </section>
 
       {past.length > 0 && (

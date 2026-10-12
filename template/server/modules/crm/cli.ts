@@ -13,6 +13,7 @@ import { findClient, updateClient } from '../../services/clients.ts'
 import { addCare, changeStage, setFollow, updateCare, updatePromise } from './actions.ts'
 import { undoExtraction } from './extract-write.ts'
 import { crmReset, saveBaseline } from './reset.ts'
+import { identity } from '../../services/identity.ts'
 
 const ACTOR = 'Codex' as const
 export const CRM_COMMANDS = ['care-add', 'extract-undo', 'crm-reset', 'stage', 'follow', 'promise-done', 'care-set']
@@ -29,9 +30,9 @@ const HELP = `大客户模块的命令（在知识库根目录运行 node 工作
   care-add <客户> --occasion 立冬问候 --message "草稿正文" [--date 2026-11-07] [--gift "一罐肉桂 + 手写卡"] [--why "为什么这么写"]
       [--by 定时任务] [--at 07:12]   定时任务写的标“Codex 定时任务 · 10/27 07:12 写”；不写 --by 标“Codex 现场写”
   extract-undo <提取ID> --yes        撤销一次提取写入（知识库客户文件、收件箱备注也退回）
-  crm-reset --save                   事先存一次“演示起点”（工作台/数据/大客户演示起点.json）
+  crm-reset --save                   演示前存一次“演示起点”（工作台/数据/大客户演示起点.json）
   crm-reset --yes                    排练完退回演示起点：撤销所有提取写入，客户、待办、答应的事、关怀草稿都恢复
-规则：关怀草稿只出草稿，不替林总发；送礼的话里不提单子、不报价。写入前先给林总看。`
+规则：关怀草稿只出草稿，不替老板发；送礼的话里不提单子、不报价。写入前先给老板看。`
 
 /** 报错只说人话：zod 的提示本身就是中文，不加字段名 */
 function say(err: unknown) {
@@ -95,7 +96,7 @@ export function runCrmCli(argv: string[]): number {
       const md = `${Number(today().slice(5, 7))}/${Number(today().slice(8, 10))}`
       const author = o.by && /定时/.test(o.by) ? `Codex 定时任务 · ${md} ${hm} 写` : `Codex 现场写 · ${md} ${hm}（在 Codex 对话里写的）`
       const r = addCare({ client_id: c.id, occasion: o.occasion, date: o.date ?? null, gift: o.gift ?? null, message: o.message ?? null, status: '建议', author, note: o.why ?? null }, ACTOR) as Record<string, unknown>
-      out(r, `已存关怀草稿 [${r.id}]：${c.name} · ${o.occasion}${o.date ? `（${o.date}）` : ''}，标“${author}”。网页“关怀与回访”里能看到，林总自己改、自己发。`)
+      out(r, `已存关怀草稿 [${r.id}]：${c.name} · ${o.occasion}${o.date ? `（${o.date}）` : ''}，标“${author}”。网页“关怀与回访”里能看到，${identity().owner}自己改、自己发。`)
       return 0
     }
     if (cmd === 'extract-undo') {
@@ -107,7 +108,7 @@ export function runCrmCli(argv: string[]): number {
     }
     if (cmd === 'crm-reset') {
       if (o.save) { const r = saveBaseline(); out(r, `已存演示起点：${r.counts}\n文件：${r.file}\n以后排练完运行 crm-reset --yes 退回这个样子。`); return 0 }
-      if (!o.yes) { console.log('演示复原会：撤销所有提取写入（含知识库里加的几处、收件箱备注），客户的阶段 / 下次跟进 / 待办 / 答应的事 / 关怀草稿退回演示起点，起点之后新加的删掉。确认后加 --yes 再运行；事先先 --save 存一次起点。'); return 0 }
+      if (!o.yes) { console.log('演示复原会：撤销所有提取写入（含知识库里加的几处、收件箱备注），客户的阶段 / 下次跟进 / 待办 / 答应的事 / 关怀草稿退回演示起点，起点之后新加的删掉。确认后加 --yes 再运行；演示前先 --save 存一次起点。'); return 0 }
       const r = crmReset(ACTOR)
       out(r, `演示复原完成：\n${r.map((x) => `- ${x}`).join('\n') || '- 没有要退回的'}`)
       return 0

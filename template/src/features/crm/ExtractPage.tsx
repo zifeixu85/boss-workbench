@@ -23,6 +23,7 @@ import { MaterialView, NiceTitle } from './extract-parts'
 import { HintList, RunView } from './extract-run'
 import { startPrepared, startRun } from './extract-api'
 import type { CodexInfo, Extraction, ExtractionBrief, Hint, InboxFile } from './types'
+import { useIdentity } from '@/lib/identity'
 
 const RUN_TONE: Record<string, 'info' | 'warn' | 'ok' | 'danger' | 'neutral'> = { 提取中: 'info', 待确认: 'warn', 已写入: 'ok', 超时: 'warn', 出错: 'danger', 不可用: 'danger', 放弃: 'neutral' }
 const SHOWN = new Set(['提取中', '待确认', '已写入'])
@@ -48,7 +49,7 @@ export default function ExtractPage() {
   return (
     <>
       <PageHeader eyebrow="客户" title="新材料提取"
-        desc="聊天记录、通话纪要丢进知识库的收件箱后，在这里让 Codex 提取：你答应的、对方的状态、顾虑、决策信号、下一步。和判断规则对不上的标黄；你确认了才写进工作台。">
+        desc="聊天记录、通话纪要丢进知识库的收件箱后，在这里让 Codex 提取：你答应的、对方的状态、顾虑、怎么定（谁拍板、哪天定）、下一步。和判断规则对不上的标黄；你确认了才写进工作台。">
         <SubTabs items={CLIENT_TABS} />
       </PageHeader>
       <PageBody className="grid grid-cols-[minmax(0,1fr)] gap-5 lg:grid-cols-[320px_minmax(0,1fr)]">
@@ -113,7 +114,7 @@ function CodexCard({ info }: { info?: CodexInfo }) {
       <div className="flex items-center gap-1.5 font-medium text-foreground"><Sparkles className="size-3.5 text-info" />谁来提取</div>
       {info.available
         ? <p className="mt-1">这台电脑上的 Codex 来读：只能看、不能改文件，最多等 {info.timeout_s} 秒，超时会直说。一般要半分钟到一分多钟。</p>
-        : <p className="mt-1">这台电脑上没找到 Codex，现在提取不了。装好 Codex App 再试；衡言、澜拓两份可以先用事先跑好的结果；也可以先“记一笔跟进”手动记。</p>}
+        : <p className="mt-1">这台电脑上没找到 Codex，现在提取不了。装好 Codex App 再试；有事先跑好结果的材料可以先用那份；也可以先“记一笔跟进”手动记。</p>}
     </section>
   )
 }
@@ -151,6 +152,7 @@ function FileStart({ file, path, codex, onStarted }: { file: InboxFile | null; p
 }
 
 function PasteStart({ onStarted, codex }: { onStarted: (id: string) => void; codex?: CodexInfo }) {
+  const { owner } = useIdentity()
   const [text, setText] = useState('')
   const [client, setClient] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
@@ -161,7 +163,7 @@ function PasteStart({ onStarted, codex }: { onStarted: (id: string) => void; cod
     <section className="grid min-w-0 gap-3 rounded-xl border bg-card p-5 shadow-paper">
       <h2 className="text-[15px] font-semibold">粘贴一段聊天或纪要</h2>
       <p className="-mt-1 text-xs text-muted-foreground">写清每句是谁说的、几点说的。粘贴的原文只存在工作台的提取记录里，不写进知识库；要长期留着的，丢进知识库的 00-收件箱。不要粘密码、手机号、地址。</p>
-      <Textarea rows={12} value={text} onChange={(e) => setText(e.target.value)} placeholder={'14:02 陈静：林总下午好，春节茶礼的事跟您同步一下\n14:03 陈静：……\n14:11 林总：……'} />
+      <Textarea rows={12} value={text} onChange={(e) => setText(e.target.value)} placeholder={`14:02 客户：${owner}下午好，跟您同步一下这次的事\n14:03 客户：……\n14:11 ${owner}：……`} />
       <div className="flex flex-wrap items-center gap-2">
         <div className="w-full sm:w-64"><ClientChoice kind="客户" value={client} onChange={setClient} /></div>
         <span className="text-xs text-muted-foreground">{text.trim() && !enough ? '再多贴一点（至少 20 个字）：谁、哪天、说了什么' : '知道是谁就选上；不选，Codex 会猜，拿不准会说。'}</span>

@@ -1,10 +1,13 @@
 // 每周复盘：一周按周二到下周一算（和知识库 01-AI协作/任务手册/每周复盘.md 一样，每周二 07:30 的定时任务写上一周），
 // 这里是小红书那一段的细账。生成复盘现场调本机 Codex（<review>）；下周选题建议可以放进灵感池；
-// 可沉淀的经验，林总点“存进知识库”才追加到 90-持续生长/待确认的发现.md（照那里的发现卡格式，只追加不改别的）。归属：小红书内容模块。
+// 可沉淀的经验，老板点“存进知识库”才追加到 90-持续生长/待确认的发现.md（照那里的发现卡格式，只追加不改别的）。归属：小红书内容模块。
 import { readFileSync, writeFileSync, existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { all, get, run, uid, nowIso, logChange, ROOT } from '../../db.ts'
+import { now } from '../../clock.ts'
 import { BadRequest, NotFound, today, addDays, type Actor } from '../../services/common.ts'
+import { identity } from '../../services/identity.ts'
+import { backupKbFile } from '../../services/kb.ts'
 import { noteRows, statsThrough, accountFacts, accountMedianRate, type NoteRow } from './stats.ts'
 import { runCodex } from './codex.ts'
 import { parseReply } from './parse.ts'
@@ -97,7 +100,7 @@ export function generateReview(week: string) {
   const prev = weekMetrics(addDays(week, -7))
   const table = m.notes.map((n) => `- ${n.date}《${n.title}》${n.kind}｜${n.pillar_name ?? '—'}｜${n.organic ? `自然阅读 ${n.organic.reads}、点赞 ${n.organic.likes}、收藏 ${n.organic.saves}、评论 ${n.organic.comments}、涨粉 ${n.total!.new_followers}` : '暂无数据'}${n.paid ? `｜投流 ${Math.round(n.paid.spend)} 元带来阅读 ${n.paid.reads}、收藏 ${n.paid.saves}` : ''}`).join('\n')
   const prompt = [
-    `你在 ABC茶社 工作台的「小红书内容中心 · 复盘」页。今天是 ${today()}。按项目里的「小红书创作」Skill（.agents/skills/xhs-creator/SKILL.md）的“复盘”任务，复盘小红书 ${m.from}—${m.to} 这一周（一周按周二到下周一算，和每周复盘一样）。`,
+    `你在 ${identity().shop} 的工作台「小红书内容中心 · 复盘」页。今天是 ${today()}。按项目里的「小红书创作」Skill（.agents/skills/xhs-creator/SKILL.md）的“复盘”任务，复盘小红书 ${m.from}—${m.to} 这一周（一周按周二到下周一算，和每周复盘一样）。`,
     '先读 11-内容与作品/小红书账号定位.md 和 11-内容与作品/规律/ 里的几条，需要时看 05-方法与判断/小红书内容/ 的写法卡。只读，不改文件。数据以下面工作台给的为准（以自然流量为准，比较用中位数；样本少要说“只供参考”，不直接归因成交）。',
     '写短一点：summary 2—3 句；每条 worked / change 一句话，带哪篇、什么数；不要重复同一个数。',
     '回复：先 1—2 句中文说明，再一行“参考了：文件路径、文件路径”，最后：',
@@ -157,7 +160,7 @@ export function updateLearning(week: string, idx: number, input: { rule?: string
 /** 知识库里的相对链接：从 90-持续生长/ 出发 */
 const link = (path: string, name?: string) => `[${name ?? path.split('/').pop()!.replace(/\.md$/, '')}](../${path})`
 
-/** 存进知识库之前，先给林总看要追加的那一节（照 90-持续生长/README.md 的发现卡格式） */
+/** 存进知识库之前，先给老板看要追加的那一节（照 90-持续生长/README.md 的发现卡格式） */
 export function learningPreview(week: string, idx: number) {
   const r = getReview(week)
   const l = r?.learnings[idx]
@@ -168,6 +171,7 @@ export function learningPreview(week: string, idx: number) {
   const title = head.length > 28 ? `${head.slice(0, 27)}…` : head
   const through = String(r.inputs.through ?? statsThrough() ?? '—')
   const span = `${md(r.date_from)}—${md(r.date_to)}`
+  const { owner } = identity()
   const md2 = [
     `## 发现 ${n}｜${title}`,
     `- 看到的：${l.evidence || '（复盘里没写依据）'}（工作台小红书笔记数据，截至 ${through}，以自然流量为准）`,
@@ -176,9 +180,9 @@ export function learningPreview(week: string, idx: number) {
     '- 想问你：要不要整理进小红书的规律，或者补进对应的写法卡？',
     `- 证据强度：${l.scope?.match(/样本[^，,；;]*/)?.[0] ?? '样本数没写'}；有数据，是从笔记数据里看出来的，还没核对原文和评论`,
     '- 状态：待确认',
-    `- 提出：${today()}，小红书每周复盘（${span}，${r.written_by}写；林总在工作台点了“存进知识库”）`,
+    `- 提出：${today()}，小红书每周复盘（${span}，${r.written_by}写；${owner}在工作台点了“存进知识库”）`,
   ].join('\n')
-  const source = `- 发现 ${n}：工作台小红书每周复盘（${span}）的笔记数据，截至 ${through}；${today()} 林总在工作台点了“存进知识库”。`
+  const source = `- 发现 ${n}：工作台小红书每周复盘（${span}）的笔记数据，截至 ${through}；${today()} ${owner}在工作台点了“存进知识库”。`
   return { path: FINDINGS, number: n, markdown: md2, source, exists: !!body }
 }
 
@@ -202,6 +206,8 @@ export function saveLearning(week: string, idx: number, actor: Actor) {
   } else {
     next = `${body.replace(/\s*$/, '')}\n\n${markdown}\n`
   }
+  // 改之前先备份原文件（备份/知识库/，见 services/kb.ts）
+  if (existsSync(abs)) { const d = now(); const p2 = (x: number) => String(x).padStart(2, '0'); backupKbFile(path, `${today()}T${p2(d.getHours())}${p2(d.getMinutes())}${p2(d.getSeconds())}`) }
   writeFileSync(abs, next, 'utf8')
   saveField(week, 'learnings', r.learnings.map((x, i) => (i === idx ? { ...x, status: '已存进知识库', saved_at: nowIso(), kb_path: path, number } : x)))
   logChange(actor, 'xhs_review', week, '存进知识库', `小红书复盘：经验「${l.rule.slice(0, 20)}」追加到 ${path}（发现 ${number}）`)

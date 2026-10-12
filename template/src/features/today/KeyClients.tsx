@@ -1,4 +1,4 @@
-// 林总早上最想看的第 2 件：今天该跟进哪几家大客户、为什么（数据来自大客户模块 focus()）
+// 老板早上最想看的第 2 件：今天该跟进哪几家大客户、为什么（数据来自大客户模块 focus()）
 import { MessageSquarePlus } from 'lucide-react'
 import type { FocusClient } from '@/lib/types'
 import { daysFromToday, relDay, yuan } from '@/lib/format'

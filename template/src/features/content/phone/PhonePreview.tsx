@@ -6,6 +6,7 @@ import { cn } from '@/lib/utils'
 import { CoverArt, slidesOf } from './Cover'
 import type { Comment, Cover, DraftPage, Feed, FeedItem } from '../types'
 import './phone.css'
+import { useIdentity } from '@/lib/identity'
 
 export type PhoneDraft = { title: string; body: string; tags: string[]; cover_text: string; cover: Cover; pages: DraftPage[] }
 export type PhoneStats = { likes: number | null; saves: number | null; comments: number | null; date: string } | null
@@ -54,12 +55,13 @@ function Card({ item, me, mine }: { item: FeedItem; me?: boolean; mine?: string 
 }
 
 function Discover({ d, stats, selfNote }: { d: PhoneDraft; stats: PhoneStats; selfNote?: string | null }) {
+  const { xhs } = useIdentity()
   const { data: feed } = useApi<Feed>('/content/feed')
   const others: FeedItem[] = []
   const own = (feed?.own ?? []).filter((x) => x.id !== selfNote)
   const bench = feed?.bench ?? []
   for (let i = 0; i < 6; i++) { if (bench[i]) others.push(bench[i]); if (own[i]) others.push(own[i]) }
-  const me: FeedItem = { id: 'me', piece_id: null, title: d.title || '（还没有标题）', cover_text: d.cover_text, cover: d.cover, pages: d.pages, likes: stats?.likes ?? null, own: true, account: 'ABC茶社' }
+  const me: FeedItem = { id: 'me', piece_id: null, title: d.title || '（还没有标题）', cover_text: d.cover_text, cover: d.cover, pages: d.pages, likes: stats?.likes ?? null, own: true, account: xhs }
   const left = [me, ...others.filter((_, i) => i % 2 === 1)].slice(0, 4)
   const right = others.filter((_, i) => i % 2 === 0).slice(0, 4)
   return (
@@ -79,6 +81,7 @@ function Discover({ d, stats, selfNote }: { d: PhoneDraft; stats: PhoneStats; se
 }
 
 function Comments({ total, items }: { total: number; items: Comment[] }) {
+  const { xhs } = useIdentity()
   return (
     <div className="xp-comments">
       共 {total} 条评论
@@ -89,13 +92,13 @@ function Comments({ total, items }: { total: number; items: Comment[] }) {
             <div className="xp-cmt-name">{c.author}</div>
             <div className="xp-cmt-text">{c.text}</div>
             <div className="xp-cmt-meta">{Number(c.at.slice(5, 7))}-{Number(c.at.slice(8, 10))} 浙江 · 回复</div>
-            {c.reply && <div className="xp-cmt-reply"><b>ABC茶社</b>{c.reply}</div>}
+            {c.reply && <div className="xp-cmt-reply"><b>{xhs}</b>{c.reply}</div>}
           </div>
           <span className="xp-cmt-like"><Heart />{c.likes}</span>
         </div>
       ))}
       {total > items.length && <div className="xp-cmt-more">{items.length ? `展开其余 ${total - items.length} 条（在小红书里看）` : '评论原文没导进工作台，在小红书里看'}</div>}
-      <div className="xp-comment-input"><span className="xp-avatar abc">A</span><span>爱评论的人运气都不差</span></div>
+      <div className="xp-comment-input"><span className="xp-avatar abc">{xhs.slice(0, 1)}</span><span>爱评论的人运气都不差</span></div>
     </div>
   )
 }
@@ -105,12 +108,13 @@ function NotePage({ d, stats, comments }: { d: PhoneDraft; stats: PhoneStats; co
   const [at, setAt] = useState(0)
   const n = slides.length
   const cur = Math.min(at, n - 1)
+  const { xhs } = useIdentity()
   return (
     <>
       <div className="xp-nav">
         <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#333" strokeWidth="2.2" strokeLinecap="round"><path d="M15 5l-7 7 7 7" /></svg>
-        <span className="xp-avatar abc">A</span>
-        <span className="xp-nav-name">ABC茶社</span>
+        <span className="xp-avatar abc">{xhs.slice(0, 1)}</span>
+        <span className="xp-nav-name">{xhs}</span>
         <span className="xp-follow">关注</span>
         <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#333" strokeWidth="2" strokeLinecap="round"><path d="M4 12v6a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-6M12 3v12M7 8l5-5 5 5" /></svg>
       </div>
@@ -126,7 +130,7 @@ function NotePage({ d, stats, comments }: { d: PhoneDraft; stats: PhoneStats; co
         <div className="xp-meta">{stats ? `${stats.date.slice(5).replace('-', '-')} 浙江` : '编辑于 刚刚 · 浙江'}</div>
       </div>
       {stats ? <Comments total={stats.comments ?? 0} items={comments} /> : (
-        <div className="xp-comments">还没发，发出去以后评论会在这里<div className="xp-comment-input"><span className="xp-avatar abc">A</span><span>爱评论的人运气都不差</span></div></div>
+        <div className="xp-comments">还没发，发出去以后评论会在这里<div className="xp-comment-input"><span className="xp-avatar abc">{xhs.slice(0, 1)}</span><span>爱评论的人运气都不差</span></div></div>
       )}
     </>
   )

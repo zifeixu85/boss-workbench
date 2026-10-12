@@ -2,7 +2,7 @@
 // 第三轮（数据评审 #1）：不再按“今天的改动留痕”一条条往回退（撤销留下的空值会把澜拓的下次跟进退成空、自动待办跟着乱），
 //   改成和“演示起点”整张对一遍：crm-reset --save 把现在的样子存进 工作台/数据/大客户演示起点.json（事先存一次），
 //   crm-reset --yes 把客户的阶段 / 下次跟进 / 下一步 / 上次联系、挂在客户上的待办和自动跟进待办、答应的事、往来记录、喜好、日子、关怀草稿、商机、改动留痕
-//   都恢复成起点那样；起点之后新加的删掉。知识库里工作台加的东西（客户文件几处、待确认的发现、收件箱备注、林总定例外的那句）也退回。
+//   都恢复成起点那样；起点之后新加的删掉。知识库里工作台加的东西（客户文件几处、待确认的发现、收件箱备注、老板定例外的那句）也退回。
 // 不动：别的模块的数据、没挂在客户上的待办、最近改动（changes）这份日志。
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -60,9 +60,9 @@ function dropNew(table: string, keep: string[], where = '1 = 1') {
 export function crmReset(actor: Actor) {
   const report: string[] = []
   const base = loadBaseline()
-  // ⓪ 先去掉客户文件里“林总定为例外 / 规则该改”的追加（不然撤销时那一行对不上原样，删不掉）
+  // ⓪ 先去掉客户文件里“定为例外 / 规则该改”的追加（不然撤销时那一行对不上原样，删不掉）
   const decisions = kbDecisionNotesRemoveAll()
-  if (decisions) report.push(`客户文件里“林总定为例外 / 规则该改”的追加去掉了（${decisions} 份文件）`)
+  if (decisions) report.push(`客户文件里“定为例外 / 规则该改”的追加去掉了（${decisions} 份文件）`)
   // ① 提取写入：新的先撤（知识库客户文件、收件箱备注、待确认的发现跟着退回）
   for (const x of all<{ id: string }>("SELECT id FROM crm_extractions WHERE status = '已写入' ORDER BY written_at DESC")) {
     try { undoExtraction(x.id, actor); report.push(`撤销提取写入 ${x.id}`) } catch (err) { report.push(`撤销 ${x.id} 没成：${(err as Error).message}`) }

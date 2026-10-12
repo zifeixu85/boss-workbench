@@ -17,7 +17,7 @@ import { base } from './base.ts'
 import { biz } from './biz.ts'
 import { content } from './content.ts'
 import { data } from './data.ts'
-import { crmFollow } from './crm-follow.ts' // 大客户模块 E5：客户详情加深（八项信息、改阶段留痕、关怀来源）
+import { crmFollow } from './crm-follow.ts' // 大客户模块 E5：客户详情加深（概况页签的客户信息、改阶段留痕、关怀来源）
 
 const ORDER: SeedModule[] = [crm, base, biz, content, data, crmFollow]
 const ALONE = new Set(['biz', 'content', 'data', 'crm-follow'])

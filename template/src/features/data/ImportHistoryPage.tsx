@@ -134,7 +134,7 @@ function Provenance({ r }: { r: Run }) {
     return (
       <Note tone="muted" icon={Database} title="这是预置的记录"
         action={r.file_exists && r.status === '失败' && <Button size="sm" variant="outline" className="bg-card" asChild><Link to={`/sources?source=${r.source_id}`}>去确认对照<ArrowRight /></Link></Button>}>
-        ABC茶社示例里写好的，不是刚才发生的。{r.file_exists ? `原件在 ${folder}，${r.status === '失败' ? '确认对照后可以重新导入' : '可以打开看'}。` : '示例里没放这份文件的原件。'}
+        示例数据里写好的，不是刚才发生的。{r.file_exists ? `原件在 ${folder}，${r.status === '失败' ? '确认对照后可以重新导入' : '可以打开看'}。` : '示例里没放这份文件的原件。'}
       </Note>
     )
   }
@@ -223,7 +223,7 @@ function SamplePanel() {
           {s.cleared ? <Badge value="都清掉了" tone="neutral" /> : gone.length ? <Badge value={`${gone.map((b) => b.channel).join('、')}清掉了`} tone="warn" /> : <Badge value="在用" tone="ok" />}</div>
         <p className="mt-1 text-[13.5px] text-muted-foreground">
           {s.cleared ? `5 个渠道的示例数据都清掉了（${s.rows_cleared} 行放在一边，能放回）。经营页现在只有你导的数${s.my_batches ? `（${s.my_batches} 批）` : '，还没有'}。`
-            : `经营每天的数里，${s.rows_live} 行是预置的（ABC茶社虚构，${live.length} 个渠道各 ${live[0]?.range ?? ''}）。下面没标“你导的”的记录（晓雯、阿杰、定时任务这些）也都是预置的，不是刚才发生的。`}
+            : `经营每天的数里，${s.rows_live} 行是预置的（虚构的示例数据，${live.length} 个渠道各 ${live[0]?.range ?? ''}）。下面没标“你导的”的记录（晓雯、阿杰、定时任务这些）也都是预置的，不是刚才发生的。`}
           {gone.length > 0 && !s.cleared && `${gone.map((b) => `${b.channel} ${b.cleared_rows} 行`).join('、')}清掉了，能放回。`}
         </p>
         <div className="mt-2 flex flex-wrap gap-1.5">{s.batches.map((b) => <span key={b.id} className={cn('rounded-md border px-2 py-0.5 text-xs', b.status === '有效' ? 'bg-background' : 'border-dashed text-muted-foreground line-through')}>{b.label.replace('示例数据 · ', '')}</span>)}</div>

@@ -1,9 +1,9 @@
-// 新材料提取：从知识库收件箱选一份（或粘贴），交给本机 Codex 提取“你答应的、对方的状态、顾虑、决策信号、下一步”。归属：大客户模块。
+// 新材料提取：从知识库收件箱选一份（或粘贴），交给本机 Codex 提取“你答应的、对方的状态、顾虑、怎么定（谁拍板、哪天定）、下一步”。归属：大客户模块。
 // 真接 Codex（codex exec，工作目录是知识库根目录、只读、不读用户配置、按 JSON 格式回答），150 秒没做完就停，如实说。
-// Codex 回来后，工作台再按《判断规则》核对一遍价格（rules.ts）；和规则对不上的标黄，等林总定。
+// Codex 回来后，工作台再按《判断规则》核对一遍价格（rules.ts）；和规则对不上的标黄，等老板定。
 // 写入、撤销在 extract-write.ts；预先跑好的备用结果在 prepared.ts。
 // 第二轮：提示词瘦身（客户档案只给要用的几节、规则和价格只给表格），超时放宽到 150 秒；显示前规整文字（tidy.ts）；
-//         结果里带上这位客户在谈的商机（金额要不要改由林总定）和还没发的关怀草稿（新材料让它过时了，可以顺手“不做”）。
+//         结果里带上这位客户在谈的商机（金额要不要改由老板定）和还没发的关怀草稿（新材料让它过时了，可以顺手“不做”）。
 import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { z } from 'zod'
@@ -12,6 +12,7 @@ import { now } from '../../clock.ts'
 import { type Actor, NotFound, today } from '../../services/common.ts'
 import { findClient } from '../../services/clients.ts'
 import { findClientNote } from '../../services/kb.ts'
+import { assistantOf, identity } from '../../services/identity.ts'
 import { runCodex, findCodex } from './codex.ts'
 import { guessClient, readInbox } from './materials.ts'
 import { checkClosure, checkPromises, checkVisit, precheck, PRICE_FILE, RULE_FILE, type Conflict } from './rules.ts'
@@ -20,7 +21,7 @@ import { extractStart } from './schema.ts'
 import { tidy } from './tidy.ts'
 import { preparedFor } from './prepared.ts'
 
-/** 提取最多等多久：默认 150 秒（实测 28—71 秒，课堂网络慢时留余量）。环境变量 CRM_CODEX_TIMEOUT_MS 可改 */
+/** 提取最多等多久：默认 150 秒（实测 28—71 秒，网络慢时留余量）。环境变量 CRM_CODEX_TIMEOUT_MS 可改 */
 export const EXTRACT_TIMEOUT_MS = Number(process.env.CRM_CODEX_TIMEOUT_MS || 150_000)
 
 const s = { type: 'string' } as const
@@ -85,22 +86,23 @@ export function buildPrompt(material: string, sourceLabel: string, clientId: str
   const rules = sections(readKb(RULE_FILE), (h) => !/来源|还没成规则/.test(h)).slice(0, 2200)
   const shut = storeClosure()
   const price = sections(readKb(PRICE_FILE), (h) => /四款礼盒|下单规矩/.test(h)).slice(0, 1800)
-  return `你是 ABC茶社林总的助理。从下面这份新材料里，提取客户跟进要记的东西。今天是 ${t}。
-当前目录是林总的知识库（只读，不要改任何文件）。要用的档案、规则、价格下面都附上了，不用再去读别的文件，直接回答。
+  const me = identity()
+  return `${assistantOf(me)}。从下面这份新材料里，提取客户跟进要记的东西。今天是 ${t}。
+当前目录是${me.owner}的知识库（只读，不要改任何文件）。要用的档案、规则、价格下面都附上了，不用再去读别的文件，直接回答。
 
 规矩：
 1. 只写材料里有的。不知道的写空字符串，不编。
 2. 日期字段（date、due、next_follow.date、facts 的 date）写 YYYY-MM-DD，年份按今天推（材料里的“28 号”就是 ${t.slice(0, 8)}28）；每年重复的生日写 --MM-DD。
-   其他文字里的日期写成“10月28日”“1月10日”这样，不写 2026-10-28；数字和中文之间空一格（“约 350 份”“每份 200 以内”）。
+   其他文字里的日期写成“10月28日”“1月10日”这样，不写 2026-10-28；数字和中文之间空一格（“约 80 份”“每份 300 以内”）。
 3. “我先考虑一下”“再看看”“可能”不算成交，也不算对方答应。照实写进 their_status，not_decided 填 true。
-4. my_promises 只写林总（或我们这边的人）亲口答应对方的事：谁答应、答应谁、答应什么、哪天前；text 里不要再写日期（日期放 due）；quote 抄原话。对方的要求不算我们答应。
-5. 林总答应的价格、交期、赠品，和下面《判断规则》对不上的，在那条 promise 的 conflict 写为什么对不上、rule 写规则编号和一句话；同时写进 conflicts。规则标“待确认”的也照样对照，但要说它是待确认的。
+4. my_promises 只写${me.owner}（或我们这边的人）亲口答应对方的事：谁答应、答应谁、答应什么、哪天前；text 里不要再写日期（日期放 due）；quote 抄原话。对方的要求不算我们答应。
+5. ${me.owner}答应的价格、交期、赠品，和下面《判断规则》对不上的，在那条 promise 的 conflict 写为什么对不上、rule 写规则编号和一句话；同时写进 conflicts。规则标“待确认”的也照样对照，但要说它是待确认的。
 6. 说话人或客户对不上号的，client.sure 填 false，why 写为什么，name 留空，不要硬猜。
 7. facts 只记以后关怀、做方案用得上的：口味、包装、送礼对象、禁忌、顾虑、习惯、生日、重要日子（年会、开会定的日子）。不记手机号、住址。
 8. next_steps 只写我们这边下一步要做、有日子的事（2—3 条），不要把答应的事再抄一遍；next_follow 写建议哪天再联系、为什么。${shut ? `
    门店 ${shut.from} 到 ${shut.to} 停业装修（${shut.source ?? '06-项目/门店改造.md'}）：约在门店见面、品鉴、喝茶、留包间的日子落在这几天的，写进 conflicts（rule 写“门店改造停业”），不要约在这几天。` : ''}
 9. deal_size：对方这次说的份数和每份价格（或上限），只写数字；没说写空字符串；why 一句话说依据。
-10. 用中文，短句，像林总自己记的笔记。只回 JSON。
+10. 用中文，短句，像${me.owner}自己记的笔记。只回 JSON。
 
 ## 新材料（${sourceLabel}）
 ${material.slice(0, 8000)}
@@ -152,7 +154,7 @@ export function startExtraction(input: unknown, actor: Actor) {
   run(`INSERT INTO crm_extractions (id, source_kind, source_path, raw_text, client_id, status, engine, started_at)
        VALUES (:id, :kind, :path, :raw, :cid, '提取中', 'Codex', :at)`, { id, kind: path ? '知识库收件箱' : '粘贴', path, raw, cid: guess.client_id, at: nowIso() })
   logChange(actor, 'extraction', id, '开始', `让 Codex 提取${path ? path.split('/').pop() : '一段粘贴的文字'}`)
-  const prompt = buildPrompt(raw, path ?? '林总粘贴的文字', guess.client_id)
+  const prompt = buildPrompt(raw, path ?? `${identity().owner}粘贴的文字`, guess.client_id)
   running.add(id)
   const t0 = Date.now()
   steps.set(id, [{ s: 0, text: `工作台把材料、${guess.client_id ? '这位客户的档案' : '客户名单（材料里没写是谁）'}、判断规则和礼盒价格交给 Codex` }])
@@ -167,7 +169,7 @@ export function startExtraction(input: unknown, actor: Actor) {
         return
       }
       run("UPDATE crm_extractions SET status = '待确认', result = :res, model = :m, finished_at = :at, error = NULL WHERE id = :id", { res: JSON.stringify(parsed.data), m: r.model, at: nowIso(), id })
-      logChange('Codex', 'extraction', id, '完成', `Codex 提取完了，用时 ${Math.round(r.ms / 1000)} 秒，等林总确认`)
+      logChange('Codex', 'extraction', id, '完成', `Codex 提取完了，用时 ${Math.round(r.ms / 1000)} 秒，等${identity().owner}确认`)
     } else {
       run('UPDATE crm_extractions SET status = :s, error = :e, model = :m, finished_at = :at WHERE id = :id', { s: r.status, e: r.error, m: r.model, at: nowIso(), id })
     }

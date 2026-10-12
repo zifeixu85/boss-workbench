@@ -11,11 +11,13 @@ import type { ClientProfile } from '@/features/crm/types'
 import { similar } from '@/features/crm/extract-utils'
 import { withoutDue } from '@/features/crm/rules'
 import { OpenPromises, PromiseHistory } from './ClientPromises'
+import { useIdentity } from '@/lib/identity'
 
 const INTERVIEW = /建库采访/
 const sourceLabel = (path: string) => path.split('/').pop()!.replace(/\.md$/, '').replace(/^\d{4}-\d{2}-\d{2}-/, '')
 
 export function ClientTimeline({ d, openPromises }: { d: ClientProfile; openPromises: number }) {
+  const { owner } = useIdentity()
   const partner = d.client.kind === '伙伴'
   const fromInterview = d.interactions.filter((i) => i.source_file && INTERVIEW.test(i.source_file))
   const lastInterview = fromInterview.reduce((a, i) => (i.date > a ? i.date : a), '')
@@ -32,7 +34,7 @@ export function ClientTimeline({ d, openPromises }: { d: ClientProfile; openProm
       <section>
         <div className="mb-3 flex flex-wrap items-baseline gap-x-2 gap-y-1">
           <h3 className="text-[13px] font-semibold text-muted-foreground">往来记录 <span className="num font-normal">{d.interactions.length}</span></h3>
-          <span className="text-xs text-muted-foreground">新的在上{lastInterview ? ` · ${shortDate(lastInterview)}以前的 ${fromInterview.length} 条来自建库采访（林总口述）` : ''}</span>
+          <span className="text-xs text-muted-foreground">新的在上{lastInterview ? ` · ${shortDate(lastInterview)}以前的 ${fromInterview.length} 条来自建库采访（${owner}口述）` : ''}</span>
           {fromInterview[0]?.source_file && <SourceLink path={fromInterview[0].source_file} label="看采访原文" className="ml-auto" />}
         </div>
         {!d.interactions.length ? <EmptyNote>还没有往来记录。聊完随手“记一笔跟进”，或者把聊天、纪要丢进知识库收件箱让 Codex 提取。</EmptyNote> : (
@@ -47,7 +49,7 @@ export function ClientTimeline({ d, openPromises }: { d: ClientProfile; openProm
                 <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
                   <span className="inline-flex items-center gap-1 rounded-md bg-muted px-1.5 py-0.5 text-foreground/80"><ChannelIcon channel={i.channel} />{i.channel}</span>
                   {i.with_whom && <span>和 {i.with_whom}</span>}
-                  {i.actor === 'Codex' && <StatusBadge value={i.source_file?.startsWith('00-收件箱') ? 'Codex 提取 · 林总确认' : 'Codex 记的'} tone="info" />}
+                  {i.actor === 'Codex' && <StatusBadge value={i.source_file?.startsWith('00-收件箱') ? `Codex 提取 · ${owner}确认` : 'Codex 记的'} tone="info" />}
                   {i.source_file && !INTERVIEW.test(i.source_file) && <SourceLink path={i.source_file} label={`原件：${sourceLabel(i.source_file)}`} className="ml-auto" />}
                 </div>
                 <p className="mt-1.5 text-[14px] leading-relaxed">{i.summary}</p>
@@ -61,12 +63,12 @@ export function ClientTimeline({ d, openPromises }: { d: ClientProfile; openProm
                     ) : (
                       <div key={p.id} className="flex items-start gap-2">
                         <dt className="w-[4.5em] shrink-0 text-muted-foreground">{p.who}答应</dt>
-                        <dd className="min-w-0 flex-1">{p.text}{p.conflict && p.decision && <span className="block text-[12px] text-muted-foreground">林总定了：{p.decision === '例外' ? '这次算例外' : '规则该改'}（{p.decision_note}）</span>}</dd>
+                        <dd className="min-w-0 flex-1">{p.text}{p.conflict && p.decision && <span className="block text-[12px] text-muted-foreground">{owner}定了：{p.decision === '例外' ? '这次算例外' : '规则该改'}（{p.decision_note}）</span>}</dd>
                         <StatusBadge value={p.status === '已兑现' ? (p.done_at ? `${shortDate(p.done_at)}做到` : '已兑现') : '不做了'} tone={p.status === '已兑现' ? 'ok' : 'neutral'} />
                       </div>
                     ))}
                     {i.their_status && <div className="flex gap-2"><dt className="w-[4.5em] shrink-0 text-muted-foreground">对方状态</dt><dd className="min-w-0">{i.their_status}</dd></div>}
-                    {i.signals && <div className="flex gap-2"><dt className="w-[4.5em] shrink-0 text-muted-foreground">决策信号</dt><dd className="min-w-0">{i.signals}</dd></div>}
+                    {i.signals && <div className="flex gap-2"><dt className="w-[4.5em] shrink-0 text-muted-foreground">怎么定</dt><dd className="min-w-0">{i.signals}</dd></div>}
                     {i.concerns && <div className="flex gap-2"><dt className="w-[4.5em] shrink-0 text-muted-foreground">顾虑</dt><dd className="min-w-0">{i.concerns}</dd></div>}
                     {i.next_step && !i.promises.some((p) => similar(p.text, i.next_step!) >= 0.5) && <div className="flex gap-2"><dt className="w-[4.5em] shrink-0 text-muted-foreground">下一步</dt><dd className="min-w-0">{i.next_step}</dd></div>}
                   </dl>

@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { ChevronRight, FileText } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { KbAdd, KbEdit, KbHeader } from './types'
+import { OwnerName } from './parts'
 
 export type KbChangeSet = {
   path: string; line: string; new_section?: boolean; header: KbHeader[]; rows: string[]
@@ -13,7 +14,7 @@ export type KbChangeSet = {
 const md = (v: string | null) => (v && /^\d{4}-\d{2}-\d{2}$/.test(v) ? `${Number(v.slice(5, 7))}/${Number(v.slice(8, 10))}` : v ?? '空')
 const cells = (row: string) => row.trim().replace(/^\|/, '').replace(/\|$/, '').split('|').map((c) => c.trim())
 
-/** “| 林总 | 若到 150 份，每份 240 | 没说 | 待兑现（和规则对不上，等林总定）（10/23 微信） |” → 一句人话 */
+/** “| 张总 | 若到 80 份，每份 260 | 没说 | 待兑现（和规则对不上，等张总定）（10/23 微信） |” → 一句人话 */
 function promiseRow(row: string) {
   const [who, what, due, status] = cells(row)
   const flag = status?.match(/（(和规则对不上[^）]*)）/)?.[1]
@@ -87,7 +88,7 @@ export function KbChanges({ c, done, className }: { c: KbChangeSet; done?: boole
           <Group title={`顾虑${verb}加 ${concernAdds.length} 条`}>{concernAdds.map((a) => <span key={a.line}>· {addText(a)}</span>)}</Group>
         )}
         <Group title={`往来记录${c.new_section ? '（新开一节）' : ''}${verb}加 1 行`}><span className="line-clamp-2">{talkLine(c.line)}</span></Group>
-        {c.inbox && <Group title="收件箱原件末尾加一句备注"><span>写明哪天由工作台提取、林总确认；原件不移动，知识库整理时再移走</span></Group>}
+        {c.inbox && <Group title="收件箱原件末尾加一句备注"><span>写明哪天由工作台提取、<OwnerName />确认；原件不移动，知识库整理时再移走</span></Group>}
       </ul>
       <button type="button" onClick={() => setRaw((v) => !v)} className="inline-flex items-center gap-1 justify-self-start text-[12px] text-primary hover:underline">
         <ChevronRight className={cn('size-3.5 transition-transform', raw && 'rotate-90')} />{raw ? '收起原文' : '看原文（加进文件的那几行）'}

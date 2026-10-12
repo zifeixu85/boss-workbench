@@ -5,7 +5,7 @@
 
 -- 客户档案补充字段
 ALTER TABLE clients ADD COLUMN segment TEXT;            -- 企业茶礼 / 门店老茶客 / 渠道合作 / 零售
-ALTER TABLE clients ADD COLUMN key_account INTEGER NOT NULL DEFAULT 0; -- 1 = 大客户（林总亲自跟）
+ALTER TABLE clients ADD COLUMN key_account INTEGER NOT NULL DEFAULT 0; -- 1 = 大客户（老板亲自跟）
 ALTER TABLE clients ADD COLUMN contact_name TEXT;       -- 联系人，如“周明远”
 ALTER TABLE clients ADD COLUMN contact_title TEXT;      -- 联系人职务，如“行政负责人”
 ALTER TABLE clients ADD COLUMN decision_maker TEXT;     -- 最后谁拍板，如“合伙人会议”
@@ -76,7 +76,7 @@ CREATE TABLE client_care (
   occasion TEXT NOT NULL,
   date TEXT,
   gift TEXT,
-  message TEXT,                   -- 怎么说（草稿，林总自己改、自己发）
+  message TEXT,                   -- 怎么说（草稿，老板自己改、自己发）
   status TEXT NOT NULL DEFAULT '建议' CHECK (status IN ('建议','已安排','已送出','不做')),
   note TEXT,
   created_at TEXT NOT NULL

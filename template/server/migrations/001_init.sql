@@ -1,6 +1,6 @@
 -- 工作台业务数据（公共部分）。知识（关于我/生意/资料/原始材料）不在这里，仍是 Markdown。
 -- 金额单位：万元（REAL）；日期：YYYY-MM-DD；时间：YYYY-MM-DDTHH:mm（本地时间）
--- ABC茶社示例相对模板（2026-10-07 工作台v2）的改动：日程类型、项目阶段换成茶社用词；项目加负责人、目标、预算和里程碑；
+-- 相对 2026-10-07 工作台 v2 的改动：日程类型、项目阶段换成茶社用词；项目加负责人、目标、预算和里程碑；
 -- 去掉了月度经营表和周报表（经营数据见 003_biz，周报模块没有搬过来）。新库从零建，所以直接改在这里。
 
 CREATE TABLE settings (key TEXT PRIMARY KEY, value TEXT NOT NULL);
@@ -45,7 +45,7 @@ CREATE TABLE projects (
   stage TEXT NOT NULL DEFAULT '筹备' CHECK (stage IN ('筹备','进行中','收尾','已完成','暂停')),
   contract REAL,
   next_step TEXT, waiting_on TEXT, due TEXT, risk TEXT,
-  owner TEXT,                      -- 负责人，如“林总；线上部分阿杰”
+  owner TEXT,                      -- 负责人，如“老板；线上部分交给运营”
   goal TEXT,                       -- 想达到的结果
   budget REAL,                     -- 预算（万元）
   kb_path TEXT,                    -- 项目说明在知识库里的位置，如 06-项目/门店改造.md

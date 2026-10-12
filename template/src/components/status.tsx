@@ -17,7 +17,7 @@ const TONE: Record<string, Tone> = {
   // 经营：库存和异常
   告急: 'danger', 偏紧: 'warn', 正常: 'ok', 待上线: 'neutral',
   // 小红书：排期、草稿、选题
-  已发布: 'ok', 待发布: 'warn', 草稿: 'warn', 选题: 'neutral', 待定: 'neutral', 写作中: 'info', 待林总看: 'warn', 已定稿: 'ok',
+  已发布: 'ok', 待发布: 'warn', 草稿: 'warn', 选题: 'neutral', 待定: 'neutral', 写作中: 'info', 已定稿: 'ok',
   新: 'primary', 已采纳: 'ok', 先放一放: 'neutral', 已放弃: 'neutral',
   // 数据源和导入
   超时: 'warn', 失败: 'danger', 成功: 'ok', 部分成功: 'warn', 停用: 'neutral', 'AI 建议': 'info', 已确认: 'ok', 未匹配: 'danger', 忽略: 'neutral',

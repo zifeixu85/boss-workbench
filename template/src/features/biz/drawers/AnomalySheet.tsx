@@ -17,10 +17,16 @@ import { circled, localStamp } from '../fmt'
 import { BizError } from '../errors'
 import { EvidenceChart } from './EvidenceChart'
 import { TodoFromAnomaly } from './TodoFromAnomaly'
-import type { AnomalyDetail } from '../types'
+import type { AnomalyDetail, Op } from '../types'
+import { useIdentity } from '@/lib/identity'
 
 const STATUS = ['待处理', '处理中', '已处理'] as const
-const TEAM = ['林总', '阿杰', '晓雯', '老何', '宋姐', '小周', '小陈', '小艾']
+/** “谁跟”能选的人：老板（设置里的称呼）+ 运营记录里出现过的人 + 现在填着的人；Codex、定时任务不算 */
+function useTeam(current: string | null | undefined) {
+  const { owner } = useIdentity()
+  const { data: ops } = useApi<Op[]>('/biz/ops')
+  return [...new Set([owner, ...(ops ?? []).map((o) => o.who), current ?? ''])].filter((w) => w && !/Codex|定时|导入|系统/.test(w))
+}
 
 export function AnomalySheet({ id, onClose }: { id: string; onClose: () => void }) {
   const { data: a, isError, error, refetch } = useApi<AnomalyDetail>(`/biz/anomalies/${encodeURIComponent(id)}`)
@@ -67,6 +73,7 @@ export function AnomalySheet({ id, onClose }: { id: string; onClose: () => void 
 /** 处理：状态三段切换（选状态）+ 右边两个按钮（编辑、转成待办），下面是谁跟和处理记录 */
 function Handle({ a, onTodo }: { a: AnomalyDetail; onTodo: () => void }) {
   const [editing, setEditing] = useState(false)
+  const team = useTeam(a.owner)
   const save = useWrite((patch: Record<string, unknown>) => api.patch(`/biz/anomalies/${encodeURIComponent(a.id)}`, patch), '已更新处理状态')
   return (
     <SheetSection title="处理">
@@ -87,7 +94,7 @@ function Handle({ a, onTodo }: { a: AnomalyDetail; onTodo: () => void }) {
       {editing ? (
         <div className="grid gap-3">
           <label className="grid gap-1.5 text-sm"><span className="text-muted-foreground">谁跟</span>
-            <Choice value={a.owner} onChange={(v) => save.mutate({ owner: v })} options={TEAM} allowEmpty emptyLabel="还没定" placeholder="选一个人" /></label>
+            <Choice value={a.owner} onChange={(v) => save.mutate({ owner: v })} options={team} allowEmpty emptyLabel="还没定" placeholder="选一个人" /></label>
           <label className="grid gap-1.5 text-sm"><span className="text-muted-foreground">处理记录</span>
             <InlineText multiline value={a.note} onSave={(v) => save.mutate({ note: v })} placeholder="做了什么、结果怎样，比如“碎了的 14 单都已补发”" /></label>
         </div>
@@ -134,11 +141,12 @@ function Reasons({ a, opNo }: { a: AnomalyDetail; opNo: (id: string | null) => n
 }
 
 function Suggestions({ a }: { a: AnomalyDetail }) {
+  const { owner } = useIdentity()
   return (
     <SheetSection title="建议">
       {a.suggestions.length ? (
         <div className="rounded-lg border border-primary/25 bg-accent/40 px-4 py-3">
-          <div className="mb-2 flex items-center gap-1.5 text-xs text-muted-foreground"><Bot className="size-3.5 text-primary" aria-hidden />由 {a.suggested_by} {localStamp(a.suggested_at)} 写 · 涉及价格、出价、发货方式的，要林总拍板</div>
+          <div className="mb-2 flex items-center gap-1.5 text-xs text-muted-foreground"><Bot className="size-3.5 text-primary" aria-hidden />由 {a.suggested_by} {localStamp(a.suggested_at)} 写 · 涉及价格、出价、发货方式的，要{owner}拍板</div>
           <ol className="grid list-decimal gap-1.5 pl-5 text-[13.5px] leading-relaxed marker:text-muted-foreground">{a.suggestions.map((s) => <li key={s}><KbText text={s} /></li>)}</ol>
         </div>
       ) : (

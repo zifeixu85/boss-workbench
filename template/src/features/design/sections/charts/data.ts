@@ -1,4 +1,4 @@
-// 图表示例数据（虚构的“ABC茶社”）。只给规范页用，不读数据库
+// 图表示例数据（虚构的茶社）。只给规范页用，不读数据库
 import { addDays, todayStr } from '@/lib/format'
 import { monthTick } from '@/components/chart-kit'
 

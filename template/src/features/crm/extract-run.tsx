@@ -17,12 +17,14 @@ import { ExtractResult } from './ExtractResult'
 import { KbChanges } from './kb-changes'
 import { startPrepared, startRun } from './extract-api'
 import type { Extraction, Hint } from './types'
+import { useIdentity } from '@/lib/identity'
 
+/** 标签颜色；“张总答应”这类（老板本人答应的，称呼按设置）用 答应 的颜色 */
 const TAG_TONE: Record<string, string> = {
-  林总答应: 'border-primary/30 bg-accent text-accent-foreground', '价格、份数': 'border-warn/30 bg-warn-soft text-warn', 还没定: 'border-info/25 bg-info-soft text-info',
+  答应: 'border-primary/30 bg-accent text-accent-foreground', '价格、份数': 'border-warn/30 bg-warn-soft text-warn', 还没定: 'border-info/25 bg-info-soft text-info',
 }
 
-/** 工作台按字面先标出来的几句（价格、日子、“考虑一下”、来门店）：不用 AI，等 Codex 的时候演示的人可以先讲 */
+/** 工作台按字面先标出来的几句（价格、日子、“考虑一下”、来门店）：不用 AI，等 Codex 的时候可以先看 */
 export function HintList({ hints, className }: { hints: Hint[]; className?: string }) {
   return (
     <section className={cn('min-w-0 rounded-xl border bg-card px-4 py-3.5', className)}>
@@ -31,7 +33,7 @@ export function HintList({ hints, className }: { hints: Hint[]; className?: stri
         {hints.map((h) => (
           <li key={h.line} className="grid grid-cols-[minmax(0,1fr)] gap-1 text-[13px] leading-relaxed sm:grid-cols-[minmax(0,1fr)_auto] sm:items-baseline sm:gap-3">
             <span className="min-w-0">{h.line}</span>
-            <span className="flex flex-wrap gap-1 sm:justify-end">{h.tags.map((t) => <span key={t} className={cn('inline-flex h-5 items-center rounded-md border px-1.5 text-[11px] whitespace-nowrap', TAG_TONE[t] ?? 'bg-surface-2/60 text-muted-foreground')}>{t}</span>)}</span>
+            <span className="flex flex-wrap gap-1 sm:justify-end">{h.tags.map((t) => <span key={t} className={cn('inline-flex h-5 items-center rounded-md border px-1.5 text-[11px] whitespace-nowrap', TAG_TONE[t] ?? (t.endsWith('答应') ? TAG_TONE.答应 : 'bg-surface-2/60 text-muted-foreground'))}>{t}</span>)}</span>
           </li>
         ))}
       </ol>
@@ -79,6 +81,7 @@ function Waiting({ x }: { x: Extraction }) {
 /** 一次提取：进行中每 1.5 秒问一次结果、秒数按开始时间在本地算；完成显示结果；超时、出错如实说，能直接再提取一次 */
 export function RunView({ id, onStarted, onBack }: { id: string; onStarted: (id: string) => void; onBack: (path: string | null) => void }) {
   const [, setSp] = useSearchParams()
+  const { owner } = useIdentity()
   const openClient = (cid: string) => setSp((p) => { const n = new URLSearchParams(p); n.set('client', cid); n.set('ctab', 'log'); return n })
   const q = useQuery<Extraction>({
     queryKey: [`/crm/extractions/${id}`],
@@ -119,7 +122,7 @@ export function RunView({ id, onStarted, onBack }: { id: string; onStarted: (id:
       <section className="grid min-w-0 gap-4 rounded-xl border bg-card p-6 shadow-paper">
         <h2 className="flex items-center gap-2 text-[16px] font-semibold text-ok"><CheckCircle2 className="size-5" />已写入{x.client ? ` ${x.client.name}` : ''}</h2>
         <dl className="grid gap-2.5 text-[13.5px]">
-          <div><dt className="inline text-muted-foreground">工作台：</dt><dd className="inline">{w?.summary}{w?.confirmed_at ? `（林总 ${w.confirmed_at} 确认）` : ''}</dd></div>
+          <div><dt className="inline text-muted-foreground">工作台：</dt><dd className="inline">{w?.summary}{w?.confirmed_at ? `（${owner} ${w.confirmed_at} 确认）` : ''}</dd></div>
           {w?.skipped_todos?.length ? <div className="text-[12.5px] text-muted-foreground">没另建的待办（和已有的是一件事）：{w.skipped_todos.join('；')}</div> : null}
           {w?.kb
             ? <div className="grid gap-1.5"><dt className="text-muted-foreground">知识库：</dt><dd><KbChanges done c={{ ...w.kb, inbox: w.inbox ?? null }} /></dd></div>

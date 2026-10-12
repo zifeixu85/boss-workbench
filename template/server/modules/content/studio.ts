@@ -7,6 +7,7 @@ import { runCodex, TIMEOUT_MS, type RunHandle } from './codex.ts'
 import { parseReply } from './parse.ts'
 import { accountFacts, similarNotes } from './stats.ts'
 import { normalizeDraft } from './draft.ts'
+import { identity } from '../../services/identity.ts'
 
 type MessageDb = {
   id: string; piece_id: string; role: 'user' | 'ai'; author: string; text: string; status: 'running' | 'done' | 'failed' | 'stopped'; kind: string
@@ -47,8 +48,9 @@ function buildPrompt(pieceId: string, request: string) {
   })
   const start = p.start as { kind?: string; label?: string; text?: string } | null
   const schedule = p.scheduled_date ? `${p.scheduled_date}${p.scheduled_time ? ` ${p.scheduled_time}` : ''}` : '还没排'
+  const me = identity()
   return [
-    `你在 ABC茶社 工作台的「小红书内容中心 · 创作」页，帮林总和小艾写小红书笔记。今天是 ${today()}。`,
+    `你在 ${me.shop} 的工作台「小红书内容中心 · 创作」页，帮${me.owner}和团队写小红书笔记（账号：${me.xhs}）。今天是 ${today()}。`,
     '按项目里的「小红书创作」Skill 工作（.agents/skills/xhs-creator/SKILL.md）：先判断这次是什么任务；每次都读 03-生意/品牌与口吻.md 和 11-内容与作品/小红书账号定位.md，再按 05-方法与判断/小红书内容/README.md 的方法选择表挑 1—3 张写法卡；写到具体的茶、价格、上新再查 03-生意/产品与服务/。只读，不改任何文件，不进 工作台/ 文件夹。为了快，只读真用得上的文件。',
     '回复格式（工作台靠它解析）：先用 2—5 句中文说明这次怎么写的（按哪张卡、改了哪些说法、拿不准的问一句）；再单独一行“参考了：文件路径、文件路径”；最后最多附一个标签块：',
     '- 写一篇或改稿：<draft>{完整稿件 JSON}</draft>。字段：format（图文/视频）、titles（3 个，不同角度）、title、cover_text（12 字以内）、pages（[{"role":"封面"|"内页","text":"…"}]，3—6 页，封面一句大字、内页一页一个要点）、body（300—600 字，保留换行）、tags（5—8 个，不带 #）、pillar（归到哪个内容支柱，写支柱名，都不是就写空）、checks（[{"item":"不能说的话","result":"…"}]，写你核过什么、改了什么）。改稿也给完整稿件。',
@@ -75,7 +77,7 @@ export function send(pieceId: string, input: { text?: string; author?: string; p
   if (!text) throw new BadRequest('说一句想怎么写')
   if (text.length > 2000) throw new BadRequest('一次说 2000 字以内')
   if (all('SELECT id FROM xhs_messages WHERE piece_id = :id AND status = :s', { id: pieceId, s: 'running' }).length) throw new BadRequest('上一轮还在写，等它写完或先停掉')
-  const author = input.author || (actor === 'Codex' ? 'Codex' : '林总')
+  const author = input.author || (actor === 'Codex' ? 'Codex' : identity().owner)
   const userId = uid('m'), aiId = uid('m')
   const at = nowIso()
   run(`INSERT INTO xhs_messages (id, piece_id, role, author, text, status, created_at) VALUES (:id, :pid, 'user', :author, :text, 'done', :at)`, { id: userId, pid: pieceId, author, text, at })
@@ -163,7 +165,7 @@ export function adopt(messageId: string, index: number, actor: Actor) {
     d.body = [item.text, ...paras.slice(1)].join('\n\n')
   }
   const fieldName = { title: '标题', cover_text: '封面大字', opening: '开头' }[opts.field] ?? opts.field
-  return { version: saveVersion(m.piece_id, d, { origin: '采用候选', author: actor === '网页' ? '林总' : actor, note: `${fieldName}用第 ${index + 1} 个`, messageId }).version }
+  return { version: saveVersion(m.piece_id, d, { origin: '采用候选', author: actor === '网页' ? identity().owner : actor, note: `${fieldName}用第 ${index + 1} 个`, messageId }).version }
 }
 
 export const isRunning = (pieceId: string) => all('SELECT id FROM xhs_messages WHERE piece_id = :id AND status = :s', { id: pieceId, s: 'running' }).length > 0

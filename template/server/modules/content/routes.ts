@@ -10,6 +10,7 @@ import * as topics from './topics.ts'
 import * as center from './center.ts'
 import { checkRules } from './checks.ts'
 import { codexStatus } from './codex.ts'
+import { identity } from '../../services/identity.ts'
 
 const ok = <T>(data: T) => ({ ok: true as const, data })
 const WEB = '网页' as const
@@ -44,7 +45,7 @@ contentRoutes.patch('/pieces/:id', async (c) => c.json(ok(pieces.updatePiece(c.r
 contentRoutes.post('/pieces/:id/publish', async (c) => c.json(ok(pieces.markPublished(c.req.param('id'), await body(c) as { published_at?: string; publish_url?: string }, WEB))))
 contentRoutes.post('/pieces/:id/versions', async (c) => {
   const b = await body(c)
-  return c.json(ok(pieces.saveVersion(c.req.param('id'), b.data, { origin: '手动修改', author: String(b.author || '林总'), note: b.note ? String(b.note) : null })))
+  return c.json(ok(pieces.saveVersion(c.req.param('id'), b.data, { origin: '手动修改', author: String(b.author || identity().owner), note: b.note ? String(b.note) : null })))
 })
 contentRoutes.get('/pieces/:id/versions/:v', (c) => c.json(ok(pieces.versions(c.req.param('id')).find((v) => v.version === Number(c.req.param('v'))) ?? null)))
 contentRoutes.post('/pieces/:id/restore', async (c) => c.json(ok(pieces.restoreVersion(c.req.param('id'), Number((await body(c)).version), WEB))))

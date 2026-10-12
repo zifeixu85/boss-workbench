@@ -6,7 +6,7 @@ import { run, params } from '../db.ts'
 export const DEMO_TODAY = '2026-10-27'
 export const YESTERDAY = '2026-10-26'
 
-/** 固定种子的伪随机数（mulberry32）：同一个种子每次生成的数都一样，截图和课堂演示可以复现 */
+/** 固定种子的伪随机数（mulberry32）：同一个种子每次生成的数都一样，截图和演示可以复现 */
 export function rng(seed: number) {
   let a = seed >>> 0
   const next = () => {

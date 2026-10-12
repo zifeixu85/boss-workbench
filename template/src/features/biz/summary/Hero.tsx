@@ -47,7 +47,7 @@ function HeroNumber({ b }: { b: Board }) {
   const q = { metric: 'gmv' as const, from: d, to: d }
   return (
     <div className="flex flex-col border-b px-5 pt-4 pb-4 md:border-r md:border-b-0">
-      <div className="text-xs text-muted-foreground">昨天 · {shortDate(d)} {weekday(d)} · 5 个渠道合计</div>
+      <div className="text-xs text-muted-foreground">昨天 · {shortDate(d)} {weekday(d)} · {b.channels.length} 个渠道合计</div>
       <button type="button" onClick={() => ov.openTrace(q)} className="mt-2 text-left focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none" title="看这个数是怎么来的">
         <span className="block text-[13px] text-muted-foreground">全店成交</span>
         <span className="num font-heading text-[44px] leading-none font-semibold tracking-tight">{thousands(y.gmv)}</span>

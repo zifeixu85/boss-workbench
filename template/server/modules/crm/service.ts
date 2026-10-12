@@ -58,13 +58,13 @@ export type ClientRow = {
 }
 
 /** 等级：看近 12 个月买了多少、报了价的单有多少（按去年估的复购、还在方案里的金额都不算；第三轮）。
- *  A：买过 3 万以上或报价中 / 待签约 2 万以上；B：5000 元以上或报价中 / 待签约 0.5 万以上；其余 C。工作台按金额算的，林总没定过 */
+ *  A：买过 3 万以上或报价中 / 待签约 2 万以上；B：5000 元以上或报价中 / 待签约 0.5 万以上；其余 C。工作台按金额算的，老板没定过 */
 export function levelOf(spent12: number, firmWan: number): 'A' | 'B' | 'C' {
   if (spent12 >= 30000 || firmWan >= 2) return 'A'
   if (spent12 >= 5000 || firmWan >= 0.5) return 'B'
   return 'C'
 }
-export const LEVEL_RULE = '工作台按金额算的，林总没定过：A 级＝近 12 个月买了 3 万以上，或报价中、待签约的单 2 万以上；B 级＝5000 元以上，或报价中、待签约 0.5 万以上；其余 C 级。方案里的金额、按去年估的复购不算'
+export const LEVEL_RULE = '工作台按金额算的，老板没定过：A 级＝近 12 个月买了 3 万以上，或报价中、待签约的单 2 万以上；B 级＝5000 元以上，或报价中、待签约 0.5 万以上；其余 C 级。方案里的金额、按去年估的复购不算'
 
 /** 等级为什么这么低：大客户、在谈却是 C / B 时，给一句人话（第三轮修产品评审 #22） */
 function levelNote(r: Pick<ClientRow, 'open_amount' | 'firm_amount' | 'deal_stage' | 'spent_12m' | 'key_account'>, level: 'A' | 'B' | 'C') {
@@ -128,7 +128,7 @@ export function keyAccounts() {
 
 type OrderRow = { id: string; amount: number; date: string; status: string; occasion: string | null; channel: string; item: string; qty: number; unit: string; unit_price: number | null }
 
-/** 一位客户的完整档案：公共部分（沟通、商机、待办、日程、应收）+ 订单、答应的事、偏好、重要日子、关怀、八项信息、改动留痕、知识库笔记 */
+/** 一位客户的完整档案：公共部分（沟通、商机、待办、日程、应收）+ 订单、答应的事、偏好、重要日子、关怀、概况页签的客户信息、改动留痕、知识库笔记 */
 export function profile(idOrName: string) {
   const t = today()
   const base = clientDetail(idOrName)

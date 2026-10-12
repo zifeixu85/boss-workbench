@@ -10,6 +10,7 @@ import { findClientNote } from '../../services/kb.ts'
 import { runCodex } from './codex.ts'
 import { addCare } from './actions.ts'
 import { careDraftInput } from './schema.ts'
+import { assistantOf, identity } from '../../services/identity.ts'
 
 const SCHEMA = {
   type: 'object', additionalProperties: false, required: ['gift', 'message', 'why'],
@@ -25,8 +26,9 @@ export async function careDraft(input: unknown, actor: Actor) {
   const traits = all<{ kind: string; text: string; source: string | null }>('SELECT kind, text, source FROM client_traits WHERE client_id = :id', { id: c.id })
   const orders = all<{ date: string; item: string; qty: number; unit: string }>("SELECT date, item, qty, unit FROM orders WHERE client_id = :id AND status = '已完成' ORDER BY date DESC LIMIT 6", { id: c.id })
   const note = findClientNote(c)
-  const prompt = `你是 ABC茶社林总的助理。给客户写一条关怀消息的草稿，林总自己改、自己发。今天是 ${today()}。
-当前目录是林总的知识库（只读）。下面附上了要用的东西，不用再读别的文件，尽快回答。
+  const me = identity()
+  const prompt = `${assistantOf(me)}。给客户写一条关怀消息的草稿，${me.owner}自己改、自己发。今天是 ${today()}。
+当前目录是${me.owner}的知识库（只读）。下面附上了要用的东西，不用再读别的文件，尽快回答。
 
 客户：${c.name}（${c.label ?? ''}）；称呼：${extra?.salutation || extra?.contact_name || c.name}；分组：${extra?.segment ?? ''}
 这次是：${data.occasion}${data.date ? `（${data.date}）` : ''}
@@ -37,9 +39,9 @@ ${note.path ? `\n## 客户档案（${note.path}，节选）\n${read(note.path).s
 ## 关怀的做法（${CARE_FILE}）
 ${read(CARE_FILE).slice(0, 3500)}
 
-要求：照《大客户关怀》的规矩写——送自家的茶加手写卡、不送贵的；送礼和问候的消息里不提单子、不报价；新品 11/5 上线前不提新品名字；不提别的客户。
-这条消息${data.date ? ` ${data.date} 当天` : '这两天'}由林总自己发（不是今天提前发），东西送到、确认没坏再发。
-可以提一句对方自己说过的喜好（例如他说过喜欢哪款茶），让人觉得林总记得；没说过的别编。
+要求：照上面《大客户关怀》的规矩写（送什么、不送什么以它为准）；送礼和问候的消息里不提单子、不报价；还没上线的新品不提名字；不提别的客户。
+这条消息${data.date ? ` ${data.date} 当天` : '这两天'}由${me.owner}自己发（不是今天提前发），东西送到、确认没坏再发。
+可以提一句对方自己说过的喜好（例如他说过喜欢哪款茶），让人觉得${me.owner}记得；没说过的别编。
 话短，像发微信，按平常的称呼叫。gift 写成短语，例如“一罐肉桂 + 手写卡”（不送就写空字符串）；message 写消息正文；why 用一句话说为什么这么写。只回 JSON。`
   const r = await runCodex({ prompt, schema: SCHEMA, cwd: ROOT })
   if (r.status !== '完成') return { ok: false as const, status: r.status, error: r.error, ms: r.ms }

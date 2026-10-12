@@ -1,6 +1,6 @@
 // 关怀与回访：未来 30 天的生日、纪念日、节日（立冬）和太久没联系的人，每人一条建议（送什么、怎么说）。归属：大客户模块。
-// 建议从哪来要写清楚：存着的草稿写明谁写的（知识库草稿 / Codex 定时任务 / Codex 现场写 / 林总）；
-// 没有草稿的，工作台按口味和日子套模板拼一条，标“模板 · 工作台按口味和日子套的，没用 AI”。话都只是草稿，林总自己改、自己发。
+// 建议从哪来要写清楚：存着的草稿写明谁写的（知识库草稿 / Codex 定时任务 / Codex 现场写 / 老板自己）；
+// 没有草稿的，工作台按口味和日子套模板拼一条，标“模板 · 工作台按口味和日子套的，没用 AI”。话都只是草稿，老板自己改、自己发。
 // 第二轮：作者分 5 类（author_kind），网页按类型给图标，不再从文字里猜（“没用 AI”里也有“AI”）；
 //         同一个人的生日、纪念日排在普通关怀安排前面（提取出生日后，关怀页先显示生日）；“另外”去重。
 // 第三轮：类型用 4—6 个字的中性标签（tag）；依据拆成几小块、各带出处（basis_items）；约好的回访日子已经过了的，写“已过 X 天”（overdue），
@@ -11,11 +11,12 @@ import { all, ROOT } from '../../db.ts'
 import { today, addDays, daysBetween } from '../../services/common.ts'
 import { nextOccurrence, quietDays } from './service.ts'
 import { authorKind, TEMPLATE_AUTHOR, type AuthorKind } from './authors.ts'
+import { identity } from '../../services/identity.ts'
 
 export const CARE_FILE = '05-方法与判断/大客户关怀.md'
 
 
-/** 林总的关怀规矩：从知识库《大客户关怀》读“林总的几条”（原话）和“别这样做”，林总改了知识库这里跟着变（第二轮修 #14） */
+/** 老板的关怀规矩：从知识库《大客户关怀》读“<称呼>的几条”或“我的几条”（原话）和“别这样做”，老板改了知识库这里跟着变（第二轮修 #14） */
 export function careRules() {
   const abs = join(ROOT, CARE_FILE)
   if (!existsSync(abs)) return { file: CARE_FILE, found: false as const, confirm: null, rules: [] as string[], donts: [] as string[] }
@@ -35,7 +36,7 @@ export function careRules() {
   }
   // 原话带引号：取引号里的那段原话
   const quote = (x: string) => (x.match(/^“(.+?)”/)?.[1] ?? x).replace(/[。！]$/, '')
-  const rules = section(/^##\s*林总的几条/).map(quote)
+  const rules = section(/^##\s*\S{1,12}的几条/).map(quote)
   const donts = section(/^##\s*别这样做/).map((x) => x.replace(/（见.*?）/g, '').replace(/[。]$/, ''))
   return { file: CARE_FILE, found: true as const, confirm, rules, donts }
 }
@@ -160,7 +161,7 @@ export function careList(days = 30, t = today()) {
     const top = reasons[0]
     // 同一个日子已经有存着的草稿，就用存着的（生日那天 Codex 写过一版，就显示那一版）
     const stored = top.care ?? cares.find((x) => x.client_id === c.id && x.date === top.date && x.date !== null)
-    // “另外”：别的日子、别的事，一件只说一次（第二轮修：原来会写两遍“周明远生日 11/12”）
+    // “另外”：别的日子、别的事，一件只说一次（第二轮修：原来同一个生日会写两遍）
     const also = [...new Map(reasons.slice(1)
       .filter((r) => !(r.date && r.date === top.date) && !(r.care && !['建议', '已安排'].includes(r.care.status)))
       .map((r) => {
@@ -183,7 +184,7 @@ export function careList(days = 30, t = today()) {
       basis, basis_items: picked.map((x) => ({ kind: x.kind, text: x.text, source: x.source })), tag: tagOf(top.kind, occasion), overdue,
       care_id: stored?.id ?? null,
       occasion, gift: stored ? stored.gift : tpl!.gift, message: stored ? stored.message : tpl!.message,
-      status: stored?.status ?? '建议', author: stored ? stored.author ?? '林总' : TEMPLATE_AUTHOR,
+      status: stored?.status ?? '建议', author: stored ? stored.author ?? identity().owner : TEMPLATE_AUTHOR,
       sent_at: stored?.sent_at ?? null, generated: !stored, note: stored?.note ?? null, days_silent: silent, kinds: reasons.map((r) => r.kind),
       author_kind: stored ? authorKind(stored.author) : '模板',
     })

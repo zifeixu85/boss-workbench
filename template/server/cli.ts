@@ -18,6 +18,7 @@ import * as content from './modules/content/service.ts'
 import * as dataSources from './modules/data/service.ts'
 import { addTopics } from './modules/content/topics.ts'
 import { writeSnapshots } from './snapshot.ts'
+import { backupDatabase } from './db.ts'
 import { today, addDays, dayOf } from './services/common.ts'
 
 const ACTOR = 'Codex' as const
@@ -36,7 +37,7 @@ const HELP = `用法：node 工作台/程序/server/cli.ts <命令> [参数] [--
   receivables                        应收款
 写入
   log <客户> <内容> [--date 日期] [--channel 微信] [--step 下一步] [--next 下次跟进日期]
-    例：log 澜拓科技 "周明远确认 350 份（待确认）" --next 2026-11-03 --step "出两版春节方案"
+    例：log 澜拓科技 "电话聊了春节茶礼，人数下周给（待确认）" --next 2026-11-03 --step "出两版春节方案"
   client-add <称呼> [--label 补充说明] [--stage 阶段] [--source 来源] [--next 下次跟进] [--kb 知识库里的客户文件] [--note 备注]
   project-add <名称> [--stage 筹备|进行中|收尾|已完成|暂停] [--due 截止] [--owner 负责人] [--goal 想达到什么] [--step 下一步]
               [--client 客户] [--kb 06-项目/某项目.md] [--milestone "2026-11-05 四平台上线" …（可写多个）]
@@ -46,9 +47,10 @@ const HELP = `用法：node 工作台/程序/server/cli.ts <命令> [参数] [--
   event-add <标题> --start 2026-10-08T15:00 [--end ...] [--kind 会面] [--client 客户] [--location 地点]
   collect <应收ID> <金额(万)> [--date 日期]
   inbox <内容>
-  settings-set [--owner 称呼] [--business 工作台名称] [--theme jade|wood|navy|mono|night] [--nav simple|complex|top]
-                                     改设置（搭建时写老板的称呼、配色、导航）
+  settings-set [--owner 称呼] [--business 店名或工作台名称] [--xhs 小红书账号名] [--theme jade|wood|navy|mono|night] [--nav simple|complex|top]
+                                     改设置（搭建时按知识库写老板的称呼、店名、小红书账号名、配色、导航）
   snapshot                           导出只读快照到 工作台/快照/
+  backup                             改功能、换数据前先备份数据库：存到数据库旁边的 备份/workbench-日期时间.db
 大客户（客户详情加深，E5）
   materials                          知识库收件箱里的新材料：是谁的、提取过没有
   extract <收件箱文件> [--client 客户]  让 Codex 提取一份新材料（最多等 150 秒），结果“待确认”，到网页 /clients/extract 确认后才写入
@@ -58,7 +60,7 @@ const HELP = `用法：node 工作台/程序/server/cli.ts <命令> [参数] [--
   care [--days 30]                   接下来该关心谁：生日、立冬、太久没联系，每人一条草稿（写明谁写的）
   care-set <关怀ID> [--message 新草稿] [--status 已送出|不做]   改关怀草稿、标已发
   care-add <客户> --occasion 立冬问候 --message "草稿" [--date 日期] [--gift 送什么] [--by 定时任务]   存一条关怀草稿（写明谁写的）
-  extract-undo <提取ID> --yes        撤销一次提取写入；crm-reset --save 事先存演示起点，--yes 排练完退回（详细用法：crm-reset --help）
+  extract-undo <提取ID> --yes        撤销一次提取写入；crm-reset --save 演示前存演示起点，--yes 排练完退回（详细用法：crm-reset --help）
   xhs-topics-add --file <json> [--date 日期] [--by "Codex 定时任务"]
                                      把小红书选题写进内容中心的灵感池（JSON 数组，或含 <topics>…</topics> 的回复原文；同名的跳过）
 经营（经营模块，详细用法：biz-report --help）
@@ -105,7 +107,7 @@ function parseCli() {
         label: { type: 'string' }, source: { type: 'string' }, help: { type: 'boolean', short: 'h' },
         file: { type: 'string' }, by: { type: 'string' },
         kb: { type: 'string' }, owner: { type: 'string' }, goal: { type: 'string' }, milestone: { type: 'string', multiple: true },
-        project: { type: 'string' }, business: { type: 'string' }, theme: { type: 'string' }, nav: { type: 'string' },
+        project: { type: 'string' }, business: { type: 'string' }, theme: { type: 'string' }, nav: { type: 'string' }, xhs: { type: 'string' },
       },
     })
   } catch (err) {
@@ -253,14 +255,20 @@ function main() {
       return print(r, '已放进收件箱')
     }
     case 'settings-set': {
-      // 集成 10-12 加：搭建时把老板的称呼、工作台名称、配色、导航写进设置（网页“设置”页同一套规则）
-      if (![o.owner, o.business, o.theme, o.nav].some((v) => v !== undefined)) throw new Error('要写改什么：--owner、--business、--theme 或 --nav')
-      const r = home.saveSettings({ owner: o.owner, business: o.business, theme: o.theme, nav_mode: o.nav }, ACTOR)
-      return print(r, `已改设置：称呼 ${r.owner}，工作台 ${r.business}，配色 ${r.theme}，导航 ${r.nav_mode}`)
+      // 搭建时把老板的称呼、店名（也是工作台名称）、小红书账号名、配色、导航写进设置（网页“设置”页同一套规则）。
+      // 称呼、店名、账号名会用在网页文案、给 Codex 的提示词和小红书手机预览里；--xhs "" 清掉账号名，改用店名
+      if (![o.owner, o.business, o.xhs, o.theme, o.nav].some((v) => v !== undefined)) throw new Error('要写改什么：--owner、--business、--xhs、--theme 或 --nav')
+      const r = home.saveSettings({ owner: o.owner, business: o.business, xhs_name: o.xhs, theme: o.theme, nav_mode: o.nav }, ACTOR)
+      return print(r, `已改设置：称呼 ${r.owner}，店名 / 工作台 ${r.business}，小红书账号 ${r.xhs}${r.xhs_name ? '' : '（跟店名）'}，配色 ${r.theme}，导航 ${r.nav_mode}`)
     }
     case 'snapshot': {
       const files = writeSnapshots()
       return print(files, `已导出快照：\n${files.map((f) => `- ${f}`).join('\n')}`)
+    }
+    case 'backup': {
+      // 数据库备份：用 VACUUM INTO 存一份完整的副本（工作台开着也能备份，不会漏掉还在 -wal 里的改动）
+      const file = backupDatabase()
+      return print({ file }, `已备份数据库：${file}`)
     }
     case 'xhs-topics-add': {
       // 小红书内容中心（E3）：每天早上的选题定时任务用它写回灵感池
@@ -290,7 +298,7 @@ function main() {
           '\n## 你答应的', line(r.promises as unknown as R[], (p) => `${p.who}答应${p.to_whom}：${p.text}${p.due ? `（${p.due} 前）` : ''}${p.conflict ? `【和判断规则对不上】${p.conflict}` : ''}`),
           `\n## 对方的状态\n${res.their_status}${res.not_decided ? '（还没定，不算成交）' : ''}`,
           '\n## 顾虑', line(res.concerns.map((c) => ({ c })), (c) => String(c.c)),
-          '\n## 决策信号', line(res.signals.map((c) => ({ c })), (c) => String(c.c)),
+          '\n## 怎么定（谁拍板、哪天定、在跟谁比）', line(res.signals.map((c) => ({ c })), (c) => String(c.c)),
           '\n## 下一步', line(res.next_steps as unknown as R[], (s2) => `${s2.text}${s2.due ? `（${s2.due}）` : ''}`),
           `\n还没写入。到网页确认：http://127.0.0.1:${process.env.PORT || 4517}/clients/extract?run=${r.id}`].join('\n'))
       })
