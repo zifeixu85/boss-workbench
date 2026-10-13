@@ -92,6 +92,10 @@
 .pv-doc p{margin:0 0 5px;font-size:10.5px}
 .pv-empty{display:grid;place-items:center;text-align:center;gap:6px;min-height:240px;color:var(--p-muted);border:1.5px dashed var(--p-border);border-radius:12px;padding:20px}
 .pv-empty b{color:var(--p-fg);font-size:13px}
+/* 2026-10-13：空白预览的说明不让最后一两个字单独掉到下一行；列表类预览的卡片撑满，不在下面留一大片空白 */
+.pv-empty span{text-wrap:balance;max-width:40ch}
+.pv-main.k-list{display:flex;flex-direction:column}
+.pv-main.k-list > .pv-card{flex:1}
 /* 配色卡里的小首页 */
 .pv.compact .pv-main{padding:10px 12px;gap:8px}
 .pv.compact .pv-h b{font-size:13px}

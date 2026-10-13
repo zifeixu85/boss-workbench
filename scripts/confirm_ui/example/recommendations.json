@@ -142,7 +142,7 @@
     {
       "id": "project",
       "label": "几个项目推进到哪了",
-      "selected": false,
+      "selected": true,
       "module": "projects"
     },
     {

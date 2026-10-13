@@ -119,7 +119,7 @@
     return '<div class="pv' + (p.dark ? ' dark' : '') + (opts.compact ? ' compact' : '') + '" style="' + styleVars(p) + '">' +
       (opts.compact ? '' : '<div class="pv-chrome"><i></i><i></i><i></i><span>127.0.0.1 · ' + esc(opts.boss || '') + '的工作台</span></div>') +
       '<div class="pv-app"><div class="pv-side"><div class="pv-logo"><i>' + esc((opts.boss || '工').slice(0, 1)) + '</i><span>' + (opts.compact ? '' : '工作台') + '</span></div>' + nav + '</div>' +
-      '<div class="pv-main">' + render(mod.preview || { title: mod.name, text: '' }) + '</div></div></div>';
+      '<div class="pv-main k-' + esc((mod.preview || {}).kind || 'empty') + '">' + render(mod.preview || { title: mod.name, text: '' }) + '</div></div></div>';
   }
 
   window.Previews = { render: window_, esc: esc };

@@ -58,7 +58,7 @@
     $('next').hidden = n === 4;
     $('next').textContent = NEXT_LABEL[n] || '下一步';
     $('footbar').hidden = n === 4;
-    if (n === 1) renderDetail();
+    if (n === 1) { renderDetail(); fitList(); }
     if (n === 2) renderThemes();
     if (n === 3) renderFinal();
     updateSum();
@@ -164,6 +164,29 @@
       }).join('') + '</div></div>';
     }).join('') + '<label class="custom"><span>还想要别的？用一句话说</span><input id="customReq" type="text" placeholder="例如：门店会员生日提醒" value="' + esc(state.custom || '') + '"></label>';
     $('customReq').addEventListener('input', function (e) { state.custom = e.target.value; });
+    fitList();
+  }
+
+  // 模块列表是单独滚动的框（电脑宽度时贴在顶部）。页面还没往下滚时它的顶在更下面，
+  // 按固定高度算底部会压在底栏下面：按它现在离窗口顶多远、底栏多高，算出这一刻放得下的高度
+  function fitList() {
+    var el = $('modList');
+    if (!el || typeof window.getComputedStyle !== 'function' || typeof el.getBoundingClientRect !== 'function') return; // 测试里的假窗口没有这些
+    if (state.step !== 1 || window.getComputedStyle(el).position !== 'sticky') { el.style.maxHeight = ''; return; }
+    var foot = document.querySelector('.footbar');
+    var room = window.innerHeight - el.getBoundingClientRect().top - (foot ? foot.offsetHeight : 0) - 16;
+    el.style.maxHeight = Math.max(240, Math.round(room)) + 'px';
+  }
+  // 滚动、改窗口大小时，等这一帧排好版再算（直接在事件里算，有时拿到的是滚动前的位置）
+  var fitQueued = false;
+  function fitSoon() {
+    if (fitQueued) return;
+    fitQueued = true;
+    (window.requestAnimationFrame || setTimeout)(function () { fitQueued = false; fitList(); });
+  }
+  if (typeof window.addEventListener === 'function') {
+    window.addEventListener('scroll', fitSoon, { passive: true });
+    window.addEventListener('resize', fitSoon);
   }
 
   function renderDetail() {
