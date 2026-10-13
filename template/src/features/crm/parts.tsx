@@ -32,7 +32,7 @@ export function LevelMark({ level, className }: { level: Level; className?: stri
   return (
     <Tooltip>
       <TooltipTrigger asChild>
-        <span className={cn('inline-flex h-5 shrink-0 items-center rounded-[5px] px-1.5 text-[11.5px] font-semibold whitespace-nowrap ring-1 ring-inset', LEVEL_CLS[level], className)} aria-label={`${level} 级客户`}>
+        <span className={cn('inline-flex h-5 shrink-0 items-center rounded-[5px] px-1.5 text-[12px] font-semibold whitespace-nowrap ring-1 ring-inset', LEVEL_CLS[level], className)} aria-label={`${level} 级客户`}>
           {level}{NBSP}级
         </span>
       </TooltipTrigger>

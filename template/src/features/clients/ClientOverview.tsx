@@ -100,7 +100,7 @@ function clientItems(d: ClientProfile, owner: string): Item[] {
         <Part label="怎么定" muted={!f('决策信号') && !signalTalk}>
           {signalTalk && <span className="mb-1.5 block"><StatusBadge value={`${shortDate(signalTalk.date)} 最新`} tone="info" className="mr-1.5" /><Points text={[signalTalk.their_status, signalTalk.signals].filter(Boolean).map((x) => x!.trim().replace(/[。；;]+$/, '')).join('；')} /></span>}
           {f('决策信号') && (signalTalk
-            ? <span className="block text-muted-foreground"><span className="mr-1.5 rounded border px-1 text-[11px]">已被 {shortDate(signalTalk.date)} 更新</span><s className="decoration-muted-foreground/40">{f('决策信号')!.text}</s></span>
+            ? <span className="block text-muted-foreground"><span className="mr-1.5 rounded border px-1 text-[12px]">已被 {shortDate(signalTalk.date)} 更新</span><s className="decoration-muted-foreground/40">{f('决策信号')!.text}</s></span>
             : <Points text={f('决策信号')!.text} />)}
           {!f('决策信号') && !signalTalk && '还不知道：谁拍板、哪天定、在跟谁比'}
         </Part>
@@ -164,9 +164,9 @@ export function ClientOverview({ d }: { d: ClientProfile }) {
         <ol className="grid gap-px overflow-hidden rounded-xl border bg-border sm:grid-cols-2">
           {items.map((it, i) => (
             <li key={it.label} className="min-w-0 bg-card px-4 py-3">
-              <div className="flex items-center gap-2 text-[12px] font-medium text-muted-foreground"><span className="num grid size-[18px] place-items-center rounded-full bg-muted text-[11px]">{i + 1}</span>{it.label}</div>
+              <div className="flex items-center gap-2 text-[12px] font-medium text-muted-foreground"><span className="num grid size-[18px] place-items-center rounded-full bg-muted text-[12px]">{i + 1}</span>{it.label}</div>
               <div className={cn('mt-1.5 text-[13.5px] leading-relaxed', it.empty && 'text-muted-foreground')}>{it.body}</div>
-              <div className="mt-1.5 text-[11px] leading-snug text-muted-foreground/80">来源：{it.src}</div>
+              <div className="mt-1.5 text-[12px] leading-snug text-muted-foreground/80">来源：{it.src}</div>
             </li>
           ))}
         </ol>
@@ -181,7 +181,7 @@ export function ClientOverview({ d }: { d: ClientProfile }) {
               return (
                 <div key={kind} className={cn('min-w-0 rounded-lg border p-3', xs.length ? 'bg-card' : 'border-dashed bg-transparent')}>
                   <div className="flex items-center gap-1.5 text-[12px] text-muted-foreground"><Icon className={cn('size-3.5', xs.length && 'text-primary')} />{kind}</div>
-                  {xs.length ? xs.map((t) => <p key={t.id} className="mt-1 text-[13px] leading-snug">{t.text}{t.source && <span className="ml-1 text-[11px] text-muted-foreground">{t.source}</span>}</p>)
+                  {xs.length ? xs.map((t) => <p key={t.id} className="mt-1 text-[13px] leading-snug">{t.text}{t.source && <span className="ml-1 text-[12px] text-muted-foreground">{t.source}</span>}</p>)
                     : <p className="mt-1 text-[12.5px] text-muted-foreground">未知（{hint}，听到了再记）</p>}
                 </div>
               )
@@ -196,8 +196,8 @@ export function ClientOverview({ d }: { d: ClientProfile }) {
               {d.dates.map((x) => (
                 <li key={x.id} className="flex items-center gap-2.5 px-3 py-2 text-[13px]">
                   <Cake className={cn('size-4 shrink-0', x.kind === '生日' ? 'text-primary' : 'text-muted-foreground')} />
-                  <span className="min-w-0 flex-1"><span className="block truncate">{x.label}</span>{x.note && <span className="block truncate text-[11px] text-muted-foreground">{x.note}</span>}</span>
-                  <span className="num shrink-0 text-right"><span className="block whitespace-nowrap">{shortDate(x.next)}</span><span className="block text-[11px] text-muted-foreground">{x.days_left === 0 ? '今天' : `${x.days_left} 天后`}</span></span>
+                  <span className="min-w-0 flex-1"><span className="block truncate">{x.label}</span>{x.note && <span className="block truncate text-[12px] text-muted-foreground">{x.note}</span>}</span>
+                  <span className="num shrink-0 text-right"><span className="block whitespace-nowrap">{shortDate(x.next)}</span><span className="block text-[12px] text-muted-foreground">{x.days_left === 0 ? '今天' : `${x.days_left} 天后`}</span></span>
                 </li>
               ))}
             </ul>
@@ -216,7 +216,7 @@ export function ClientOverview({ d }: { d: ClientProfile }) {
           : <span className="text-muted-foreground">知识库里没有这位客户的档案（普通客户只记在工作台）{note.expected ? `，预期在 ${note.expected}` : ''}</span>}
       </section>
       {d.facts.some((f) => f.author?.includes('待确认')) && (
-        <p className="-mt-3 flex items-center gap-1.5 text-[11.5px] text-muted-foreground"><Sparkles className="size-3 text-info" />标“待确认”的是建库时 AI 从采访里整理的，{owner}还没逐条点头。</p>
+        <p className="-mt-3 flex items-center gap-1.5 text-[12px] text-muted-foreground"><Sparkles className="size-3 text-info" />标“待确认”的是建库时 AI 从采访里整理的，{owner}还没逐条点头。</p>
       )}
       {doc && note.path && <KbDocDialog path={note.path} onClose={() => setDoc(false)} />}
     </div>

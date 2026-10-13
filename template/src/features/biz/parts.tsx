@@ -61,18 +61,18 @@ export function KpiCard({ k, trace, days, flags = [], color }: { k: Kpi; trace: 
       <button type="button" onClick={() => ov.openTrace(trace)} className="kpi-main px-4 pt-3 pb-2 text-left focus-visible:outline-none" aria-label={`${k.label}：看这个数是怎么来的`}>
         <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
           <span className="truncate">{k.label}</span>
-          <span className="ml-auto text-[11px] whitespace-nowrap opacity-0 transition-opacity group-hover:opacity-100">看来源</span>
+          <span className="ml-auto text-[12px] whitespace-nowrap opacity-0 transition-opacity group-hover:opacity-100">看来源</span>
         </div>
         <div className="mt-1 flex items-baseline gap-1">
           <span className="num font-heading text-[25px] leading-none font-semibold">{n.value}</span>
           {n.unit && <span className="text-[13px] text-muted-foreground">{n.unit}</span>}
         </div>
-        <dl className="mt-2 grid gap-0.5 text-[11.5px] text-muted-foreground">
+        <dl className="mt-2 grid gap-0.5 text-[12px] text-muted-foreground">
           <div className="flex justify-between gap-2"><dt className="whitespace-nowrap">比前一天</dt><dd><Delta value={k.vs_prev} suffix={suf} /></dd></div>
           <div className="flex justify-between gap-2"><dt className="whitespace-nowrap">比上周同日</dt><dd><Delta value={k.vs_last_week} suffix={suf} /></dd></div>
         </dl>
         <Spark values={k.spark} className="mt-1" color={color} />
-        <div className="flex justify-between gap-2 text-[10.5px] whitespace-nowrap text-muted-foreground/80">
+        <div className="flex justify-between gap-2 text-[12px] whitespace-nowrap text-muted-foreground/80">
           <span>近 {days} 天</span>
           {k.hint && <span className="truncate">{k.hint}</span>}
         </div>
@@ -81,7 +81,7 @@ export function KpiCard({ k, trace, days, flags = [], color }: { k: Kpi; trace: 
         <div className="flex flex-wrap gap-1 border-t border-dashed px-3 py-1.5">
           {flags.map((f) => (
             <button key={f.id} type="button" onClick={() => ov.openAnomaly(f.id)}
-              className="flex items-center gap-0.5 rounded bg-danger-soft px-1.5 py-0.5 text-[11px] font-medium whitespace-nowrap text-danger hover:bg-danger-soft/70 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none">
+              className="flex items-center gap-0.5 rounded bg-danger-soft px-1.5 py-0.5 text-[12px] font-medium whitespace-nowrap text-danger hover:bg-danger-soft/70 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none">
               {f.channel_name}异常<ChevronRight className="size-3" />
             </button>
           ))}

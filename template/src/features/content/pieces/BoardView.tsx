@@ -19,7 +19,7 @@ export function PieceCard({ p, onOpen }: { p: Piece; onOpen?: () => void }) {
   return (
     <div className="min-w-0 overflow-hidden rounded-lg border bg-card shadow-paper">
       <button type="button" onClick={onOpen} className="block w-full min-w-0 p-3 text-left">
-        <div className="flex min-w-0 items-center gap-1.5 text-[11px] text-muted-foreground">
+        <div className="flex min-w-0 items-center gap-1.5 text-[12px] text-muted-foreground">
           <span className="inline-flex shrink-0 items-center gap-0.5 rounded bg-muted px-1 py-px">{p.format === '视频' ? <Video className="size-3" /> : <FileText className="size-3" />}{p.format}</span>
           <span className="truncate">{p.pillar_name ?? '不在支柱里'}</span>
           {p.ai && <span className="ml-auto inline-flex shrink-0 items-center gap-0.5 rounded bg-accent px-1 py-px text-accent-foreground" title={`${p.created_by}出的选题`}><Sparkles className="size-3" />AI</span>}
@@ -32,9 +32,9 @@ export function PieceCard({ p, onOpen }: { p: Piece; onOpen?: () => void }) {
           {thumb && <div className="w-11 shrink-0 overflow-hidden rounded shadow-sm"><CoverArt text={p.draft!.cover_text} cover={p.draft!.cover} pages={p.draft!.pages} seed={p.draft!.title} /></div>}
         </div>
         {['灵感池', '已选'].includes(p.status) && p.reason && (
-          <p className="mt-2 line-clamp-2 border-l-2 border-primary/40 pl-2 text-[11.5px] leading-relaxed text-muted-foreground"><span className="text-primary">为什么做 · {SOURCE_SHORT[p.source] ?? p.source}：</span>{p.reason}</p>
+          <p className="mt-2 line-clamp-2 border-l-2 border-primary/40 pl-2 text-[12px] leading-relaxed text-muted-foreground"><span className="text-primary">为什么做 · {SOURCE_SHORT[p.source] ?? p.source}：</span>{p.reason}</p>
         )}
-        {p.warn && p.status !== '已发布' && <p className="mt-2 flex gap-1 text-[11.5px] leading-snug text-warn"><TriangleAlert className="mt-px size-3 shrink-0" /><span className="line-clamp-2">{p.warn}</span></p>}
+        {p.warn && p.status !== '已发布' && <p className="mt-2 flex gap-1 text-[12px] leading-snug text-warn"><TriangleAlert className="mt-px size-3 shrink-0" /><span className="line-clamp-2">{p.warn}</span></p>}
         <MetaRow className="mt-2.5">
           {p.status === '写稿中' && <span>{p.version ? `稿件 v${p.version} · ${mdhm(p.version_at)}` : '还没动笔'}</span>}
           {p.check && (p.check.blocks || p.check.warns) ? <span className={cn('font-medium', p.check.blocks ? 'text-danger' : 'text-warn')}>{p.check.blocks ? `检查：${p.check.blocks} 处要改` : `检查：${p.check.warns} 项提醒`}</span> : null}
@@ -79,7 +79,7 @@ export function BoardView({ pieces }: { pieces: Piece[] }) {
             <DropColumn key={s} id={s}>
               {(over) => (
                 <BoardColumn highlight={over} className="max-h-[calc(100dvh-290px)]"
-                  title={<span className="grid gap-0.5"><StatusTag s={s} className="w-fit" /><span className="text-[11px] leading-tight text-muted-foreground">{STATUS_HINT[s]}</span></span>}
+                  title={<span className="grid gap-0.5"><StatusTag s={s} className="w-fit" /><span className="text-[12px] leading-tight text-muted-foreground">{STATUS_HINT[s]}</span></span>}
                   meta={s === '已发布' ? `近 14 天 ${xs.length} 篇` : `${xs.length} 篇`}>
                   {xs.map((p) => <DragCard key={p.id} id={p.id} column={s}><PieceCard p={p} onOpen={() => sheet.open(p.id)} /></DragCard>)}
                   {!xs.length && <div className="rounded-lg border border-dashed p-4 text-center text-xs text-muted-foreground">拖到这里</div>}

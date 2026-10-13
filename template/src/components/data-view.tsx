@@ -75,10 +75,10 @@ export function BoardColumn({ title, meta, children, className, highlight }: { t
   )
 }
 
-/** 卡片里的一行小信息（规则②）：每一项整块不换行，放不下整项掉到下一行 */
+/** 卡片里的一行小信息（规则②）：每一项整块不换行，放不下整项掉到下一行；一项本身比整行还长时省略（2026-10-13，和个人工作台同步：长字不再把卡片撑开） */
 export function MetaRow({ children, className }: { children: ReactNode; className?: string }) {
   return (
-    <div className={cn('flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground [&>*]:whitespace-nowrap', className)}>
+    <div className={cn('flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground [&>*]:max-w-full [&>*]:overflow-hidden [&>*]:text-ellipsis [&>*]:whitespace-nowrap', className)}>
       {children}
     </div>
   )

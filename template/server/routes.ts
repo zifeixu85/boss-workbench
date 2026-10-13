@@ -7,6 +7,7 @@ import * as projects from './services/projects.ts'
 import * as money from './services/money.ts'
 import * as kb from './services/kb.ts'
 import * as home from './services/today.ts'
+import * as modules from './services/modules.ts'
 import { crmRoutes } from './modules/crm/routes.ts'
 import { bizRoutes } from './modules/biz/routes.ts'
 import { contentRoutes } from './modules/content/routes.ts'
@@ -24,6 +25,14 @@ routes.get('/changes', (c) => c.json(ok(home.recentChanges(50))))
 routes.get('/search', (c) => c.json(ok(home.search(c.req.query('q') ?? ''))))
 routes.get('/settings', (c) => c.json(ok(home.getSettings())))
 routes.patch('/settings', async (c) => c.json(ok(home.saveSettings(await body(c), WEB))))
+// 模块开关（shared/modules.ts）：GET 看每个模块开没开；PATCH { on: [...], off: [...] } 打开 / 收起，或 { set: [...] | 'all' } 整组设
+routes.get('/modules', (c) => c.json(ok(modules.list())))
+routes.patch('/modules', async (c) => {
+  const b = (await body(c)) as { on?: unknown; off?: unknown; set?: unknown }
+  const ids = (v: unknown) => (Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : [])
+  if (b.set !== undefined) return c.json(ok(modules.setModules(b.set === 'all' ? 'all' : ids(b.set), WEB)))
+  return c.json(ok(modules.toggleModules(ids(b.on), ids(b.off), WEB)))
+})
 
 routes.get('/clients', (c) => c.json(ok(clients.listClients())))
 routes.post('/clients', async (c) => c.json(ok(clients.createClient(await body(c), WEB))))

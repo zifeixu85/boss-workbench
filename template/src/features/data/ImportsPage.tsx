@@ -62,7 +62,7 @@ function Stepper({ current, fileName, rows, sticky, onBack }: { current: number;
               {i > 0 && <span aria-hidden className={cn('mx-1 h-px w-4 lg:mx-2 lg:w-8', i <= current ? 'bg-primary' : 'bg-border')} />}
               <button type="button" disabled={!can} onClick={() => onBack(i)} aria-current={i === current ? 'step' : undefined}
                 className={cn('flex items-center gap-1.5 rounded-lg px-1.5 py-0.5 text-[13px]', can && 'hover:bg-muted', !can && 'cursor-default')}>
-                <span className={cn('num grid size-5 place-items-center rounded-full border text-[11px] font-semibold',
+                <span className={cn('num grid size-5 place-items-center rounded-full border text-[12px] font-semibold',
                   i === current ? 'border-primary bg-primary text-primary-foreground' : done ? 'border-primary/40 bg-accent text-primary' : 'text-muted-foreground')}>
                   {done ? <Check className="size-3" /> : i + 1}
                 </span>

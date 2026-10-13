@@ -91,15 +91,15 @@ function CareRow({ x }: { x: CareItem }) {
     <article className="grid grid-cols-[58px_minmax(0,1fr)] gap-3 rounded-xl border bg-card px-4 py-3.5 shadow-paper sm:gap-4">
       <div className={cn('flex h-fit flex-col items-center rounded-lg border px-1 py-2 text-center', od ? 'border-danger/30 bg-danger-soft' : x.kind === '久未联系' ? 'border-warn/30 bg-warn-soft' : x.days_left !== null && x.days_left <= 3 ? 'border-primary/30 bg-accent' : 'bg-surface-2/60')}>
         <span className={cn('num font-heading text-[22px] leading-none font-semibold', od && 'text-danger')}>{dateTop}</span>
-        <span className="mt-1 text-[11px] whitespace-nowrap text-muted-foreground">{od ? '天前该联系' : x.date ? `${Number(x.date.slice(5, 7))}月 ${weekday(x.date)}` : '天没联系'}</span>
-        {!od && x.date && x.days_left !== null && <span className={cn('mt-1 text-[11px] font-medium whitespace-nowrap', x.days_left <= 1 ? 'text-primary' : 'text-muted-foreground')}>{x.days_left === 0 ? '今天' : x.days_left === 1 ? '明天' : x.days_left > 0 ? `${x.days_left} 天后` : `过了 ${-x.days_left} 天`}</span>}
+        <span className="mt-1 text-[12px] whitespace-nowrap text-muted-foreground">{od ? '天前该联系' : x.date ? `${Number(x.date.slice(5, 7))}月 ${weekday(x.date)}` : '天没联系'}</span>
+        {!od && x.date && x.days_left !== null && <span className={cn('mt-1 text-[12px] font-medium whitespace-nowrap', x.days_left <= 1 ? 'text-primary' : 'text-muted-foreground')}>{x.days_left === 0 ? '今天' : x.days_left === 1 ? '明天' : x.days_left > 0 ? `${x.days_left} 天后` : `过了 ${-x.days_left} 天`}</span>}
       </div>
       <div className="min-w-0">
         <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
           <button onClick={() => ov.openDetail('client', x.client_id)} className="text-[15px] font-semibold hover:text-primary">{x.client_name}</button>
           <span className="min-w-0 truncate text-xs text-muted-foreground">{x.label}</span>
           {x.key_account === 1 && <StatusBadge value="大客户" />}
-          <span className="ml-auto inline-flex h-5 items-center rounded-md border bg-surface-2/60 px-1.5 text-[11.5px] whitespace-nowrap text-muted-foreground">{x.tag}</span>
+          <span className="ml-auto inline-flex h-5 items-center rounded-md border bg-surface-2/60 px-1.5 text-[12px] whitespace-nowrap text-muted-foreground">{x.tag}</span>
         </div>
         <p className={cn('mt-1 text-[12.5px] text-muted-foreground', od && 'text-danger')}>
           {when}
@@ -108,7 +108,7 @@ function CareRow({ x }: { x: CareItem }) {
         {x.basis_items.length > 0 && (
           <div className="mt-1.5 flex flex-wrap gap-1.5">
             {x.basis_items.map((b) => (
-              <span key={b.kind + b.text} className="inline-flex max-w-full min-w-0 items-baseline gap-1 rounded-md bg-muted/70 px-1.5 py-0.5 text-[11.5px] leading-snug">
+              <span key={b.kind + b.text} className="inline-flex max-w-full min-w-0 items-baseline gap-1 rounded-md bg-muted/70 px-1.5 py-0.5 text-[12px] leading-snug">
                 <span className="shrink-0 text-muted-foreground">{b.kind}</span><span className="min-w-0 text-foreground/80">{b.text}</span>{b.source && <span className="shrink-0 text-muted-foreground/80">· {b.source}</span>}
               </span>
             ))}
@@ -155,7 +155,7 @@ function SpringPanel({ spring }: { spring: CareData['spring'] }) {
   return (
     <Panel title={<span className="flex items-center gap-1.5"><Snowflake className="size-4 text-info" />春节还有 {spring.days_left} 天</span>}
       desc={`${shortDate(spring.date)}。${shortDate(spring.presale)}开始预售，老客户先通知；企业客户过节前先问候，别一上来就报价`} bodyClass="p-2">
-      <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-x-2 px-3 pt-1 pb-1.5 text-[11.5px] text-muted-foreground"><span>谁 · 今年买过什么</span><span>春节这次</span></div>
+      <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-x-2 px-3 pt-1 pb-1.5 text-[12px] text-muted-foreground"><span>谁 · 今年买过什么</span><span>春节这次</span></div>
       <ul className="grid">
         {spring.clients.map((c) => {
           const st = status(c)
@@ -164,7 +164,7 @@ function SpringPanel({ spring }: { spring: CareData['spring'] }) {
             <li key={c.client_id}>
               <button onClick={() => ov.openDetail('client', c.client_id)} className="grid w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-x-2 rounded-lg px-3 py-2 text-left hover:bg-muted/60">
                 <span className="min-w-0">
-                  <span className="flex min-w-0 items-center gap-1.5 text-[13.5px] font-medium"><span className="truncate">{c.name}</span>{c.key_account === 1 && <StatusBadge value="大客户" className="h-4 px-1 text-[10.5px]" />}</span>
+                  <span className="flex min-w-0 items-center gap-1.5 text-[13.5px] font-medium"><span className="truncate">{c.name}</span>{c.key_account === 1 && <StatusBadge value="大客户" className="h-4 px-1 text-[12px]" />}</span>
                   <span className="mt-0.5 block text-[12px] leading-snug text-muted-foreground">
                     {c.bought.map((b) => `${b.occasion} ${b.qty} ${b.unit}${b.item.replace(/（.*）/, '')}`).join('；')}<span className="num"> · {wan(yuanToWan(total))}</span>
                   </span>
@@ -175,7 +175,7 @@ function SpringPanel({ spring }: { spring: CareData['spring'] }) {
           )
         })}
       </ul>
-      <p className="flex items-center gap-1.5 px-3 pt-1 pb-2 text-[11.5px] text-muted-foreground"><PhoneCall className="size-3" />名单来自订单：今年春节、中秋买过茶礼的企业，春节买过礼盒送人的老茶客</p>
+      <p className="flex items-center gap-1.5 px-3 pt-1 pb-2 text-[12px] text-muted-foreground"><PhoneCall className="size-3" />名单来自订单：今年春节、中秋买过茶礼的企业，春节买过礼盒送人的老茶客</p>
     </Panel>
   )
 }

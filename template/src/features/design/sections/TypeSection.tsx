@@ -11,7 +11,7 @@ const SIZES: { name: string; cls: string; sample: string; where: string }[] = [
   { name: '正文', cls: 'text-[14px]', sample: '客户说春节可能还要，11 月再聊。', where: '列表、表格、表单（body 默认 14px）' },
   { name: '小字', cls: 'text-[13px] text-muted-foreground', sample: '上次联系：10月16日 · 电话', where: '列表第二行、说明文字' },
   { name: '注释', cls: 'text-xs text-muted-foreground', sample: '截至 10月26日 · 来源：各平台导出文件', where: '图表下的截至日期和来源、眉题、提示' },
-  { name: '标签字', cls: 'text-[11.5px] font-medium', sample: '已签约', where: 'StatusBadge、角标' },
+  { name: '标签字', cls: 'text-[12px] font-medium', sample: '已签约', where: 'StatusBadge、角标' },
 ]
 
 const SAMPLE_MD = `## 卡在哪

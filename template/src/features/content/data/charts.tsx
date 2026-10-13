@@ -50,8 +50,8 @@ function WeekTick({ x, y, payload, rows }: { x?: number; y?: number; payload?: {
   if (!w) return null
   return (
     <g transform={`translate(${x},${y})`}>
-      <text x={0} y={0} dy={11} textAnchor="middle" fill="var(--muted-foreground)" fontSize={11}>{w.label}</text>
-      <text x={0} y={0} dy={25} textAnchor="middle" fill="var(--muted-foreground)" fontSize={10.5} opacity={0.8}>{w.partial_from ? `${md(w.partial_from)}起 ` : ''}{w.posts}篇</text>
+      <text x={0} y={0} dy={11} textAnchor="middle" fill="var(--muted-foreground)" fontSize={12}>{w.label}</text>
+      <text x={0} y={0} dy={25} textAnchor="middle" fill="var(--muted-foreground)" fontSize={12} opacity={0.8}>{w.partial_from ? `${md(w.partial_from)}起 ` : ''}{w.posts}篇</text>
     </g>
   )
 }
@@ -60,7 +60,7 @@ function WeekTick({ x, y, payload, rows }: { x?: number; y?: number; payload?: {
 function SpikeLabel(p: { x?: number | string; y?: number | string; width?: number | string; value?: unknown }) {
   if (!p.value) return null
   const x = Number(p.x) + Number(p.width) / 2
-  return <text x={x} y={Number(p.y) - 7} textAnchor="middle" fontSize={10.5} fill="var(--muted-foreground)">{String(p.value)}</text>
+  return <text x={x} y={Number(p.y) - 7} textAnchor="middle" fontSize={12} fill="var(--muted-foreground)">{String(p.value)}</text>
 }
 
 const nice = (max: number) => { const step = max > 2400 ? 1000 : max > 1200 ? 500 : max > 400 ? 200 : 100; const top = Math.ceil(max / step) * step; return Array.from({ length: top / step + 1 }, (_, i) => i * step) }

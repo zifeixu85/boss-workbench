@@ -20,9 +20,9 @@ const tickWan = (v: number) => (v === 0 ? '0' : `${wanNum(v)}万`)
 function Box({ label, value, sub }: { label: string; value: string; sub?: string }) {
   return (
     <div className="min-w-0 rounded-lg border bg-card px-3 py-2.5">
-      <div className="text-[11.5px] whitespace-nowrap text-muted-foreground">{label}</div>
+      <div className="text-[12px] whitespace-nowrap text-muted-foreground">{label}</div>
       <div className="num mt-0.5 font-heading text-lg leading-tight font-semibold whitespace-nowrap">{value}</div>
-      {sub && <div className="mt-0.5 text-[11px] leading-snug text-muted-foreground">{sub}</div>}
+      {sub && <div className="mt-0.5 text-[12px] leading-snug text-muted-foreground">{sub}</div>}
     </div>
   )
 }

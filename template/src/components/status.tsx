@@ -36,7 +36,7 @@ const CLS: Record<Tone, string> = {
 
 export function StatusBadge({ value, tone, className }: { value: string; tone?: Tone; className?: string }) {
   const t = tone ?? TONE[value] ?? 'neutral'
-  return <span className={cn('inline-flex h-5 shrink-0 items-center rounded-md px-1.5 text-[11.5px] font-medium whitespace-nowrap', CLS[t], className)}>{value}</span>
+  return <span className={cn('inline-flex h-5 shrink-0 items-center rounded-md px-1.5 text-[12px] font-medium whitespace-nowrap', CLS[t], className)}>{value}</span>
 }
 
 export function Dot({ tone = 'neutral' }: { tone?: Tone }) {

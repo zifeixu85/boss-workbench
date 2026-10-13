@@ -76,7 +76,7 @@ export default function ProjectsPage() {
   const risky = going.filter((p) => p.risks.length)
   return (
     <>
-      <PageHeader eyebrow="日常" title="项目" desc={`进行中 ${going.length} 个，其中 ${risky.length} 个有风险。风险由规则自动算：${RULES.join('、')}。`}
+      <PageHeader eyebrow="今日" title="项目" desc={`进行中 ${going.length} 个，其中 ${risky.length} 个有风险。风险由规则自动算：${RULES.join('、')}。`}
         actions={<Button onClick={() => ov.openNew('project')}><FolderPlus />新建项目</Button>} />
       <PageBody className="grid gap-5">
         {isLoading && <><Skeleton className="h-64" /><Skeleton className="h-64" /></>}

@@ -10,9 +10,9 @@ export function StatusTag({ s, className }: { s: PieceStatus; className?: string
 
 /** 流量：自然 / 投了 N 元 / 暂无数据。中性底，前面一个小色点（和数据页的图同色） */
 export function TrafficTag({ boosted, spend, none, className }: { boosted: boolean; spend?: number | null; none?: boolean; className?: string }) {
-  if (none) return <span className={cn('inline-flex h-5 items-center rounded-md bg-muted px-1.5 text-[11.5px] text-muted-foreground', className)}>暂无数据</span>
+  if (none) return <span className={cn('inline-flex h-5 items-center rounded-md bg-muted px-1.5 text-[12px] text-muted-foreground', className)}>暂无数据</span>
   return (
-    <span className={cn('inline-flex h-5 shrink-0 items-center gap-1 rounded-md border bg-card px-1.5 text-[11.5px] whitespace-nowrap text-foreground/80', className)}>
+    <span className={cn('inline-flex h-5 shrink-0 items-center gap-1 rounded-md border bg-card px-1.5 text-[12px] whitespace-nowrap text-foreground/80', className)}>
       <span aria-hidden className={cn('size-1.5 rounded-full', boosted ? 'bg-chart-2' : 'bg-chart-1')} />
       {boosted ? `投了 ${Math.round(spend ?? 0)} 元` : '自然'}
     </span>
@@ -21,5 +21,5 @@ export function TrafficTag({ boosted, spend, none, className }: { boosted: boole
 
 /** 预先写好的示例数据：灰色小标签 */
 export function ExampleTag({ text = '示例 · 预先写好', className }: { text?: string; className?: string }) {
-  return <span className={cn('inline-flex h-[18px] shrink-0 items-center rounded bg-muted px-1.5 text-[11px] font-normal text-muted-foreground', className)}>{text}</span>
+  return <span className={cn('inline-flex h-[18px] shrink-0 items-center rounded bg-muted px-1.5 text-[12px] font-normal text-muted-foreground', className)}>{text}</span>
 }

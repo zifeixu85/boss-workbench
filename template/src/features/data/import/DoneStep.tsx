@@ -115,7 +115,7 @@ export function DoneStep({ v, onAgain }: { v: DraftView; onAgain: () => void }) 
 function Step({ n, title, children, action }: { n: number; title: string; children: React.ReactNode; action?: React.ReactNode }) {
   return (
     <li className="grid grid-cols-[22px_minmax(0,1fr)] gap-x-2.5">
-      <span className="num grid size-[22px] place-items-center rounded-full border bg-background text-[11px] font-semibold text-muted-foreground">{n}</span>
+      <span className="num grid size-[22px] place-items-center rounded-full border bg-background text-[12px] font-semibold text-muted-foreground">{n}</span>
       <div className="min-w-0">
         <div className="font-medium">{title}</div>
         <p className="mt-0.5 leading-relaxed text-muted-foreground">{children}</p>

@@ -125,7 +125,7 @@ function RuleCard({ r, onOpen }: { r: Rule; onOpen: () => void }) {
         <span>最近用 {when(r.last_used_at)}</span>
         <span className="num">用过 {r.use_count} 次</span>
       </MetaRow>
-      <div className="mt-1.5 text-[11.5px] text-muted-foreground">{whoSaved(r)}</div>
+      <div className="mt-1.5 text-[12px] text-muted-foreground">{whoSaved(r)}</div>
     </div>
   )
 }
@@ -194,7 +194,7 @@ function MapRow({ m, editing, options, onChange }: { m: RuleMap; editing: boolea
       ) : (
         <span className={cn('flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5', !m.field && 'text-muted-foreground')}>
           <span className="truncate">{fieldName(m.field)}</span>
-          {confirmedBy(m.by, m.at) ? <span className="text-[11.5px] text-muted-foreground">{confirmedBy(m.by, m.at)}</span> : m.how && <HowChip how={m.how} />}
+          {confirmedBy(m.by, m.at) ? <span className="text-[12px] text-muted-foreground">{confirmedBy(m.by, m.at)}</span> : m.how && <HowChip how={m.how} />}
         </span>
       )}
     </li>

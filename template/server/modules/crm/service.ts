@@ -216,7 +216,8 @@ export function focus(t = today(), limit = 6) {
   const recent = all<{ id: string; client_id: string; date: string; channel: string; with_whom: string | null; summary: string }>(
     'SELECT id, client_id, date, channel, with_whom, summary FROM interactions WHERE date BETWEEN :d AND :t ORDER BY date DESC, created_at DESC', { d: addDays(t, -1), t })
   const promiseOf = all<{ interaction_id: string; text: string }>("SELECT interaction_id, text FROM client_promises WHERE status = '待兑现' AND interaction_id IS NOT NULL")
-  return keyAccounts().map((c) => {
+  // 暂停、流失的不排进“今天该跟进”（2026-10-13 修）
+  return keyAccounts().filter((c) => !['暂停', '流失'].includes(c.stage)).map((c) => {
     const reasons: FocusReason[] = []
     if (c.next_follow) {
       const d = daysBetween(t, c.next_follow)

@@ -32,7 +32,7 @@ function useForm<T extends Record<string, unknown>>(schema: ZodType, initial: T,
 }
 
 export function NewTodoDialog({ onClose, forId, date, text }: Props) {
-  const f = useForm(todoInput, { title: text ?? '', status: '待办', priority: '普通', due: date?.slice(0, 10) ?? todayStr(), due_time: date?.includes('T') ? date.slice(11, 16) : null, client_id: forId ?? null, project_id: null, note: '' },
+  const f = useForm(todoInput, { title: text ?? '', status: '待办', priority: '普通', due: date?.slice(0, 10) ?? todayStr(), due_time: date?.includes('T') ? date.slice(11, 16) : null, client_id: forId ?? null, project_id: null, note: '', owner: '' },
     (d) => api.post('/todos', d), '已新增待办', onClose)
   return (
     <FormDialog open onClose={onClose} title="新建待办" desc="要做的一件具体的事。关联客户后，会出现在客户详情和跟进清单里。" onSubmit={f.onSubmit} submitting={f.pending}>
@@ -50,6 +50,7 @@ export function NewTodoDialog({ onClose, forId, date, text }: Props) {
         <FormField label="关联客户"><ClientChoice value={f.v.client_id} onChange={f.set('client_id')} /></FormField>
         <FormField label="关联项目"><ProjectChoice value={f.v.project_id} onChange={f.set('project_id')} /></FormField>
       </div>
+      <FormField label="谁做" hint="空着 = 你自己；团队里谁做写名字；在等对方写“对方”"><TextInput value={f.v.owner ?? ''} onChange={(e) => f.set('owner')(e.target.value)} placeholder="例如：小艾" /></FormField>
       <FormField label="备注"><TextArea value={f.v.note ?? ''} onChange={(e) => f.set('note')(e.target.value)} /></FormField>
     </FormDialog>
   )

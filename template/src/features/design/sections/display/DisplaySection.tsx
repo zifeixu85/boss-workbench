@@ -110,8 +110,8 @@ function WrapRulesDemo() {
   return (
     <div className="grid gap-3 rounded-xl border bg-card p-4">
       <div className="flex flex-wrap items-start gap-4">
-        <div><div className="mb-1 text-[11px] text-muted-foreground">放在 200px 宽里：金额、跟进、来源整块换行</div>{card(200)}</div>
-        <div><div className="mb-1 text-[11px] text-muted-foreground">放在 320px 宽里：一行放下</div>{card(320)}</div>
+        <div><div className="mb-1 text-[12px] text-muted-foreground">放在 200px 宽里：金额、跟进、来源整块换行</div>{card(200)}</div>
+        <div><div className="mb-1 text-[12px] text-muted-foreground">放在 320px 宽里：一行放下</div>{card(320)}</div>
       </div>
     <Rules title="窄空间的换行规则" items={[
       <>数字和单位不拆行：金额、天数用 <Code>wan()</Code>、<Code>relDay()</Code>，它们自带不换行空格。</>,

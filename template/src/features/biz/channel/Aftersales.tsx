@@ -38,7 +38,7 @@ export function AftersalesPanel({ d }: { d: ChannelData }) {
           </div>
           <dl className="grid grid-cols-5 gap-x-3 text-center sm:gap-x-4">
             {([['发出', batch.shipped ?? '—', '件'], ['说坏了', batch.tickets, '位'], ['退款', batch.refunded, '单'], ['补发', batch.resent, '单'], ['没处理', batch.pending, '单']] as const).map(([k, v, u]) => (
-              <div key={k}><dt className="text-[11px] whitespace-nowrap text-muted-foreground">{k}</dt><dd className={cn('num font-heading text-[20px] font-semibold whitespace-nowrap', k === '没处理' && Number(v) > 0 && 'text-danger')}>{v}<span className="ml-0.5 text-xs font-normal text-muted-foreground">{u}</span></dd></div>
+              <div key={k}><dt className="text-[12px] whitespace-nowrap text-muted-foreground">{k}</dt><dd className={cn('num font-heading text-[20px] font-semibold whitespace-nowrap', k === '没处理' && Number(v) > 0 && 'text-danger')}>{v}<span className="ml-0.5 text-xs font-normal text-muted-foreground">{u}</span></dd></div>
             ))}
           </dl>
           {batch.shipped ? (
@@ -73,7 +73,7 @@ export function AftersalesPanel({ d }: { d: ChannelData }) {
             {rows.map((x) => (
               <TableRow key={x.id}>
                 <TableCell className="num pl-4 whitespace-nowrap">{md(x.applied_at)} {x.applied_at.slice(11, 16)}</TableCell>
-                <TableCell className="whitespace-nowrap">{x.sku_name ?? '—'}{x.qty > 1 && <span className="text-muted-foreground"> × {x.qty}</span>}{x.batch && <div className="text-[11px] text-muted-foreground">{x.batch}</div>}</TableCell>
+                <TableCell className="whitespace-nowrap">{x.sku_name ?? '—'}{x.qty > 1 && <span className="text-muted-foreground"> × {x.qty}</span>}{x.batch && <div className="text-[12px] text-muted-foreground">{x.batch}</div>}</TableCell>
                 <TableCell className="whitespace-nowrap">{x.reason}</TableCell>
                 <TableCell className="num text-right whitespace-nowrap">{x.amount ? money(x.amount) : <span className="text-muted-foreground">不退钱</span>}</TableCell>
                 <TableCell><BizBadge value={x.status} /></TableCell>

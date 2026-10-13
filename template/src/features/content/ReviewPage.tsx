@@ -106,7 +106,7 @@ function WeekReview({ d, w }: { d: ReviewDetail; w: WeekRow }) {
                 <div><h4 className="mb-1.5 text-[13px] font-semibold">做得好的</h4><ul className="grid gap-2">{r.worked.map((x, i) => <li key={i} className="flex gap-2 text-[13.5px] leading-relaxed"><span className="mt-[9px]"><Dot tone="ok" /></span>{x}</li>)}</ul></div>
                 <div><h4 className="mb-1.5 text-[13px] font-semibold">要改的</h4><ul className="grid gap-2">{r.change.map((x, i) => <li key={i} className="flex gap-2 text-[13.5px] leading-relaxed"><span className="mt-[9px]"><Dot tone="warn" /></span>{x}</li>)}</ul></div>
               </div>
-              <p className="mt-3 text-[11.5px] text-muted-foreground">数据截至 {md(String(r.inputs.through ?? m.through))} 累计，以自然流量为准；账号一篇的收藏率中位数 {m.median_rate ?? '—'}%。</p>
+              <p className="mt-3 text-[12px] text-muted-foreground">数据截至 {md(String(r.inputs.through ?? m.through))} 累计，以自然流量为准；账号一篇的收藏率中位数 {m.median_rate ?? '—'}%。</p>
             </section>
             <Learnings week={m.week} items={r.learnings} />
           </div>
@@ -121,7 +121,7 @@ function WeekReview({ d, w }: { d: ReviewDetail; w: WeekRow }) {
           <WeekNotes d={d} />
         </>
       )}
-      <p className="text-[11.5px] text-muted-foreground">想看某一篇的手机样子和第 1、3、7 天，点标题。复盘放进灵感池的选题在 <Link to="/content/pieces" className="text-primary hover:underline">内容</Link> 里。</p>
+      <p className="text-[12px] text-muted-foreground">想看某一篇的手机样子和第 1、3、7 天，点标题。复盘放进灵感池的选题在 <Link to="/content/pieces" className="text-primary hover:underline">内容</Link> 里。</p>
 
       <AlertDialog open={ask} onOpenChange={setAsk}>
         <AlertDialogContent>

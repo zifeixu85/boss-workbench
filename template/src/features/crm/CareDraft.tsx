@@ -123,7 +123,7 @@ export function CareDraftCard({ care, clientName, kbPath, compact }: { care: Dra
           </DropdownMenu>
         </div>
       )}
-      {care.status === '已送出' && care.sent_at && <p className="mt-1.5 text-[11.5px] text-ok">已发出</p>}
+      {care.status === '已送出' && care.sent_at && <p className="mt-1.5 text-[12px] text-ok">已发出</p>}
     </div>
   )
 }

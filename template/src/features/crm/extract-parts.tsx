@@ -62,7 +62,7 @@ export function ConflictBox({ p, clientName, said, source, ruleFile, onDecide }:
     return (
       <div className="mt-2 ml-7 flex items-start gap-1.5 rounded-md bg-muted/70 px-2.5 py-2 text-[12.5px] text-muted-foreground">
         <Scale className="mt-0.5 size-3.5 shrink-0" />
-        <span className="min-w-0 flex-1">{p.decision === '例外' ? '定为例外' : '说规则该改（确认写入时在知识库“待确认的发现”加一节）'}：{p.decision_note}<span className="block text-[11.5px] opacity-80">确认写入时一起记进改动留痕，不再标黄</span></span>
+        <span className="min-w-0 flex-1">{p.decision === '例外' ? '定为例外' : '说规则该改（确认写入时在知识库“待确认的发现”加一节）'}：{p.decision_note}<span className="block text-[12px] opacity-80">确认写入时一起记进改动留痕，不再标黄</span></span>
         <button type="button" className="shrink-0 text-primary hover:underline" onClick={() => onDecide({ decision: null, note: '' })}>改主意</button>
       </div>
     )
@@ -75,7 +75,7 @@ export function ConflictBox({ p, clientName, said, source, ruleFile, onDecide }:
       <div className="mt-2 flex flex-wrap items-center gap-1.5">
         <Button size="xs" variant="outline" onClick={() => setMode('例外')}>这次算例外（写原因）</Button>
         <Button size="xs" variant="outline" onClick={() => setMode('改规则')}>规则该改了</Button>
-        <span className="text-[11.5px] text-muted-foreground">不定也行：写进去后标黄挂着，在客户的“往来和答应”里再定</span>
+        <span className="text-[12px] text-muted-foreground">不定也行：写进去后标黄挂着，在客户的“往来和答应”里再定</span>
       </div>
       {mode && <ConflictDialog mode={mode} onClose={() => setMode(null)} onDecided={(note) => onDecide({ decision: mode, note })}
         finding={{ client: clientName, promise: p.text, said, source, conflict: conflictText(p) }} />}

@@ -77,6 +77,9 @@ export function updateClient(id: string, input: unknown, actor: Actor) {
   const before = findClient(id)
   const patch = onlyGiven(clientInput.partial().parse(input), input)
   const fields = Object.fromEntries(CLIENT_FIELDS.filter((k) => patch[k] !== undefined).map((k) => [k, patch[k]]))
+  // 改阶段一定要写原因（2026-10-13 修：这个通用接口带 stage 能绕过去）：阶段没变就不当改动，变了就请走“改阶段”
+  if ('stage' in fields && fields.stage === before.stage) delete fields.stage
+  if ('stage' in fields) throw new BadRequest('改阶段要写一句原因：网页在客户详情里改阶段，命令行用 stage <客户> <新阶段> --reason "…"')
   if (!Object.keys(fields).length) throw new BadRequest('没有要修改的字段')
   run(`UPDATE clients SET ${setClause(fields)}, updated_at = :at WHERE id = :id`, params({ ...fields, at: nowIso(), id: before.id }))
   const changed = Object.keys(fields).map((k) => (k === 'stage' ? `阶段→${fields[k]}` : k === 'next_follow' ? `下次跟进→${fields[k] ?? '无'}` : k)).join('，')

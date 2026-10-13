@@ -116,7 +116,7 @@ function SampleCard({ f, first, busy, onTry }: { f: SampleFile; first: boolean; 
             <span className="truncate text-[13.5px] font-medium" title={f.name}>{f.title}</span>
             {first && <Badge value="建议先试这份" tone="primary" className="shrink-0" />}
           </div>
-          <div className="num text-[11.5px] text-muted-foreground">{f.range}</div>
+          <div className="num text-[12px] text-muted-foreground">{f.range}</div>
           <p className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">{f.note}</p>
         </div>
       </div>

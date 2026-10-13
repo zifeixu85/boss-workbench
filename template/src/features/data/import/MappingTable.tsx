@@ -81,9 +81,9 @@ function ColRow({ c, a, busy, onPick }: { c: Column; a?: Advice; busy: boolean; 
         <div className="flex flex-wrap items-center gap-1.5">
           {unsure && <span aria-hidden className="size-1.5 rounded-full bg-warn" />}
           <span className={cn('font-medium', c.state !== '用不上' && 'text-foreground')}>{c.header}</span>
-          {c.unit && <span className="rounded border px-1 text-[11px] text-muted-foreground">{c.unit}</span>}
+          {c.unit && <span className="rounded border px-1 text-[12px] text-muted-foreground">{c.unit}</span>}
         </div>
-        <div className="text-[11px] text-muted-foreground">第 {c.index + 1} 列</div>
+        <div className="text-[12px] text-muted-foreground">第 {c.index + 1} 列</div>
       </TableCell>
       <TableCell className="py-2.5"><div className="num truncate text-[13px]" title={c.samples.join('、')}>{c.samples.length ? samplesText(c.samples) : <span className="text-muted-foreground">空</span>}</div></TableCell>
       <TableCell className="px-0 py-3"><ArrowRight className="size-3.5 text-muted-foreground" /></TableCell>
@@ -128,7 +128,7 @@ function GroupRow({ g, busy, onPickOne }: { g: Group; busy: boolean; onPickOne: 
     <TableRow className="bg-warn-soft/55 align-top hover:bg-warn-soft/70">
       <TableCell className="py-2.5 pl-4">
         <div className="flex items-center gap-1.5"><span aria-hidden className="size-1.5 rounded-full bg-warn" /><span className="font-medium">{g.label} · 二选一</span></div>
-        <div className="text-[11px] text-muted-foreground">第 {g.options.map((o) => o.index + 1).join('、')} 列</div>
+        <div className="text-[12px] text-muted-foreground">第 {g.options.map((o) => o.index + 1).join('、')} 列</div>
       </TableCell>
       <TableCell colSpan={3} className="py-2.5"><Radios g={g} chosen={chosen} setChosen={setChosen} /></TableCell>
       <TableCell className="py-2.5"><Badge value="拿不准" /></TableCell>

@@ -23,7 +23,7 @@ export function DocChip({ path, label }: { path: string; label?: string }) {
   const doc = useDocParam()
   return (
     <button type="button" onClick={() => doc.open(path)} title={path}
-      className="inline-flex max-w-full items-center gap-1 rounded-md border bg-background px-1.5 py-0.5 text-[11.5px] text-muted-foreground transition-colors hover:border-primary hover:text-primary">
+      className="inline-flex max-w-full items-center gap-1 rounded-md border bg-background px-1.5 py-0.5 text-[12px] text-muted-foreground transition-colors hover:border-primary hover:text-primary">
       <FileText className="size-3 shrink-0" /><span className="truncate">{label ?? kbName(path)}</span>
     </button>
   )

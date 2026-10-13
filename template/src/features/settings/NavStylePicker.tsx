@@ -1,4 +1,4 @@
-// 导航样式：两张可选的大卡片，各带一张示意图。点了马上保存、马上生效
+// 导航样式：三张可选的大卡片，各带一张示意图。点了马上保存、马上生效。三种都按分区（今日 / 客户 / 经营 / 内容 / 数据 / 资料）组织，见 app/nav.ts
 import { Check } from 'lucide-react'
 import type { Settings } from '@/lib/types'
 import { api, useWrite } from '@/lib/api'
@@ -8,9 +8,9 @@ import { Skeleton } from '@/components/ui/skeleton'
 type Mode = Settings['nav_mode']
 
 const OPTIONS: { value: Mode; title: string; desc: string; ref: string; Preview: () => React.JSX.Element }[] = [
-  { value: 'simple', title: '简单', desc: '一列菜单，不分组，所有页面一眼看全。模块不多时最顺手。', ref: '模块少', Preview: SimplePreview },
-  { value: 'complex', title: '复杂', desc: '侧栏按“日常、客户、经营、内容、数据”分组，带子菜单；顶上有位置提示和搜索。模块多了更好找。', ref: '模块多', Preview: ComplexPreview },
-  { value: 'top', title: '顶部导航', desc: '菜单放在上方，按分组下拉；内容区更宽。适合常在大屏上看图表、表格。', ref: '宽屏', Preview: TopPreview },
+  { value: 'simple', title: '简单', desc: '一列菜单，按分区分段，所有模块一眼看全；子页面在页头切换。模块不多时最顺手。', ref: '模块少', Preview: SimplePreview },
+  { value: 'complex', title: '复杂', desc: '顶上是分区（今日、客户、经营、内容、数据、资料），带要处理的数；左边只列这个分区的页面，可以收成图标。模块多了更好找。', ref: '模块多', Preview: ComplexPreview },
+  { value: 'top', title: '顶部导航', desc: '分区放在上方，点开下拉选页面；内容区更宽。适合常在大屏上看图表、表格。', ref: '宽屏', Preview: TopPreview },
 ]
 
 export function NavStylePicker({ value }: { value?: Mode }) {
@@ -35,8 +35,8 @@ export function NavStylePicker({ value }: { value?: Mode }) {
             <o.Preview />
             <div className="mt-3 flex items-center gap-2 px-0.5">
               <span className="text-[15px] font-semibold">{o.title}</span>
-              {on && <span className="inline-flex items-center gap-1 rounded-md bg-primary px-1.5 py-0.5 text-[11px] font-medium text-primary-foreground"><Check className="size-3" />正在用</span>}
-              <span className="ml-auto text-[11px] text-muted-foreground">{o.ref}</span>
+              {on && <span className="inline-flex items-center gap-1 rounded-md bg-primary px-1.5 py-0.5 text-[12px] font-medium text-primary-foreground"><Check className="size-3" />正在用</span>}
+              <span className="ml-auto text-[12px] text-muted-foreground">{o.ref}</span>
             </div>
             <p className="mt-1 px-0.5 text-[13px] leading-relaxed text-muted-foreground">{o.desc}</p>
           </button>
@@ -68,12 +68,13 @@ function Logo() {
 }
 
 function SimplePreview() {
-  const widths = ['w-4/5', 'w-3/5', 'w-2/3', 'w-1/2', 'w-3/5', 'w-2/3', 'w-1/2', 'w-2/5']
+  // 一列，分区之间一个小标题
+  const rows: (string | null)[] = ['w-3/5', 'w-1/2', null, 'w-4/5', null, 'w-2/3', 'w-1/2', null, 'w-3/5']
   return (
     <div aria-hidden className="flex h-40 overflow-hidden rounded-lg border bg-background">
       <div className="flex w-[30%] flex-col gap-1.5 border-r bg-sidebar p-2.5">
         <Logo />
-        {widths.map((w, i) => <div key={i} className={cn(bar, w, i === 0 && 'bg-primary/70')} />)}
+        {rows.map((w, i) => (w ? <div key={i} className={cn(bar, w, i === 0 && 'bg-primary/70')} /> : <div key={i} className="mt-1 h-1 w-6 rounded-full bg-muted-foreground/30" />))}
       </div>
       <Content />
     </div>
@@ -83,28 +84,22 @@ function SimplePreview() {
 function ComplexPreview() {
   const label = 'mt-1.5 h-1 w-6 rounded-full bg-muted-foreground/30'
   return (
-    <div aria-hidden className="flex h-40 overflow-hidden rounded-lg border bg-background">
-      <div className="flex w-[30%] flex-col gap-1.5 border-r bg-sidebar p-2.5">
-        <Logo />
-        <div className={cn(bar, 'w-3/5 bg-primary/70')} />
-        <div className={label} />
-        <div className={cn(bar, 'w-2/3')} />
-        <div className={cn(bar, 'w-1/2')} />
-        <div className={label} />
-        <div className={cn(bar, 'w-3/4')} />
-        <div className="ml-1 grid gap-1 border-l border-foreground/15 pl-1.5">
-          <div className="h-1 w-3/5 rounded-full bg-foreground/15" />
-          <div className="h-1 w-1/2 rounded-full bg-foreground/15" />
-        </div>
-        <div className={label} />
-        <div className={cn(bar, 'w-1/2')} />
+    <div aria-hidden className="flex h-40 flex-col overflow-hidden rounded-lg border bg-background">
+      {/* 顶栏：分区页签 */}
+      <div className="flex h-7 shrink-0 items-center gap-2 border-b bg-card px-2.5">
+        <div className="size-3 rounded-[3px] bg-primary" />
+        {['w-5', 'w-5', 'w-5 bg-primary/70', 'w-5', 'w-5'].map((w, i) => <div key={i} className={cn('h-1.5 rounded-full bg-foreground/20', w)} />)}
+        <div className="ml-auto h-3 w-10 rounded-full border bg-background" />
       </div>
-      <div className="flex min-w-0 flex-1 flex-col">
-        <div className="flex h-6 items-center gap-1 border-b px-2.5">
-          <div className="h-1 w-5 rounded-full bg-foreground/20" />
-          <span className="text-[8px] leading-none text-muted-foreground">/</span>
-          <div className="h-1 w-7 rounded-full bg-foreground/35" />
-          <div className="ml-auto h-3 w-12 rounded-full border bg-card" />
+      {/* 左栏：当前分区的分组和页面 */}
+      <div className="flex min-h-0 flex-1">
+        <div className="flex w-[26%] flex-col gap-1.5 border-r bg-sidebar p-2.5">
+          <div className={cn(bar, 'w-3/5')} />
+          <div className={label} />
+          <div className={cn(bar, 'w-2/3 bg-primary/70')} />
+          <div className={cn(bar, 'w-1/2')} />
+          <div className={label} />
+          <div className={cn(bar, 'w-3/5')} />
         </div>
         <Content />
       </div>

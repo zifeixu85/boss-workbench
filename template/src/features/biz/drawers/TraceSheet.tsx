@@ -90,7 +90,7 @@ export function TraceSheet({ q, onClose }: { q: TraceQuery; onClose: () => void 
                   <TableRow className="hover:bg-transparent">
                     <TableHead className="pl-3">日期</TableHead>
                     {!single && t.parts.map((p) => <TableHead key={p.key} className="text-right whitespace-nowrap">{p.label}</TableHead>)}
-                    {multi && t.channels.map((c) => <TableHead key={c.id} className="text-right text-[11.5px] whitespace-nowrap">{c.name}</TableHead>)}
+                    {multi && t.channels.map((c) => <TableHead key={c.id} className="text-right text-[12px] whitespace-nowrap">{c.name}</TableHead>)}
                     <TableHead className="pr-3 text-right whitespace-nowrap">{multi && single ? '合计' : t.label}</TableHead>
                   </TableRow>
                 </TableHeader>

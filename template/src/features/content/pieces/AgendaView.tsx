@@ -36,7 +36,7 @@ export function AgendaView({ pieces }: { pieces: Piece[] }) {
                   <span className="w-9 shrink-0 overflow-hidden rounded-sm">{p.draft ? <CoverArt text={p.draft.cover_text} cover={p.draft.cover} pages={p.draft.pages} seed={p.draft.title} /> : <span className="block aspect-[3/4] rounded-sm border border-dashed" />}</span>
                   <span className="min-w-0 flex-1">
                     <span className="line-clamp-2 text-[13.5px] leading-snug font-medium">{p.draft?.title || p.title}</span>
-                    <span className="num mt-0.5 flex items-center gap-1.5 text-[11.5px] text-muted-foreground"><StatusTag s={p.status} />{p.status === '已发布' ? p.published_at?.slice(11, 16) : p.scheduled_time ?? '时间未定'}</span>
+                    <span className="num mt-0.5 flex items-center gap-1.5 text-[12px] text-muted-foreground"><StatusTag s={p.status} />{p.status === '已发布' ? p.published_at?.slice(11, 16) : p.scheduled_time ?? '时间未定'}</span>
                   </span>
                 </button>
               ))}

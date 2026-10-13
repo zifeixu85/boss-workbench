@@ -162,7 +162,7 @@ function MainPiece({ m, next }: { m: PieceDetail; next: Next[] }) {
                 {next.map((x) => (
                   <li key={x.id}>
                     <button type="button" onClick={() => sheet.open(x.id)} className="flex w-full min-w-0 items-center gap-2.5 px-3 py-2 text-left hover:bg-accent/40">
-                      <span className="num w-[116px] shrink-0 text-[11.5px] whitespace-nowrap text-muted-foreground">{x.weekday} {md(x.date)} {x.time}</span>
+                      <span className="num w-[116px] shrink-0 text-[12px] whitespace-nowrap text-muted-foreground">{x.weekday} {md(x.date)} {x.time}</span>
                       <span className="min-w-0 flex-1 truncate text-[13px] font-medium">{x.title}</span>
                       <StatusTag s={x.status} />
                     </button>

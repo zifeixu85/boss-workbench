@@ -53,9 +53,9 @@ export function SalesBrief({ sales, alerts }: { sales: SalesSummary | null; aler
               <TableRow key={c.id}>
                 <TableCell className="pl-4 sm:pl-5">
                   <Link to={`/channel/${c.id}`} className="font-medium hover:text-primary hover:underline">{c.name}</Link>
-                  {f.length > 0 && <div className="text-[11.5px] font-medium text-danger">{f.map((x) => FLAG[x.kind] ?? x.kind).join('、')}</div>}
+                  {f.length > 0 && <div className="text-[12px] font-medium text-danger">{f.map((x) => FLAG[x.kind] ?? x.kind).join('、')}</div>}
                 </TableCell>
-                <TableCell className="num text-right">{yuan(c.gmv)}<div className="text-[11px] sm:hidden"><Delta value={c.vs_prev} /></div></TableCell>
+                <TableCell className="num text-right">{yuan(c.gmv)}<div className="text-[12px] sm:hidden"><Delta value={c.vs_prev} /></div></TableCell>
                 <TableCell className="hidden text-right text-xs sm:table-cell"><Delta value={c.vs_prev} /></TableCell>
                 <TableCell className={cn('num text-right', bad('退款') && 'font-semibold text-danger')}>{c.refund_rate === null ? '—' : `${c.refund_rate}%`}</TableCell>
                 <TableCell className={cn('num pr-4 text-right sm:pr-5', bad('推广') && 'font-semibold text-danger')}>{c.roi === null ? '—' : c.roi.toFixed(1)}</TableCell>

@@ -22,7 +22,7 @@ export function Ideas({ week, ideas }: { week: string; ideas: Idea[] }) {
       <div className="grid gap-3">
         {ideas.map((x, i) => (
           <div key={i} className="flex min-w-0 flex-col rounded-xl border bg-card p-4 shadow-paper">
-            <div className="flex items-center gap-1.5 text-[11.5px] text-muted-foreground"><Lightbulb className="size-3.5 text-primary" />{x.pillar ?? '不在支柱里'}</div>
+            <div className="flex items-center gap-1.5 text-[12px] text-muted-foreground"><Lightbulb className="size-3.5 text-primary" />{x.pillar ?? '不在支柱里'}</div>
             <div className="mt-1.5 text-[14px] leading-snug font-semibold">{x.title}</div>
             <p className="mt-1 flex-1 text-[12.5px] leading-relaxed text-muted-foreground">{x.reason}</p>
             {x.piece_id
@@ -50,7 +50,7 @@ function SaveDialog({ week, i, onClose }: { week: string; i: number; onClose: ()
             <div className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">追加到 <DocChip path={data.path} /> 末尾，作为发现 {data.number}；“来源”里再加一行</div>
             <div className="max-h-[46vh] overflow-auto rounded-lg border bg-background px-4 py-3 text-[13px]"><Markdown source={data.markdown} basePath={data.path} /></div>
             <p className="text-xs text-muted-foreground">来源里加：{data.source.replace(/^- /, '')}</p>
-            <p className="text-[11.5px] text-muted-foreground">文件开头的更新日期、“持续生长”的索引，等整理知识库时一起改；工作台只追加，不改别的。</p>
+            <p className="text-[12px] text-muted-foreground">文件开头的更新日期、“持续生长”的索引，等整理知识库时一起改；工作台只追加，不改别的。</p>
           </>
         ) : <p className="py-6 text-center text-sm text-muted-foreground">读取中…</p>}
         <DialogFooter>

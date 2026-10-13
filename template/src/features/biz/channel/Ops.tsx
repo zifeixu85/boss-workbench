@@ -16,7 +16,7 @@ export function OpsPanel({ d }: { d: ChannelData }) {
             <li key={o.id} className="grid grid-cols-[86px_minmax(0,1fr)] gap-x-4 gap-y-0.5 px-5 py-2.5 text-[13px] sm:grid-cols-[110px_120px_minmax(0,1fr)]">
               <span className="num text-xs whitespace-nowrap text-muted-foreground sm:text-[13px]">{md(o.at)} {weekday(o.at)} <span className="max-sm:block">{o.at.slice(11, 16)}</span></span>
               <span className="flex items-center gap-1.5 text-xs whitespace-nowrap text-muted-foreground max-sm:col-start-2 max-sm:row-start-1">
-                {o.who}<span className="rounded bg-muted px-1 text-[11px]">{o.kind}</span>{!o.channel_id && <span className="text-[11px]">全店</span>}
+                {o.who}<span className="rounded bg-muted px-1 text-[12px]">{o.kind}</span>{!o.channel_id && <span className="text-[12px]">全店</span>}
               </span>
               <span className="leading-relaxed max-sm:col-start-2">{o.action}</span>
             </li>

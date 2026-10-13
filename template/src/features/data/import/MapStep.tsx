@@ -166,10 +166,10 @@ function Recognized({ v, meta, onPatch }: { v: DraftView; meta?: Meta; onPatch: 
         <span className="min-w-0 truncate font-heading text-[16px] font-semibold">{a.recognized ? `${a.recognized.platform} · ${a.recognized.report}` : '按列名一列一列对'}</span>
         <span className="num text-[12.5px] text-muted-foreground">{a.row_count} 行 · {a.columns.length} 列{a.header_row > 0 ? ` · 表头在第 ${a.header_row + 1} 行` : ''}{a.total_rows ? ` · 末尾 ${a.total_rows} 行合计` : ''}</span>
         <WhyPopover v={v} />
-        {a.rule ? <span className={cn('rounded-md border px-1.5 py-0.5 text-[11.5px]', a.rule.missing_cols.length ? 'border-warn/40 text-warn' : 'border-primary/30 text-primary')}>按规则「{a.rule.name}」· {a.rule.matched}/{a.rule.total} 列一样</span>
-          : a.retired && a.retired.used > 0 ? <span className="inline-flex items-center gap-1 rounded-md border border-primary/30 px-1.5 py-0.5 text-[11.5px] text-primary" title={`旧规则「${a.retired.name}」已停用；名字没变的列是人确认过的，直接沿用`}><History className="size-3" />沿用停用的旧规则：{a.retired.used} 列名字没变 · 导入时存成新规则</span>
-          : <span className="rounded-md border border-dashed px-1.5 py-0.5 text-[11.5px] text-muted-foreground">还没有这种表的规则，导入时存下来</span>}
-        {a.derived.map((d) => <span key={d.field} className="inline-flex items-center gap-1 rounded-md border border-primary/30 px-1.5 py-0.5 text-[11.5px] text-primary" title={d.how}><Calculator className="size-3" />{d.label} = {d.how.split('（')[0]}</span>)}
+        {a.rule ? <span className={cn('rounded-md border px-1.5 py-0.5 text-[12px]', a.rule.missing_cols.length ? 'border-warn/40 text-warn' : 'border-primary/30 text-primary')}>按规则「{a.rule.name}」· {a.rule.matched}/{a.rule.total} 列一样</span>
+          : a.retired && a.retired.used > 0 ? <span className="inline-flex items-center gap-1 rounded-md border border-primary/30 px-1.5 py-0.5 text-[12px] text-primary" title={`旧规则「${a.retired.name}」已停用；名字没变的列是人确认过的，直接沿用`}><History className="size-3" />沿用停用的旧规则：{a.retired.used} 列名字没变 · 导入时存成新规则</span>
+          : <span className="rounded-md border border-dashed px-1.5 py-0.5 text-[12px] text-muted-foreground">还没有这种表的规则，导入时存下来</span>}
+        {a.derived.map((d) => <span key={d.field} className="inline-flex items-center gap-1 rounded-md border border-primary/30 px-1.5 py-0.5 text-[12px] text-primary" title={d.how}><Calculator className="size-3" />{d.label} = {d.how.split('（')[0]}</span>)}
       </div>
       <div className="flex flex-wrap items-center gap-2">
         <Field label="渠道" hint={a.channel_from}>

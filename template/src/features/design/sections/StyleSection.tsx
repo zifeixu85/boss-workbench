@@ -45,8 +45,8 @@ function ThemeCard({ theme, tokens, active, saved, onPreview }: {
       {tokens ? <MiniUI tokens={tokens} /> : <div className="grid h-36 place-items-center rounded-lg border border-dashed text-xs text-muted-foreground">读不到样式表，点预览看效果</div>}
       <div className="mt-3 flex items-center gap-2 px-0.5">
         <span className="text-[15px] font-semibold">{theme.name}</span>
-        <code className="font-mono text-[11px] text-muted-foreground">{theme.id}</code>
-        {saved && <span className="inline-flex items-center gap-0.5 rounded bg-muted px-1.5 text-[11px] leading-5 text-muted-foreground"><Check className="size-3" />设置里在用</span>}
+        <code className="font-mono text-[12px] text-muted-foreground">{theme.id}</code>
+        {saved && <span className="inline-flex items-center gap-0.5 rounded bg-muted px-1.5 text-[12px] leading-5 text-muted-foreground"><Check className="size-3" />设置里在用</span>}
         <Button size="sm" variant={active ? 'secondary' : 'outline'} disabled={active} onClick={onPreview} className="ml-auto" aria-label={`预览${theme.name}风格`}>
           <Eye />{active ? '正在看' : '预览'}
         </Button>

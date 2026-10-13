@@ -17,9 +17,9 @@ import { cn } from '@/lib/utils'
 function Num({ label, value, sub, tone }: { label: string; value: ReactNode; sub?: ReactNode; tone?: 'warn' | 'danger' | 'muted' }) {
   return (
     <div className="min-w-0 px-2 py-2 first:pl-3">
-      <dt className="text-[11px] whitespace-nowrap text-muted-foreground">{label}</dt>
+      <dt className="text-[12px] whitespace-nowrap text-muted-foreground">{label}</dt>
       <dd className={cn('num mt-0.5 truncate font-heading text-[15px] leading-tight font-semibold whitespace-nowrap', tone === 'warn' && 'text-warn', tone === 'danger' && 'text-danger', tone === 'muted' && 'font-normal text-muted-foreground')}>{value}</dd>
-      {sub && <div className="num mt-0.5 truncate text-[11px] leading-snug whitespace-nowrap text-muted-foreground">{sub}</div>}
+      {sub && <div className="num mt-0.5 truncate text-[12px] leading-snug whitespace-nowrap text-muted-foreground">{sub}</div>}
     </div>
   )
 }

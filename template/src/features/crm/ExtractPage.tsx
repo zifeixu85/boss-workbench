@@ -56,7 +56,7 @@ export default function ExtractPage() {
         {collapsed ? (
           <button type="button" onClick={() => setListOpen(true)} className="flex min-w-0 items-center gap-2 rounded-xl border bg-card px-4 py-3 text-left shadow-paper">
             <FileText className="size-4 shrink-0 text-muted-foreground" />
-            <span className="min-w-0 flex-1"><span className="block text-[11.5px] text-muted-foreground">当前材料</span><span className="block truncate text-[13.5px] font-medium">{paste ? '粘贴一段聊天或纪要' : current ? <NiceTitle title={current.title} /> : file ? shortName(file) : '粘贴的文字'}</span></span>
+            <span className="min-w-0 flex-1"><span className="block text-[12px] text-muted-foreground">当前材料</span><span className="block truncate text-[13.5px] font-medium">{paste ? '粘贴一段聊天或纪要' : current ? <NiceTitle title={current.title} /> : file ? shortName(file) : '粘贴的文字'}</span></span>
             <ChevronDown className="size-4 text-muted-foreground" />
           </button>
         ) : (
@@ -68,7 +68,7 @@ export default function ExtractPage() {
                   <button key={f.path} onClick={() => go({ file: f.path, run: null, paste: null })}
                     className={cn('grid min-w-0 gap-1 rounded-lg px-3 py-2.5 text-left transition-colors', f.path === file && !paste ? 'bg-accent ring-1 ring-primary/30' : 'hover:bg-muted/60')}>
                     <span className="flex min-w-0 items-start gap-2"><FileText className="mt-0.5 size-4 shrink-0 text-muted-foreground" /><NiceTitle title={f.title} className="min-w-0 flex-1 text-[13.5px] leading-snug font-medium" /></span>
-                    <span className="flex flex-wrap items-center gap-1.5 pl-6 text-[11.5px] text-muted-foreground">
+                    <span className="flex flex-wrap items-center gap-1.5 pl-6 text-[12px] text-muted-foreground">
                       {f.client_name ? <span className="inline-flex items-center gap-1"><UserRound className="size-3" />{f.client_name}</span> : <StatusBadge value="说话人不明" tone="warn" />}
                       {f.extraction ? <StatusBadge value={f.extraction.status === '待确认' ? '提取了，待确认' : f.extraction.status} tone={RUN_TONE[f.extraction.status]} /> : f.in_kb ? <StatusBadge value="已整理进知识库" tone="ok" /> : <StatusBadge value="还没提取" tone="neutral" />}
                       {f.recorder && <span className="w-full truncate">{f.recorder}</span>}
@@ -87,9 +87,9 @@ export default function ExtractPage() {
                 {history.data.slice(0, 6).map((h) => (
                   <button key={h.id} onClick={() => go({ run: h.id, file: h.source_path, paste: h.source_path ? null : '1' })} className={cn('flex w-full min-w-0 items-center gap-1.5 rounded-md px-2 py-1.5 text-left text-[12.5px] hover:bg-muted/60', h.id === runId && 'bg-muted')}>
                     <span className="min-w-0 flex-1 truncate">{h.client_name ?? '没选客户'} · {h.source_path ? shortName(h.source_path).split('-').pop() : '粘贴的文字'}</span>
-                    {(h.engine ?? '').startsWith('预先') && <span className="shrink-0 rounded border px-1 text-[10.5px] text-muted-foreground">事先跑的</span>}
+                    {(h.engine ?? '').startsWith('预先') && <span className="shrink-0 rounded border px-1 text-[12px] text-muted-foreground">事先跑的</span>}
                     <StatusBadge value={h.status} tone={RUN_TONE[h.status]} className="shrink-0" />
-                    <span className="shrink-0 text-[11px] whitespace-nowrap text-muted-foreground">{ago(h.started_at)}</span>
+                    <span className="shrink-0 text-[12px] whitespace-nowrap text-muted-foreground">{ago(h.started_at)}</span>
                   </button>
                 ))}
               </section>

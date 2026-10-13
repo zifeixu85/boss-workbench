@@ -46,7 +46,7 @@ export function ChannelTable({ b }: { b: Board }) {
               <TableRow key={r.id}>
                 <TableCell className="pl-5">
                   <Link to={withDays(`/channel/${r.id}`, b.days)} className="font-medium whitespace-nowrap hover:text-primary hover:underline">{r.name}</Link>
-                  <div className="text-[11.5px] whitespace-nowrap text-muted-foreground">{f.length ? <span className="font-medium text-danger">{f.map((x) => x.short ?? x.kind).join('、')}</span> : r.owner}</div>
+                  <div className="text-[12px] whitespace-nowrap text-muted-foreground">{f.length ? <span className="font-medium text-danger">{f.map((x) => x.short ?? x.kind).join('、')}</span> : r.owner}</div>
                 </TableCell>
                 <TableCell className={R}><TraceNum q={q('gmv', r.id)}>{wan1(r.gmv)}</TraceNum></TableCell>
                 <TableCell className={cn(R, 'num text-muted-foreground')}>{r.share === null ? '—' : `${p1(r.share)}%`}</TableCell>
@@ -74,7 +74,7 @@ export function ChannelTable({ b }: { b: Board }) {
             <TableCell className={cn(R, 'num text-muted-foreground')}>{yuanNum(t.gmv === null ? null : Math.round(t.gmv / b.days))}</TableCell>
             <TableCell className={R}><TraceNum q={q('orders')}>{thousands(t.orders)}</TraceNum></TableCell>
             <TableCell className={R}><TraceNum q={q('visitors')}>{thousands(t.visitors)}</TraceNum></TableCell>
-            <TableCell className={R}><TraceNum q={q('conv_rate')}>{pct(t.conv_rate)}</TraceNum><div className="text-[10.5px] font-normal text-muted-foreground">只算线上</div></TableCell>
+            <TableCell className={R}><TraceNum q={q('conv_rate')}>{pct(t.conv_rate)}</TraceNum><div className="text-[12px] font-normal text-muted-foreground">只算线上</div></TableCell>
             <TableCell className={R}><TraceNum q={q('aov')}>{t.aov === null ? '—' : Math.round(t.aov)}</TraceNum></TableCell>
             <TableCell className={R}><TraceNum q={q('refund_rate')}>{pct(t.refund_rate)}</TraceNum></TableCell>
             <TableCell className={R}><TraceNum q={q('ad_spend')}>{yuanNum(t.ad_spend)}</TraceNum></TableCell>

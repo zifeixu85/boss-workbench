@@ -1,8 +1,9 @@
 // 页面登记。每个页面按需加载（日历、图表这些大组件只在用到时下载）
 // 4 个业务模块的页面在各自的 features 文件夹里：经营 biz、小红书 content、数据源与导入 data、大客户 crm（客户列表和抽屉在 clients）
-import { lazy, Suspense, type ComponentType } from 'react'
+import { lazy, Suspense, type ComponentType, type ReactNode } from 'react'
 import { createBrowserRouter, Link, Navigate } from 'react-router'
 import { AppShell, EmbedShell } from './AppShell'
+import { ModuleGate } from './ModuleGate'
 import { Skeleton } from '@/components/ui/skeleton'
 
 const page = <P extends object>(load: () => Promise<{ default: ComponentType<P> }>) => {
@@ -52,42 +53,45 @@ function NotFound() {
   return <div className="p-10 text-center"><h1 className="font-heading text-2xl">这个页面不存在</h1><p className="mt-2 text-sm text-muted-foreground">可能是模块没有安装，或者地址写错了。</p><Link to="/" className="mt-4 inline-block text-primary underline">回到今日</Link></div>
 }
 
+/** 模块没打开时显示说明页（模块开关，见 shared/modules.ts）；id 和 nav.ts 里菜单项的 module 一致 */
+const gate = (id: string, el: ReactNode) => <ModuleGate id={id}>{el}</ModuleGate>
+
 export const router = createBrowserRouter([
   {
     path: '/',
     element: <AppShell />,
     children: [
       { index: true, element: <Today /> },
-      { path: 'calendar', element: <Calendar /> },
-      { path: 'todos', element: <Todos /> },
-      { path: 'projects', element: <Projects /> },
-      { path: 'inbox', element: <Inbox /> },
-      { path: 'reminders', element: <Reminders /> },
-      { path: 'clients', element: <Clients /> },
-      { path: 'clients/follow', element: <Follow /> },
-      { path: 'clients/pipeline', element: <Pipeline /> },
-      { path: 'clients/key', element: <KeyAccounts /> },
-      { path: 'clients/care', element: <Care /> },
-      { path: 'clients/extract', element: <Extract /> },
-      { path: 'clients/receivables', element: <Receivables /> },
-      { path: 'clients/:id', element: <ClientPage /> },
-      { path: 'biz', element: <BizSummary /> },
-      { path: 'channel/:id', element: <Channel /> },
-      { path: 'content', element: <XhsToday /> },
-      { path: 'content/pieces', element: <XhsPieces /> },
-      { path: 'content/studio', element: <XhsStudio /> },
-      { path: 'content/studio/:id', element: <XhsStudio /> },
-      { path: 'content/data', element: <XhsData /> },
-      { path: 'content/review', element: <XhsReview /> },
+      { path: 'calendar', element: gate('tasks', <Calendar />) },
+      { path: 'todos', element: gate('tasks', <Todos />) },
+      { path: 'projects', element: gate('projects', <Projects />) },
+      { path: 'inbox', element: gate('inbox', <Inbox />) },
+      { path: 'reminders', element: gate('reminders', <Reminders />) },
+      { path: 'clients', element: gate('clients', <Clients />) },
+      { path: 'clients/follow', element: gate('clients', <Follow />) },
+      { path: 'clients/pipeline', element: gate('clients', <Pipeline />) },
+      { path: 'clients/key', element: gate('clients', <KeyAccounts />) },
+      { path: 'clients/care', element: gate('clients', <Care />) },
+      { path: 'clients/extract', element: gate('clients', <Extract />) },
+      { path: 'clients/receivables', element: gate('clients', <Receivables />) },
+      { path: 'clients/:id', element: gate('clients', <ClientPage />) },
+      { path: 'biz', element: gate('biz', <BizSummary />) },
+      { path: 'channel/:id', element: gate('biz', <Channel />) },
+      { path: 'content', element: gate('content', <XhsToday />) },
+      { path: 'content/pieces', element: gate('content', <XhsPieces />) },
+      { path: 'content/studio', element: gate('content', <XhsStudio />) },
+      { path: 'content/studio/:id', element: gate('content', <XhsStudio />) },
+      { path: 'content/data', element: gate('content', <XhsData />) },
+      { path: 'content/review', element: gate('content', <XhsReview />) },
       { path: 'content/schedule', element: <Navigate to="/content/pieces?view=calendar" replace /> },
       { path: 'content/notes', element: <Navigate to="/content/data" replace /> },
-      { path: 'sources', element: <Sources /> },
-      { path: 'imports', element: <Imports /> },
-      { path: 'imports/history', element: <ImportHistory /> },
-      { path: 'imports/rules', element: <ImportRules /> },
-      { path: 'kb', element: <Kb /> },
+      { path: 'sources', element: gate('data', <Sources />) },
+      { path: 'imports', element: gate('data', <Imports />) },
+      { path: 'imports/history', element: gate('data', <ImportHistory />) },
+      { path: 'imports/rules', element: gate('data', <ImportRules />) },
+      { path: 'kb', element: gate('kb', <Kb />) },
       { path: 'settings', element: <SettingsPage /> },
-      { path: 'design', element: <Design /> },
+      { path: 'design', element: gate('design', <Design />) },
       { path: '*', element: <NotFound /> },
     ],
   },

@@ -20,7 +20,9 @@
 }
 .wb-cal .fc-day-other .fc-daygrid-day-number { opacity: 0.45; }
 .wb-cal .fc-timegrid-slot { height: 2.6em; }
-.wb-cal .fc-timegrid-slot-label-cushion, .wb-cal .fc-timegrid-axis-cushion { color: var(--muted-foreground); font-size: 11.5px; }
+.wb-cal .fc-timegrid-slot-label-cushion, .wb-cal .fc-timegrid-axis-cushion { color: var(--muted-foreground); font-size: 12px; }
+/* 月视图一天放不下时的“另外 N 个”：FullCalendar 默认 0.85em（约 11px），按最小 12px */
+.fc .fc-daygrid-more-link { font-size: 12px; }
 .wb-cal .fc-event { border-radius: 6px; padding: 1px 4px; cursor: pointer; border-left-width: 3px !important; }
 .wb-cal .fc-daygrid-event { white-space: normal; }
 .wb-cal .fc-event:focus-visible { outline: 2px solid var(--ring); outline-offset: 1px; }

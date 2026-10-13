@@ -155,7 +155,7 @@ function IssueRow({ a, i, onOpen }: { a: AnomalyItem; i: number; onOpen: () => v
   return (
     <li>
       <button type="button" onClick={onOpen} className="group grid w-full grid-cols-[22px_minmax(0,1fr)_auto] items-start gap-x-3 px-5 py-3 text-left hover:bg-muted/50 focus-visible:bg-muted/50 focus-visible:outline-none">
-        <span className={cn('num mt-0.5 grid size-5 place-content-center rounded-full text-[11px] font-semibold', a.level === '高' ? 'bg-danger-soft text-danger' : 'bg-warn-soft text-warn')}>{i + 1}</span>
+        <span className={cn('num mt-0.5 grid size-5 place-content-center rounded-full text-[12px] font-semibold', a.level === '高' ? 'bg-danger-soft text-danger' : 'bg-warn-soft text-warn')}>{i + 1}</span>
         <span className="min-w-0">
           <span className="block text-[14px] leading-snug font-medium group-hover:text-primary">{a.title}</span>
           <span className="mt-0.5 line-clamp-2 block text-xs leading-relaxed text-muted-foreground">{a.cause ?? a.detail}</span>
@@ -186,7 +186,7 @@ export function LatestReport({ r }: { r: Report | null }) {
         <div className="grid gap-x-6 gap-y-3 px-5 pt-3.5 pb-4 sm:grid-cols-2 xl:grid-cols-4">
           {r.sections.map((s, i) => (
             <div key={s.heading} className="min-w-0">
-              <div className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground"><span className="num grid size-4 place-content-center rounded bg-accent text-[10px] text-accent-foreground">{i + 1}</span>{s.heading}</div>
+              <div className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground"><span className="num grid size-4 place-content-center rounded bg-accent text-[12px] text-accent-foreground">{i + 1}</span>{s.heading}</div>
               <p className="mt-1.5 text-[13px] leading-relaxed">{plainLines(s.body, 1)[0] ?? '—'}</p>
             </div>
           ))}

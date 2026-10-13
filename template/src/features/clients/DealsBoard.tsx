@@ -123,7 +123,7 @@ function DealCard({ d, onOpen }: { d: CrmDeal; onOpen?: () => void }) {
           : <span className="num font-heading text-lg font-semibold text-foreground">{d.amount != null ? wan(d.amount) : '金额没定'}</span>}
         {d.expected_close && <span className="whitespace-nowrap">预计 {relDay(d.expected_close)}</span>}
       </MetaRow>
-      {d.estimated ? <p className="mt-1.5 line-clamp-2 text-[11.5px] text-muted-foreground">{d.basis}</p> : null}
+      {d.estimated ? <p className="mt-1.5 line-clamp-2 text-[12px] text-muted-foreground">{d.basis}</p> : null}
     </div>
   )
 }

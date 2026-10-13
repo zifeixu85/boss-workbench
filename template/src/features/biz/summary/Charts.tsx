@@ -76,7 +76,7 @@ export function ChannelShare({ b }: { b: Board }) {
           </ChartContainer>
           <div className="pointer-events-none absolute inset-0 grid place-content-center text-center">
             <span className="num text-[19px] leading-none font-semibold">{wan1(b.total.gmv)}<span className="ml-0.5 text-xs font-normal text-muted-foreground">万</span></span>
-            <span className="mt-1 text-[11px] text-muted-foreground">近 {b.days} 天合计</span>
+            <span className="mt-1 text-[12px] text-muted-foreground">近 {b.days} 天合计</span>
           </div>
         </div>
         <ul className="grid gap-2 text-[13px]">

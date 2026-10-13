@@ -28,6 +28,8 @@ export type CalEvent = {
 export type Todo = {
   id: string; title: string; status: string; priority: string; due: string | null; due_time?: string | null; client_id: string | null; client_name: string | null
   project_id: string | null; project_name: string | null; note: string | null; done_at: string | null; created_at: string; updated_at: string
+  /** 谁做（空 = 老板自己；“对方”= 在等对方）、从哪来（2026-10-13） */
+  owner?: string | null; source?: string | null
 }
 export type Receivable = {
   id: string; project_id: string | null; client_id: string | null; client_name: string | null; project_name: string | null
@@ -39,7 +41,9 @@ export type ClientDetail = { client: Client; interactions: Interaction[]; deals:
 export type NavMode = 'simple' | 'complex' | 'top'
 export type Theme = 'jade' | 'wood' | 'navy' | 'mono' | 'night'
 /** owner 称呼、business 工作台名称（也当店名）；shop、xhs 是服务端按设置算好的店名和小红书账号名（没设置时是“我的店”“我的账号”），xhs_name 是设置里存的原值 */
-export type Settings = { nav_mode: NavMode; theme: Theme; mobile_nav: 'tabs' | 'drawer'; owner: string; business: string; shop: string; xhs: string; xhs_name: string; today?: string; demo?: boolean; reminders?: RemindSettings }
+export type Settings = { nav_mode: NavMode; theme: Theme; mobile_nav: 'tabs' | 'drawer'; owner: string; business: string; shop: string; xhs: string; xhs_name: string; today?: string; demo?: boolean; reminders?: RemindSettings
+  /** 打开着的模块 id（shared/modules.ts）；老服务没有这个字段 = 全部打开 */
+  modules?: string[] }
 
 /** 提醒的设置（server/reminders/settings.ts）；改的时候 PATCH /settings 用 remind_on、notify_at、quiet_start、quiet_end、remind_demo_system */
 export type RemindSettings = { on: boolean; notify_at: string; quiet_start: string; quiet_end: string; demo_system: boolean }
@@ -59,6 +63,8 @@ export type FollowUps = {
 
 export type Overview = {
   date: string
+  /** 打开着的模块（服务端已按它算好；这里给页面决定显示哪些卡片） */
+  modules?: string[]
   headline: { id: string; title: string; due: string | null; due_time?: string | null } | null
   events: CalEvent[]; upcoming: CalEvent[]
   todos: { today: Todo[]; week: Todo[]; open: number }
@@ -113,5 +119,10 @@ export type CashSummary = {
 export type LedgerRow = { id: string; date: string; direction: '收入' | '支出'; category: string; amount: number; client_name: string | null; project_name: string | null; note: string | null }
 
 export type KbNode = { name: string; path: string; type: 'dir' | 'file'; children?: KbNode[]; updated?: string }
-export type InboxItem = { id: string; text: string; source: string; created_at: string; done_at: string | null; result: string | null }
+export type InboxItem = {
+  id: string; text: string; source: string; created_at: string; done_at: string | null; result: string | null
+  /** 2026-10-13 起：随手记 / 材料 / 后台；AI 的判断、建议去向、关联的客户和项目、原件在哪 */
+  kind?: string | null; judgement?: string | null; suggest?: string | null; origin?: string | null
+  client_id?: string | null; client_name?: string | null; project_id?: string | null; project_name?: string | null
+}
 export type SearchHit = { type: 'client' | 'project' | 'todo' | 'event'; id: string; title: string; sub: string }

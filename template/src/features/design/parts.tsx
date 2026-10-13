@@ -36,7 +36,7 @@ export function Example({ title, tag, desc, use, avoid, children, className, bod
       <figcaption className="border-b px-5 pt-4 pb-3">
         <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
           <span className="text-[15px] font-semibold">{title}</span>
-          {tag && <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-[11px] text-muted-foreground">{tag}</code>}
+          {tag && <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-[12px] text-muted-foreground">{tag}</code>}
         </div>
         {desc && <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">{desc}</p>}
       </figcaption>

@@ -74,7 +74,7 @@ export default function CalendarPage() {
 
   return (
     <>
-      <PageHeader eyebrow="日常" title="日程" desc="见客户、门店品鉴、送货、内部会和直播都在这里。点空白处新建，拖动可以改时间；勾选“显示待办”能看到每天到期的事。"
+      <PageHeader eyebrow="今日" title="日程" desc="见客户、门店品鉴、送货、内部会和直播都在这里。点空白处新建，拖动可以改时间；勾选“显示待办”能看到每天到期的事。"
         actions={<Button onClick={() => ov.openNew('event')}><CalendarPlus />新建日程</Button>} />
       <PageBody>
         <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_300px]">
@@ -123,11 +123,11 @@ export default function CalendarPage() {
                   const mins = a.event.start && a.event.end ? (a.event.end.getTime() - a.event.start.getTime()) / 60000 : 60
                   // 半小时以内的短安排：时间和标题挤一行，不溢出格子
                   if (grid && mins < 45) {
-                    return <div className="flex h-full min-w-0 items-center gap-1 overflow-hidden px-1 text-[11.5px] leading-none"><span className="num shrink-0 opacity-75">{fmtHm(a.event.start)}</span><span className="truncate font-medium">{a.event.title}</span></div>
+                    return <div className="flex h-full min-w-0 items-center gap-1 overflow-hidden px-1 text-[12px] leading-none"><span className="num shrink-0 opacity-75">{fmtHm(a.event.start)}</span><span className="truncate font-medium">{a.event.title}</span></div>
                   }
                   return (
                     <div className={`min-w-0 overflow-hidden px-1 py-0.5 leading-tight ${grid ? 'h-full' : ''}`}>
-                      {!a.event.allDay && <div className="num text-[11px] opacity-75">{grid ? a.timeText : fmtHm(a.event.start)}</div>}
+                      {!a.event.allDay && <div className="num text-[12px] opacity-75">{grid ? a.timeText : fmtHm(a.event.start)}</div>}
                       <div className={`text-[12px] font-medium break-all ${grid ? 'line-clamp-3' : 'line-clamp-2'}`}>{a.event.title}</div>
                     </div>
                   )

@@ -29,7 +29,7 @@ export function KeyClients({ items }: { items: FocusClient[] }) {
             </span>
             <span className="mt-0.5 line-clamp-2 block text-[13px] leading-snug">{c.reasons[0]}</span>
             {c.next_step && <span className="mt-0.5 block truncate text-xs text-muted-foreground">下一步：{c.next_step}</span>}
-            {c.total_spent > 0 && <span className="mt-0.5 block text-[11.5px] text-muted-foreground">累计消费 {yuan(c.total_spent)}</span>}
+            {c.total_spent > 0 && <span className="mt-0.5 block text-[12px] text-muted-foreground">累计消费 {yuan(c.total_spent)}</span>}
           </button>
           <div className="flex shrink-0 flex-col items-end gap-1.5">
             <When date={c.next_follow} />

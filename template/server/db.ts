@@ -60,15 +60,21 @@ export const all = <T = Row>(sql: string, p: Params = {}) => open().prepare(sql)
 export const get = <T = Row>(sql: string, p: Params = {}) => open().prepare(sql).get(only(sql, p)) as T | undefined
 export const run = (sql: string, p: Params = {}) => open().prepare(sql).run(only(sql, p))
 
+// 事务可以嵌套（2026-10-13）：外层 BEGIN，里层用 SAVEPOINT。一张清单一次写入（services/apply.ts）要把好几个本身就开事务的写入包在一起
+let depth = 0
 export function tx<T>(fn: () => T): T {
   const d = open()
-  d.exec('BEGIN IMMEDIATE')
+  const sp = depth > 0 ? `sp_${depth}` : null
+  d.exec(sp ? `SAVEPOINT ${sp}` : 'BEGIN IMMEDIATE')
+  depth++
   try {
     const out = fn()
-    d.exec('COMMIT')
+    depth--
+    d.exec(sp ? `RELEASE ${sp}` : 'COMMIT')
     return out
   } catch (err) {
-    d.exec('ROLLBACK')
+    depth--
+    d.exec(sp ? `ROLLBACK TO ${sp}; RELEASE ${sp}` : 'ROLLBACK')
     throw err
   }
 }

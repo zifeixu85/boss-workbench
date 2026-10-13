@@ -29,7 +29,7 @@ export function EventSheet({ id }: { id: string }) {
   const color = e ? EVENT_COLORS[e.kind] : undefined
   return (
     <DetailSheet open onClose={() => ov.closeDetail('event')} eyebrow="日程" title={e?.title}
-      meta={e && <><span className="inline-flex h-5 items-center rounded-md px-1.5 text-[11.5px] font-medium" style={{ background: color?.bg, color: color?.text }}>{e.kind}</span>{e.source !== '手动' && <span>来自 {e.source}</span>}</>}
+      meta={e && <><span className="inline-flex h-5 items-center rounded-md px-1.5 text-[12px] font-medium" style={{ background: color?.bg, color: color?.text }}>{e.kind}</span>{e.source !== '手动' && <span>来自 {e.source}</span>}</>}
       actions={e && <><EditToggle editing={editing} onChange={setEditing} />{e.client_id && <Button size="sm" variant="outline" onClick={() => ov.openNew('log', { for: e.client_id! })}>会后记一笔跟进</Button>}</>}>
       {e && !editing && (
         <div className="grid gap-5">
@@ -92,9 +92,11 @@ export function TodoSheet({ id }: { id: string }) {
             <HeroFact label="状态" value={<span className="text-base">{t.status}</span>} sub={t.status === '完成' ? `完成于 ${shortDate(t.done_at)}` : `优先级：${t.priority}`} />
           </div>
           <dl>
+            <ReadRow label="谁做">{t.owner ? (t.owner === '对方' ? '等对方' : t.owner) : <span className="text-muted-foreground">你自己</span>}</ReadRow>
             <ReadRow label="客户">{t.client_id ? <LinkChip label={t.client_name ?? '客户'} onClick={() => ov.openDetail('client', t.client_id!)} /> : <span className="text-muted-foreground">—</span>}</ReadRow>
             <ReadRow label="项目">{t.project_id ? <LinkChip icon={FolderKanban} label={t.project_name ?? '项目'} onClick={() => ov.openDetail('project', t.project_id!)} /> : <span className="text-muted-foreground">—</span>}</ReadRow>
             <ReadRow label="建立">{shortDate(t.created_at)}</ReadRow>
+            {t.source && <ReadRow label="从哪来"><span className="break-all">{t.source}</span></ReadRow>}
           </dl>
           <SheetSection title="备注"><Prose text={t.note} /></SheetSection>
         </div>
@@ -114,6 +116,7 @@ export function TodoSheet({ id }: { id: string }) {
             <FormField label="关联客户"><ClientChoice value={t.client_id} onChange={(v) => patch.mutate({ client_id: v })} /></FormField>
             <FormField label="关联项目"><ProjectChoice value={t.project_id} onChange={(v) => patch.mutate({ project_id: v })} /></FormField>
           </div>
+          <FormField label="谁做" hint="空着 = 你自己；在等对方就写“对方”"><InlineText value={t.owner ?? ''} onSave={(v) => patch.mutate({ owner: v || null })} /></FormField>
           <FormField label="备注"><InlineText multiline value={t.note} onSave={(v) => patch.mutate({ note: v })} /></FormField>
           <div className="flex justify-end border-t pt-4"><DeleteButton what="待办" onConfirm={() => del.mutate(undefined, { onSuccess: () => ov.closeDetail('todo') })} /></div>
         </FieldGroup>

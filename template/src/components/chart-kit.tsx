@@ -51,7 +51,7 @@ export function UnitTip({ config, unit, ...props }: TipProps) {
 }
 
 export function ChartNote({ children }: { children: ReactNode }) {
-  return <p className="mt-3 text-[11.5px] leading-relaxed text-muted-foreground">{children}</p>
+  return <p className="mt-3 text-[12px] leading-relaxed text-muted-foreground">{children}</p>
 }
 
 export function EmptyNote({ children }: { children: ReactNode }) {

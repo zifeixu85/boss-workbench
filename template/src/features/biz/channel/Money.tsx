@@ -28,7 +28,7 @@ export function RefundsPanel({ d, source }: { d: ChannelData; source: string }) 
             <YAxis type="category" dataKey="reason" {...AXIS} width={76} />
             <ChartTooltip cursor={CURSOR} content={<UnitTip config={refundConfig} unit=" 单" />} />
             <Bar dataKey="orders" fill="var(--color-orders)" fillOpacity={0.55} radius={[0, 4, 4, 0]} maxBarSize={18}>
-              <LabelList dataKey="tag" position="right" offset={8} {...LABEL_STYLE} fontSize={11.5} className="whitespace-nowrap" />
+              <LabelList dataKey="tag" position="right" offset={8} {...LABEL_STYLE} fontSize={12} className="whitespace-nowrap" />
             </Bar>
           </BarChart>
         </ChartContainer>
@@ -64,7 +64,7 @@ export function AdsPanel({ d, source, compact }: { d: ChannelData; source: strin
             const w = x as typeof s.base
             return (
               <div key={label as string} className="min-w-0">
-                <div className="text-[11.5px] text-muted-foreground">{label as string}</div>
+                <div className="text-[12px] text-muted-foreground">{label as string}</div>
                 <div className="num mt-0.5 whitespace-nowrap">每天 {yuanNum(w.per_day)} 元 · ROI <b className={cn(w.roi !== null && w.roi < roiLine && 'text-danger')}>{roi1(w.roi)}</b></div>
               </div>
             )
@@ -93,7 +93,7 @@ export function AdsPanel({ d, source, compact }: { d: ChannelData; source: strin
               <YAxis {...AXIS} width={28} ticks={rAxis.ticks} domain={rAxis.domain} tickFormatter={rAxis.fmt} />
               <ChartTooltip cursor={{ stroke: 'var(--border)' }} content={<UnitTip config={roiConfig} unit="" labelFormatter={dayLabel} />} />
               <ReferenceLine y={roiLine} stroke="var(--danger)" strokeDasharray="5 4" strokeOpacity={0.75}
-                label={{ value: `参考线 ${roiLine}`, position: 'insideBottomLeft', fill: 'var(--danger)', fontSize: 11 }} />
+                label={{ value: `参考线 ${roiLine}`, position: 'insideBottomLeft', fill: 'var(--danger)', fontSize: 12 }} />
               <Line dataKey="roi" type="monotone" stroke="var(--color-roi)" strokeWidth={2} connectNulls={false} dot={{ r: 2, fill: 'var(--color-roi)', strokeWidth: 0 }} />
             </LineChart>
           </ChartContainer>
@@ -102,7 +102,7 @@ export function AdsPanel({ d, source, compact }: { d: ChannelData; source: strin
       {compact && d.campaigns.length > 0 && (
         <div className="mt-4 overflow-x-auto rounded-lg border">
           <table className="w-full min-w-[420px] text-[13px]">
-            <thead className="bg-surface-2/60 text-[11.5px] text-muted-foreground">
+            <thead className="bg-surface-2/60 text-[12px] text-muted-foreground">
               <tr><th className="px-3 py-1.5 text-left font-normal">推广计划</th><th className="px-2 text-right font-normal">出价（元）</th><th className="px-2 text-right font-normal">近 3 天每天花（元）</th><th className="px-3 text-right font-normal">近 3 天 ROI</th></tr>
             </thead>
             <tbody>
@@ -120,7 +120,7 @@ function CompactRow({ c, roiLine }: { c: Campaign; roiLine: number }) {
   const r3 = c.shift?.now.roi ?? null
   return (
     <tr className="border-t">
-      <td className="px-3 py-2 font-medium">{c.campaign}{c.bid_changed && <span className="ml-1.5 text-[11.5px] whitespace-nowrap text-danger">{md(c.bid_changed.at)} 改过出价</span>}</td>
+      <td className="px-3 py-2 font-medium">{c.campaign}{c.bid_changed && <span className="ml-1.5 text-[12px] whitespace-nowrap text-danger">{md(c.bid_changed.at)} 改过出价</span>}</td>
       <td className="num px-2 text-right">{c.bid?.toFixed(2) ?? '—'}</td>
       <td className="num px-2 text-right">{yuanNum(c.shift?.now.per_day)}</td>
       <td className={cn('num px-3 text-right', r3 !== null && r3 < roiLine && 'font-semibold text-danger')}>{roi1(r3)}</td>
@@ -146,9 +146,9 @@ export function CampaignTable({ d }: { d: ChannelData }) {
           <TableRow className="hover:bg-transparent">
             <TableHead className="pl-5">计划</TableHead>
             <TableHead className={R}>出价（元）</TableHead>
-            <TableHead className={R}>每天花（元）<div className="text-[10.5px] font-normal">之前两周 → 近 3 天</div></TableHead>
-            <TableHead className={R}>每次点击实际花费（元）<div className="text-[10.5px] font-normal">之前两周 → 近 3 天</div></TableHead>
-            <TableHead className={R}>ROI<div className="text-[10.5px] font-normal">近 {d.days} 天</div></TableHead>
+            <TableHead className={R}>每天花（元）<div className="text-[12px] font-normal">之前两周 → 近 3 天</div></TableHead>
+            <TableHead className={R}>每次点击实际花费（元）<div className="text-[12px] font-normal">之前两周 → 近 3 天</div></TableHead>
+            <TableHead className={R}>ROI<div className="text-[12px] font-normal">近 {d.days} 天</div></TableHead>
             <TableHead className={R}>近 3 天 ROI</TableHead>
             <TableHead className={R}>近 {d.days} 天花费（元）</TableHead>
             <TableHead className="w-[112px] pr-5">每天 ROI</TableHead>
@@ -161,7 +161,7 @@ export function CampaignTable({ d }: { d: ChannelData }) {
               <TableRow key={c.campaign} className={cn(c.bid_changed && 'bg-danger-soft/30 hover:bg-danger-soft/40')}>
                 <TableCell className="pl-5">
                   <div className="font-medium whitespace-nowrap">{c.campaign}</div>
-                  {c.bid_changed && <div className="text-[11.5px] font-medium whitespace-nowrap text-danger">{md(c.bid_changed.at)} {c.bid_changed.at.slice(11, 16)} {c.bid_changed.who}改出价</div>}
+                  {c.bid_changed && <div className="text-[12px] font-medium whitespace-nowrap text-danger">{md(c.bid_changed.at)} {c.bid_changed.at.slice(11, 16)} {c.bid_changed.who}改出价</div>}
                 </TableCell>
                 <TableCell className={cn(R, 'num')}>{c.bid_changed ? <span className="font-semibold text-danger">{c.bid_changed.from.toFixed(2)} → {c.bid_changed.to.toFixed(2)}</span> : (c.bid?.toFixed(2) ?? '—')}</TableCell>
                 <TableCell className={cn(R, 'num')}>{c.shift ? `${yuanNum(c.shift.base.per_day)} → ${yuanNum(c.shift.now.per_day)}` : '—'}</TableCell>

@@ -11,7 +11,7 @@
 | 文档 | 管什么 | 对应规范页 |
 |---|---|---|
 | [设计令牌与风格.md](设计令牌与风格.md) | 5 套风格、颜色令牌、状态色、涨跌色、图表色、字体字号 | `/design?s=style`、`?s=type` |
-| [导航与Tab.md](导航与Tab.md) | 3 种电脑布局 + 2 种手机布局、菜单唯一来源、Tab 和左侧导航怎么分工 | `?s=nav`、`?s=tabs` |
+| [导航与Tab.md](导航与Tab.md) | 三层（分区 → 页面 → 页内 Tab）、3 种电脑布局 + 2 种手机布局、菜单唯一来源、Tab 和左侧导航怎么分工 | `?s=nav`、`?s=tabs` |
 | [展示方式.md](展示方式.md) | 表格 / 卡片 / 看板 / 清单 / 时间线 / 日历怎么选，吸顶规则 | `?s=display` |
 | [详情与表单.md](详情与表单.md) | 抽屉只读→编辑、弹窗新建、删除确认、地址栏参数、快捷键 | `?s=detail` |
 | [图表.md](图表.md) | 什么问题用什么图、图表规则 | `?s=charts` |
@@ -27,12 +27,12 @@
 | 黄区：先说再改 | `src/components/*`（共用组件）、`src/index.css`（令牌和风格）、`components/status.tsx` 加状态词、`app/overlay.ts` + `app/Overlays.tsx` 加抽屉或弹窗类型、`features/forms/dialogs.tsx`、`components/detail-parts.tsx`、`lib/format.ts`、`lib/types.ts`、`shared/schema.ts`、`server/services` 和 `server/routes.ts`（新接口、新字段）、本文件夹的规范和 `/design` 页 | 先写清楚改什么、为什么、影响哪些页面，老板确认后再改；改完把受影响的页面都看一遍，并更新规范 |
 | 红区：不要动 | `src/components/ui/*`（shadcn 原件）、外壳 `app/AppShell.tsx` `SimpleShell.tsx` `ComplexShell.tsx` `TopShell.tsx` `shell-parts.tsx`、`server/db.ts` `server/clock.ts` 和已有的数据库迁移、`工作台/数据/workbench.db`、`scripts/install.mjs`、`node_modules/`、`dist/` | 除非老板明确点名要改这一处。数据只能走 `server/cli.ts` 命令或网页接口写，不直接写 SQL |
 
-知识库根目录的 `AGENTS.md` 说过：改功能走“老板工作台”Skill 的“加模块”路线（模块卡 → 设计稿 → 网页里确认样张 → 开发），改前快照，改后在 `工作台/程序/` 下运行 `npm run doctor`。本规范是那条路线里“开发”这一步的细则。
+知识库根目录的 `AGENTS.md` 说过：改功能走“老板工作台”Skill 的“加模块”路线（立项对焦 → 需求文档 → 网页里确认样张 → 开发），改前快照，改后在 `工作台/程序/` 下运行 `npm run doctor`。本规范是那条路线里“开发”这一步的细则。
 
 ## 加一个模块，最少要做到
 
-1. 页面用 `PageHeader` + `PageBody`，内容块用 `Panel`；眉题写菜单分组名。
-2. 在 `app/nav.ts` 加一项、`app/router.tsx` 登记页面；不在别处手写菜单。
+1. 页面用 `PageHeader` + `PageBody`，内容块用 `Panel`；眉题写这一页所在的分区名（可以加 `· 组名`），它就是页内唯一一层位置。
+2. 在 `app/nav.ts` 加一项（写上 `section`：今日 / 客户 / 经营 / 内容 / 数据 / 资料）、`app/router.tsx` 登记页面；不在别处手写菜单。
 3. 展示方式按 [展示方式.md](展示方式.md) 选；要切换看法用 `ViewTabs`，选中的视图写进地址栏。
 4. 详情放右侧抽屉、默认只读；新建用弹窗；删除二次确认（[详情与表单.md](详情与表单.md)）。
 5. 只用令牌类名（`bg-card`、`text-muted-foreground`…），组件里不写色值；状态一律 `StatusBadge`。

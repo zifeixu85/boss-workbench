@@ -5,7 +5,7 @@
 .xhs-cal .fc-daygrid-day.xhs-launch { background: color-mix(in srgb, var(--warn-soft) 70%, transparent); }
 .xhs-cal .fc-daygrid-day-top { flex-direction: row; }
 .xhs-cal .fc-daygrid-day-number { display: flex; width: 100%; padding: 5px 6px; }
-.xhs-tag { display: inline-flex; align-items: center; height: 16px; padding: 0 5px; border-radius: 4px; font-size: 10.5px; font-weight: 600; line-height: 1; white-space: nowrap; }
+.xhs-tag { display: inline-flex; align-items: center; height: 16px; padding: 0 5px; border-radius: 4px; font-size: 12px; font-weight: 600; line-height: 1; white-space: nowrap; }
 .xhs-tag-closed { background: var(--muted); color: var(--foreground); border: 1px solid var(--border); }
 .xhs-tag-launch { background: var(--warn); color: var(--card); }
 .xhs-swatch-closed { display: inline-block; border: 1px solid var(--border); background-image: repeating-linear-gradient(135deg, var(--muted-foreground) 0 1px, transparent 1px 4px); opacity: 0.8; }

@@ -42,11 +42,11 @@ export function TrafficPanel({ d, source }: { d: ChannelData; source: string }) 
           </ChartContainer>
           <div className="pointer-events-none absolute inset-0 grid place-content-center text-center">
             <span className="num text-[17px] leading-none font-semibold">{thousands(total)}</span>
-            <span className="mt-1 text-[11px] text-muted-foreground">{d.channel.id === 'store' ? '进店人次' : '访客'}</span>
+            <span className="mt-1 text-[12px] text-muted-foreground">{d.channel.id === 'store' ? '进店人次' : '访客'}</span>
           </div>
         </div>
         <table className="w-full text-[13px]">
-          <thead><tr className="text-left text-[11px] text-muted-foreground"><th className="pb-1 font-normal">来源</th><th className="pb-1 text-right font-normal">占比</th>{hasPrev && <th className="pb-1 text-right font-normal">比前 {d.days} 天</th>}</tr></thead>
+          <thead><tr className="text-left text-[12px] text-muted-foreground"><th className="pb-1 font-normal">来源</th><th className="pb-1 text-right font-normal">占比</th>{hasPrev && <th className="pb-1 text-right font-normal">比前 {d.days} 天</th>}</tr></thead>
           <tbody>
             {rows.map((r, i) => (
               <tr key={r.source}>
@@ -86,7 +86,7 @@ export function ProductsPanel({ d, source }: { d: ChannelData; source: string })
             {rows.map((r, i) => (
               <TableRow key={r.sku_id} className={cn(hot?.sku_id === r.sku_id && 'bg-warn-soft/30')}>
                 <TableCell className="num pl-5 text-muted-foreground">{i + 1}</TableCell>
-                <TableCell><div className="font-medium">{r.name}</div><div className="text-[11.5px] text-muted-foreground">{r.category} · 零售价 {r.price} 元</div></TableCell>
+                <TableCell><div className="font-medium">{r.name}</div><div className="text-[12px] text-muted-foreground">{r.category} · 零售价 {r.price} 元</div></TableCell>
                 <TableCell className="num text-right">{thousands(r.units)}</TableCell>
                 <TableCell className="num text-right">{yuanNum(r.gmv)}</TableCell>
                 <TableCell className="num text-right text-muted-foreground">{p1(r.share ?? 0)}%</TableCell>

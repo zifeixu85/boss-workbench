@@ -78,10 +78,10 @@ export function createTodo(input: unknown, actor: Actor) {
   if (data.due_time && !data.due) throw new BadRequest(NEED_DATE)
   const id = uid('t')
   const at = nowIso()
-  run(`INSERT INTO todos (id, title, status, priority, due, due_time, client_id, project_id, note, created_at, updated_at)
-       VALUES (:id, :title, :status, :priority, :due, :due_time, :client_id, :project_id, :note, :at, :at)`,
-  params({ due: null, due_time: null, client_id: null, project_id: null, note: null, ...data, id, at }))
-  logChange(actor, 'todo', id, '新建', `待办「${data.title}」${data.due_time ? `，${data.due} ${data.due_time} 到期` : ''}`)
+  run(`INSERT INTO todos (id, title, status, priority, due, due_time, client_id, project_id, note, owner, source, created_at, updated_at)
+       VALUES (:id, :title, :status, :priority, :due, :due_time, :client_id, :project_id, :note, :owner, :source, :at, :at)`,
+  params({ due: null, due_time: null, client_id: null, project_id: null, note: null, owner: null, source: null, ...data, id, at }))
+  logChange(actor, 'todo', id, '新建', `待办「${data.title}」${data.owner ? `（${data.owner}做）` : ''}${data.due_time ? `，${data.due} ${data.due_time} 到期` : ''}`)
   return getTodo(id)
 }
 

@@ -31,7 +31,7 @@ export function HowChip({ how }: { how: string }) {
     规则: 'border-primary/30 text-primary', 旧规则: 'border-primary/30 text-primary', 知识库: 'border-primary/30 text-primary', 常见叫法: 'border-border text-muted-foreground',
     名字像: 'border-warn/40 text-warn', 没见过: 'border-border text-muted-foreground', Codex: 'border-info/40 bg-info-soft text-info', 你选的: 'border-foreground/25 text-foreground',
   }
-  return <span className={cn('inline-flex h-5 shrink-0 items-center gap-1 rounded-md border px-1.5 text-[11px] whitespace-nowrap', cls[how] ?? 'border-border text-muted-foreground')}>{how === 'Codex' && <Sparkles className="size-3" />}{how}</span>
+  return <span className={cn('inline-flex h-5 shrink-0 items-center gap-1 rounded-md border px-1.5 text-[12px] whitespace-nowrap', cls[how] ?? 'border-border text-muted-foreground')}>{how === 'Codex' && <Sparkles className="size-3" />}{how}</span>
 }
 
 const CELL: Record<string, string> = { 成功: 'bg-ok/80', 失败: 'bg-danger', 超时: 'bg-warn', 部分成功: 'bg-warn', 补上了: 'bg-warn', 还没到点: 'border border-dashed border-muted-foreground/40 bg-transparent' }
@@ -48,7 +48,7 @@ export function RunStrip({ days, size = 'sm' }: { days: StripDay[]; size?: 'sm' 
             <TooltipTrigger asChild>
               <div className="grid w-9 justify-items-center gap-1">
                 <span className={cn('h-5 w-full rounded-[4px]', cellOf(d.status))} />
-                <span className="num text-[11px] text-muted-foreground">{d.date === todayStr() ? '今天' : mdOf(d.date)}</span>
+                <span className="num text-[12px] text-muted-foreground">{d.date === todayStr() ? '今天' : mdOf(d.date)}</span>
               </div>
             </TooltipTrigger>
             <TooltipContent>{label(d)}</TooltipContent>
@@ -68,7 +68,7 @@ export function RunStrip({ days, size = 'sm' }: { days: StripDay[]; size?: 'sm' 
 export function StripLegend({ className }: { className?: string }) {
   const items: [string, string][] = [['成功', CELL.成功], ['失败', CELL.失败], ['出过问题（超时、没导全、后来补上）', CELL.超时], ['没跑', 'bg-muted-foreground/15'], ['还没到点', CELL.还没到点]]
   return (
-    <span className={cn('inline-flex flex-wrap items-center gap-x-3 gap-y-1 text-[11.5px] text-muted-foreground', className)}>
+    <span className={cn('inline-flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px] text-muted-foreground', className)}>
       {items.map(([t, c]) => <span key={t} className="inline-flex items-center gap-1"><span aria-hidden className={cn('h-3 w-2 rounded-[2px]', c)} />{t}</span>)}
     </span>
   )

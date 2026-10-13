@@ -28,7 +28,7 @@ function Row({ t }: { t: Todo }) {
       <Checkbox checked={t.status === '完成'} onCheckedChange={() => toggle.mutate(undefined)} aria-label="完成" />
       <button className="min-w-0 flex-1 text-left" onClick={() => ov.openDetail('todo', t.id)}>
         <span className={cn('block truncate text-sm', t.status === '完成' && 'text-muted-foreground line-through')}>{t.title}</span>
-        <span className="flex flex-wrap gap-x-2 text-xs text-muted-foreground">{t.client_name && <span>{t.client_name}</span>}{t.project_name && <span>· {t.project_name}</span>}</span>
+        <span className="flex flex-wrap gap-x-2 text-xs text-muted-foreground">{t.owner && <span>{t.owner === '对方' ? '等对方' : `${t.owner}做`}</span>}{t.client_name && <span>{t.client_name}</span>}{t.project_name && <span>· {t.project_name}</span>}</span>
       </button>
       {t.priority !== '普通' && <StatusBadge value={t.priority} />}
       {t.status !== '待办' && t.status !== '完成' && <StatusBadge value={t.status} />}
@@ -56,6 +56,7 @@ function TodoCard({ t, onOpen }: { t: Todo; onOpen?: () => void }) {
       <MetaRow className="mt-2">
         {t.priority !== '普通' && <StatusBadge value={t.priority} />}
         <span>{dueText(t.due, t.due_time)}</span>
+        {t.owner && <span>{t.owner === '对方' ? '等对方' : `${t.owner}做`}</span>}
         {t.client_name && <span>{t.client_name}</span>}
       </MetaRow>
     </div>
@@ -105,16 +106,16 @@ export default function TodosPage() {
   }
   return (
     <>
-      <PageHeader eyebrow="日常" title="待办" desc={`还有 ${open.length} 件没做完。和客户、项目有关的事记得关联，客户详情和跟进清单里都能看到。`}
+      <PageHeader eyebrow="今日" title="待办" desc={`还有 ${open.length} 件没做完。和客户、项目有关的事记得关联，客户详情和跟进清单里都能看到。`}
         actions={<Button onClick={() => ov.openNew('todo')}><ListPlus />新建待办</Button>} />
-      <PageBody className="grid gap-4">
+      <PageBody className="grid grid-cols-[minmax(0,1fr)] gap-4">
         <div className="flex flex-wrap items-center gap-2">
           <div className="relative w-full sm:w-64"><Search className="absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" /><Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="搜待办或客户" className="pl-8" /></div>
           <div className="w-32"><Choice value={pri} onChange={setPri} options={['紧急', '重要', '普通']} allowEmpty emptyLabel="全部优先级" placeholder="全部优先级" /></div>
           <ViewTabs className="ml-auto" value={view} onChange={(v) => setSp({ view: v }, { replace: true })} items={[{ value: 'list', label: '清单', icon: ListChecks }, { value: 'board', label: '看板', icon: Columns3 }]} />
         </div>
         {view === 'board' ? <TodoBoard todos={todos} /> : (
-          <div className="grid gap-4">
+          <div className="grid grid-cols-[minmax(0,1fr)] gap-4">
             <Group title="已经过了截止日" items={groups.overdue} />
             <Group title="今天" items={groups.today} />
             <Group title="未来 7 天" items={groups.week} />

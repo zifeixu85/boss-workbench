@@ -16,6 +16,7 @@ import * as content from '../modules/content/service.ts'
 import * as dataSources from '../modules/data/service.ts'
 import { readRemindSettings } from '../reminders/settings.ts'
 import { unreadCount } from '../reminders/store.ts'
+import { enabled as enabledModules } from './modules.ts'
 
 const moduleErrors: { module: string; error: string }[] = []
 function safe<T>(module: string, fn: () => T, fallback: T): T {
@@ -52,15 +53,18 @@ export function overview() {
   const events = listEvents(t, `${addDays(t, 1)}T00:00`)
   const upcoming = listEvents(`${addDays(t, 1)}`, `${addDays(t, 7)}T23:59`)
   const risks = listProjects().filter((p) => p.risks.length)
-  const fu = followUps()
+  // 模块开关（shared/modules.ts）：没打开的模块不算、不显示，命令行 today 也一样
+  const on = new Set(enabledModules())
+  const fuAll = followUps()
+  const fu = on.has('clients') ? fuAll : { ...fuAll, due: [] as typeof fuAll.due } // 客户没开：不列“该联系的人”，“卡在哪”照常
   const cash = cashSummary()
   const overdueRecs = listReceivables().filter((r) => r.status === '逾期')
   const top = todayTodos.find((x) => x.priority === '紧急') ?? todayTodos[0] ?? weekTodos[0] ?? null
   moduleErrors.length = 0
-  const sales = safe('经营', () => biz.summary(), null)
-  const alerts = [...safe('经营', () => biz.anomalies(), []), ...safe('数据源', () => dataSources.issues(), [])]
-  const keyClients = safe('大客户', () => crm.focus(t, 6), [])
-  const xhs = safe('小红书', () => content.todayPlan(t), null)
+  const sales = on.has('biz') ? safe('经营', () => biz.summary(), null) : null
+  const alerts = [...(on.has('biz') ? safe('经营', () => biz.anomalies(), []) : []), ...(on.has('data') ? safe('数据源', () => dataSources.issues(), []) : [])]
+  const keyClients = on.has('clients') ? safe('大客户', () => crm.focus(t, 6), []) : []
+  const xhs = on.has('content') ? safe('小红书', () => content.todayPlan(t), null) : null
   const dueRecs = listReceivables().filter((r) => r.status === '7天内到期')
   return {
     date: t,
@@ -74,7 +78,8 @@ export function overview() {
     changes: recentChanges(8),
     // 提醒页没读的条数（菜单角标）；数据源有几个（数据异常面板的空状态要分“都正常”和“还没接”）。10-12 加
     reminders_unread: safe('提醒', () => unreadCount(), 0),
-    source_count: safe('数据源', () => dataSources.sources().length, 0),
+    source_count: on.has('data') ? safe('数据源', () => dataSources.sources().length, 0) : 0,
+    modules: [...on],
   }
 }
 
@@ -83,13 +88,17 @@ export function recentChanges(limit = 20) {
 }
 
 export function listInbox() {
-  return all('SELECT * FROM inbox ORDER BY done_at IS NOT NULL, created_at DESC LIMIT 100')
+  return all(`SELECT n.*, c.name AS client_name, p.name AS project_name FROM inbox n
+    LEFT JOIN clients c ON c.id = n.client_id LEFT JOIN projects p ON p.id = n.project_id
+    ORDER BY n.done_at IS NOT NULL, n.created_at DESC LIMIT 100`)
 }
 export function addInbox(input: unknown, actor: Actor) {
   const data = inboxInput.parse(input)
   const id = uid('n')
-  run('INSERT INTO inbox (id, text, source, created_at) VALUES (:id, :text, :source, :at)', params({ ...data, id, at: nowIso() }))
-  logChange(actor, 'inbox', id, '新建', `随手记：${data.text.slice(0, 30)}`)
+  run(`INSERT INTO inbox (id, text, source, kind, judgement, suggest, client_id, project_id, origin, created_at)
+       VALUES (:id, :text, :source, :kind, :judgement, :suggest, :client_id, :project_id, :origin, :at)`,
+  params({ kind: null, judgement: null, suggest: null, client_id: null, project_id: null, origin: null, ...data, id, at: nowIso() }))
+  logChange(actor, 'inbox', id, '新建', `${data.kind && data.kind !== '随手记' ? `收件箱（${data.kind}）` : '随手记'}：${data.text.slice(0, 30)}`)
   return { id }
 }
 export function doneInbox(id: string, result: string, actor: Actor) {
@@ -112,6 +121,8 @@ export function getSettings() {
     shop: id.shop, xhs: id.xhs, xhs_name: s.xhs_name ?? '',
     today: today(), demo: demoDate() !== null,
     reminders: readRemindSettings(),
+    // 打开着的模块（shared/modules.ts）；没设过 = 全部
+    modules: enabledModules(),
   }
 }
 export function saveSettings(input: unknown, actor: Actor) {
@@ -135,9 +146,10 @@ export function saveSettings(input: unknown, actor: Actor) {
 export function search(q: string) {
   if (!q.trim()) return []
   const like = `%${escapeLike(q.trim())}%`
+  const clientsOn = enabledModules().includes('clients')
   const L = (col: string) => `${col} LIKE :l ESCAPE '\\'`
   return [
-    ...all(`SELECT 'client' AS type, id, name || COALESCE(' · ' || contact_name,'') AS title, stage AS sub FROM clients WHERE ${L('name')} OR ${L('label')} OR ${L('note')} OR ${L('contact_name')} LIMIT 6`, { l: like }),
+    ...(clientsOn ? all(`SELECT 'client' AS type, id, name || COALESCE(' · ' || contact_name,'') AS title, stage AS sub FROM clients WHERE ${L('name')} OR ${L('label')} OR ${L('note')} OR ${L('contact_name')} LIMIT 6`, { l: like }) : []),
     ...all(`SELECT 'project' AS type, id, name AS title, stage AS sub FROM projects WHERE ${L('name')} LIMIT 4`, { l: like }),
     ...all(`SELECT 'todo' AS type, id, title, status AS sub FROM todos WHERE ${L('title')} LIMIT 4`, { l: like }),
     ...all(`SELECT 'event' AS type, id, title, substr(start,1,16) AS sub FROM events WHERE ${L('title')} LIMIT 4`, { l: like }),

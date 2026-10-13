@@ -36,6 +36,7 @@ export function TodoLine({ t }: { t: Todo }) {
         <div className="text-sm leading-snug">{t.title}</div>
         <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
           <span className={cn(overdue && 'font-medium text-danger')}>{dueText(t.due, t.due_time)}</span>
+          {t.owner && <span>· {t.owner === '对方' ? '等对方' : `${t.owner}做`}</span>}
           {t.client_name && <span>· {t.client_name}</span>}
           {t.project_name && !t.client_name && <span>· {t.project_name}</span>}
           {t.status !== '待办' && <StatusBadge value={t.status} />}

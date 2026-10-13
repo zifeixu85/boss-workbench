@@ -92,6 +92,10 @@ export const todoInput = z.object({
   client_id: z.string().optional().nullable(),
   project_id: z.string().optional().nullable(),
   note: optText,
+  /** 谁做（2026-10-13 进内容先判断）：空 = 老板自己；团队里的人名；“对方”= 在等对方 */
+  owner: z.preprocess((v) => (typeof v === 'string' && !v.trim() ? null : v), z.string().trim().max(20).nullable().optional()),
+  /** 从哪来：材料路径、会议、哪天的对话 */
+  source: z.string().trim().max(300).optional().nullable(),
 })
 export type TodoInput = z.infer<typeof todoInput>
 
@@ -121,7 +125,21 @@ export const ledgerInput = z.object({
   note: optText,
 })
 
-export const inboxInput = z.object({ text: z.string().trim().min(1).max(2000), source: z.string().max(20).default('网页') })
+/** 收件箱（2026-10-13 起每条可以带 AI 的判断）：随手记、还没想清楚的材料、后台自动进来的 */
+export const INBOX_KINDS = ['随手记', '材料', '后台'] as const
+export const inboxInput = z.object({
+  text: z.string().trim().min(1).max(2000),
+  source: z.string().max(20).default('网页'),
+  kind: z.enum(INBOX_KINDS).optional().nullable(),
+  /** AI 的判断：这是什么、要不要紧 */
+  judgement: optText,
+  /** 建议去向和默认做法 */
+  suggest: optText,
+  client_id: z.string().optional().nullable(),
+  project_id: z.string().optional().nullable(),
+  /** 原件在哪（知识库里的路径） */
+  origin: z.string().trim().max(300).optional().nullable(),
+})
 
 export const THEMES = ['jade', 'wood', 'navy', 'mono', 'night'] as const
 export const settingsInput = z.object({

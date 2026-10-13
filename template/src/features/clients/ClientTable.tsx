@@ -54,7 +54,7 @@ export function ClientTable({ rows, showKeyMark }: { rows: ClientRow[]; showKeyM
                 <div className={cn('num whitespace-nowrap', late && 'font-medium text-danger')}>{c.next_follow ? dateWithRel(c.next_follow) : <span className="text-muted-foreground">未定</span>}</div>
                 {c.next_step && <div className="truncate text-xs text-muted-foreground">{c.next_step}</div>}
               </TableCell>
-              <TableCell className="max-w-[180px]"><FlagChips flags={c.flags} />{c.birthday && <div className="mt-0.5 text-[11.5px] whitespace-nowrap text-muted-foreground">{c.birthday.label} {relDay(c.birthday.date)}</div>}</TableCell>
+              <TableCell className="max-w-[180px]"><FlagChips flags={c.flags} />{c.birthday && <div className="mt-0.5 text-[12px] whitespace-nowrap text-muted-foreground">{c.birthday.label} {relDay(c.birthday.date)}</div>}</TableCell>
               <TableCell className="num pr-4 text-right whitespace-nowrap"><OpenAmount c={c} /></TableCell>
             </TableRow>
           )

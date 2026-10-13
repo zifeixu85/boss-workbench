@@ -31,7 +31,7 @@ export function ReportSheet({ id, onClose }: { id: string; onClose: () => void }
           {r.lead && <p className="mb-5 font-heading text-[16px] leading-relaxed font-medium">{r.lead}</p>}
           {r.sections.length ? r.sections.map((s, i) => (
             <section key={s.heading} className="mb-5 rounded-lg border bg-background/60 px-4 py-3">
-              <h3 className="flex items-center gap-2 text-[14px] font-semibold"><span className="num grid size-5 place-content-center rounded bg-accent text-[11px] text-accent-foreground">{i + 1}</span>{s.heading}</h3>
+              <h3 className="flex items-center gap-2 text-[14px] font-semibold"><span className="num grid size-5 place-content-center rounded bg-accent text-[12px] text-accent-foreground">{i + 1}</span>{s.heading}</h3>
               <Markdown source={s.body} className="text-[13.5px] leading-6 [&_li]:my-0.5 [&_ol]:pl-5 [&_ul]:pl-5" />
             </section>
           )) : <Markdown source={r.body} />}

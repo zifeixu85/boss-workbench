@@ -175,7 +175,7 @@ function FollowCard({ c, col, onOpen, showStage }: { c: ClientRow; col: ColKey; 
       <button className="block w-full min-w-0 text-left" onClick={onOpen}>
         <div className="truncate text-[14px] font-medium" title={c.name}>{c.name}</div>
         <div className="mt-1 flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground">
-          {c.kind === '客户' && <LevelMark level={c.level} className="h-[18px] px-1 text-[11px]" />}
+          {c.kind === '客户' && <LevelMark level={c.level} className="h-[18px] px-1 text-[12px]" />}
           <span className="min-w-0 truncate">{c.contact_name ?? c.label}{showStage && <span className="text-muted-foreground/80"> · {c.stage}</span>}</span>
         </div>
       </button>

@@ -60,7 +60,7 @@ function StudioStart() {
           <ol className="mt-5 grid gap-2 sm:grid-cols-2">
             {STEPS.map(([a, b], i) => (
               <li key={a} className="flex gap-2.5 rounded-lg bg-muted/50 px-3 py-2.5">
-                <span className="num grid size-5 shrink-0 place-items-center rounded-full bg-primary text-[11px] font-semibold text-primary-foreground">{i + 1}</span>
+                <span className="num grid size-5 shrink-0 place-items-center rounded-full bg-primary text-[12px] font-semibold text-primary-foreground">{i + 1}</span>
                 <span className="min-w-0"><span className="block text-[13px] font-medium">{a}</span><span className="block text-xs leading-relaxed text-muted-foreground">{b}</span></span>
               </li>
             ))}

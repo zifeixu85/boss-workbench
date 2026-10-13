@@ -31,7 +31,7 @@ export function DonutDemo() {
           </ChartContainer>
           <div className="pointer-events-none absolute inset-0 grid place-content-center text-center">
             <span className="text-[20px] leading-none font-semibold">{Math.round(total)}</span>
-            <span className="mt-1 text-[11px] text-muted-foreground">万 · 合计</span>
+            <span className="mt-1 text-[12px] text-muted-foreground">万 · 合计</span>
           </div>
         </div>
         <ul className="grid gap-1.5 text-[13px]">
@@ -70,7 +70,7 @@ export function RadialDemo() {
           </ChartContainer>
           <div className="pointer-events-none absolute inset-0 grid place-content-center text-center">
             <span className="text-[26px] leading-none font-semibold">{n1(pct)}<span className="text-sm font-normal text-muted-foreground">%</span></span>
-            <span className="mt-1 text-[11px] text-muted-foreground">年度目标</span>
+            <span className="mt-1 text-[12px] text-muted-foreground">年度目标</span>
           </div>
         </div>
         <dl className="grid gap-1.5 text-[13px]">
@@ -96,7 +96,7 @@ export function HeatmapDemo() {
     <ChartCard kind="热力日历" question="哪些日子跟进得勤，哪些日子断了？" desc={`最近 ${HEAT_WEEKS} 周每天的跟进次数，共 ${total} 次。一列是一周，越深越多；空格是还没到的日子。`}
       fit="按天看习惯和断档：跟进、发内容、打卡。" unfit="要读具体数字（用表格）；数据只有几天。">
       <div role="img" aria-label={`最近 ${HEAT_WEEKS} 周跟进热力图，共 ${total} 次`} className="grid max-w-[440px] grid-cols-[14px_minmax(0,1fr)] gap-1.5">
-        <div className="grid grid-rows-[14px_repeat(7,minmax(0,1fr))] gap-[3px] text-[10px] leading-none text-muted-foreground">
+        <div className="grid grid-rows-[14px_repeat(7,minmax(0,1fr))] gap-[3px] text-[12px] leading-none text-muted-foreground">
           <span />
           {ROW_LABELS.map((l, i) => <span key={i} className="flex items-center">{l}</span>)}
         </div>
@@ -106,7 +106,7 @@ export function HeatmapDemo() {
             const showMonth = wi === 0 || first.slice(5, 7) !== weeks[wi - 1][0].date.slice(5, 7)
             return (
               <div key={first} className="grid grid-rows-[14px_repeat(7,auto)] gap-[3px]">
-                <span className="truncate text-[10px] leading-none text-muted-foreground">{showMonth ? `${Number(first.slice(5, 7))}月` : ''}</span>
+                <span className="truncate text-[12px] leading-none text-muted-foreground">{showMonth ? `${Number(first.slice(5, 7))}月` : ''}</span>
                 {w.map((d) => (
                   <span key={d.date} title={d.count == null ? undefined : `${shortDate(d.date)} ${weekday(d.date)}：跟进 ${d.count} 次`}
                     className={d.count == null ? 'aspect-square rounded-[3px]' : 'aspect-square rounded-[3px] bg-muted'}
@@ -117,7 +117,7 @@ export function HeatmapDemo() {
           })}
         </div>
       </div>
-      <div className="mt-3 flex max-w-[440px] items-center justify-end gap-1 text-[11px] text-muted-foreground">
+      <div className="mt-3 flex max-w-[440px] items-center justify-end gap-1 text-[12px] text-muted-foreground">
         少{LEVELS.map((o, i) => <span key={i} aria-hidden className="size-2.5 rounded-[2px] bg-muted" style={i ? { background: 'var(--chart-1)', opacity: o } : undefined} />)}多
       </div>
     </ChartCard>

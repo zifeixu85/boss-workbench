@@ -34,9 +34,9 @@ function Card({ tone, title, sub, main, mainLabel, compare, items, foot }: { ton
       <div className="flex items-baseline justify-between gap-2"><h2 className="text-[15px] font-semibold">{title}</h2><span className="text-xs text-muted-foreground">{sub}</span></div>
       <div className="mt-2 flex flex-wrap items-baseline gap-x-2 gap-y-1"><span className="num font-heading text-[30px] leading-none font-semibold">{main}</span><span className="text-sm text-muted-foreground">{mainLabel}</span><span className="text-xs text-muted-foreground">{compare}</span></div>
       <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2.5 sm:grid-cols-4">
-        {items.map(([k, v, hint]) => <div key={k} className="min-w-0"><dt className="truncate text-[11.5px] text-muted-foreground">{k}</dt><dd className="num truncate text-[14px] font-medium">{v}</dd>{hint && <dd className="text-[11px] leading-snug text-muted-foreground">{hint}</dd>}</div>)}
+        {items.map(([k, v, hint]) => <div key={k} className="min-w-0"><dt className="truncate text-[12px] text-muted-foreground">{k}</dt><dd className="num truncate text-[14px] font-medium">{v}</dd>{hint && <dd className="text-[12px] leading-snug text-muted-foreground">{hint}</dd>}</div>)}
       </dl>
-      {foot && <div className="mt-3 border-t pt-2.5 text-[11.5px] leading-relaxed text-muted-foreground">{foot}</div>}
+      {foot && <div className="mt-3 border-t pt-2.5 text-[12px] leading-relaxed text-muted-foreground">{foot}</div>}
     </section>
   )
 }
@@ -111,7 +111,7 @@ export default function DataPage() {
               <WeeklyChart data={data} />
             </div>
             <NotesTable data={data} traffic={traffic} />
-            <p className="text-[11.5px] leading-relaxed text-muted-foreground">口径：数字是截至 {md(data.through)} 的累计；“投流”是投过薯条或聚光的那部分，其余算自然；没有数据的写“—”，不当 0（10/26 那篇还没导进来）。内容支柱和按周的图只算自然流量。来源：小红书专业号笔记数据（导入）。</p>
+            <p className="text-[12px] leading-relaxed text-muted-foreground">口径：数字是截至 {md(data.through)} 的累计；“投流”是投过薯条或聚光的那部分，其余算自然；没有数据的写“—”，不当 0（10/26 那篇还没导进来）。内容支柱和按周的图只算自然流量。来源：小红书专业号笔记数据（导入）。</p>
           </>
         )}
       </PageBody>

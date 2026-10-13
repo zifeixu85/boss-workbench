@@ -18,6 +18,9 @@ import { AlertsPanel } from './AlertsPanel'
 import { ScheduleAndTodos, SideColumn } from './DayColumns'
 import { NotifyBanner } from './NotifyBanner'
 
+/** 模块开没开：今日页只放打开着的模块（模块开关，见 shared/modules.ts；老服务没给 modules = 全部） */
+const hasModule = (o: Overview, id: string) => !o.modules || o.modules.includes(id)
+
 const greet = () => { const h = now().getHours(); return h < 11 ? '早上好' : h < 14 ? '中午好' : h < 18 ? '下午好' : '晚上好' }
 
 /** 页头的一句话：把三件事压成一行 */
@@ -42,11 +45,13 @@ export default function TodayPage() {
   const { data: s } = useApi<Settings>('/settings')
   const doneTop = useWrite((id: string) => api.patch(`/todos/${id}`, { status: '完成' }), '漂亮，最要紧的一件做完了')
   if (error && !o) return <PageBody className="pt-7"><Failed message={error.message} onRetry={() => refetch()} /></PageBody>
+  const has = (id: string) => !!o && hasModule(o, id)
   if (!o) return <PageBody className="grid gap-4 pt-7"><Skeleton className="h-24" /><div className="grid gap-4 xl:grid-cols-3"><Skeleton className="h-80" /><Skeleton className="h-80" /><Skeleton className="h-80" /></div><Skeleton className="h-60" /></PageBody>
+  const topCount = ['biz', 'clients', 'content'].filter(has).length
   return (
     <>
       <PageHeader eyebrow={fullDate(o.date)} title={`${greet()}，${s?.owner ?? '老板'}`} desc={digest(o)}
-        actions={<><Button variant="outline" onClick={() => ov.openNew('event')}><CalendarPlus />日程</Button><Button onClick={() => ov.openNew('log')}><MessageSquarePlus />记一笔跟进</Button></>} />
+        actions={<>{has('tasks') && <Button variant="outline" onClick={() => ov.openNew('event')}><CalendarPlus />日程</Button>}{has('clients') && <Button onClick={() => ov.openNew('log')}><MessageSquarePlus />记一笔跟进</Button>}</>} />
       <PageBody className="grid gap-5">
         {o.module_errors.length > 0 && (
           <Alert className="border-danger/30 bg-danger-soft/50">
@@ -70,16 +75,26 @@ export default function TodayPage() {
           </section>
         )}
 
-        <div className="grid gap-5 lg:grid-cols-2 xl:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)_minmax(0,1fr)]">
-          <div className="min-w-0 lg:col-span-2 xl:col-span-1"><SalesBrief sales={o.sales} alerts={o.alerts} /></div>
-          <KeyClients items={o.key_clients} />
-          <XhsToday plan={o.xhs} />
-        </div>
+        {/* 三件事：经营、大客户、小红书，只放打开着的；三个都开着时经营那张更宽 */}
+        {topCount === 3 && (
+          <div className="grid gap-5 lg:grid-cols-2 xl:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)_minmax(0,1fr)]">
+            <div className="min-w-0 lg:col-span-2 xl:col-span-1"><SalesBrief sales={o.sales} alerts={o.alerts} /></div>
+            <KeyClients items={o.key_clients} />
+            <XhsToday plan={o.xhs} />
+          </div>
+        )}
+        {topCount > 0 && topCount < 3 && (
+          <div className={topCount === 2 ? 'grid gap-5 lg:grid-cols-2' : 'grid gap-5'}>
+            {has('biz') && <div className="min-w-0"><SalesBrief sales={o.sales} alerts={o.alerts} /></div>}
+            {has('clients') && <KeyClients items={o.key_clients} />}
+            {has('content') && <XhsToday plan={o.xhs} />}
+          </div>
+        )}
 
-        <AlertsPanel alerts={o.alerts} hasBiz={!!o.sales?.channels.some((c) => c.gmv !== null)} sources={o.source_count ?? 0} />
+        {(has('biz') || has('data')) && <AlertsPanel alerts={o.alerts} hasBiz={!!o.sales?.channels.some((c) => c.gmv !== null)} sources={o.source_count ?? 0} />}
 
-        <div className="grid gap-5 lg:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)]">
-          <ScheduleAndTodos o={o} />
+        <div className={has('tasks') ? 'grid gap-5 lg:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)]' : 'grid gap-5'}>
+          {has('tasks') && <ScheduleAndTodos o={o} />}
           <SideColumn o={o} />
         </div>
       </PageBody>

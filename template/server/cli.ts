@@ -8,6 +8,8 @@ import * as schedule from './services/schedule.ts'
 import * as projects from './services/projects.ts'
 import * as money from './services/money.ts'
 import * as home from './services/today.ts'
+import * as modules from './services/modules.ts'
+import { applyPlan } from './services/apply.ts'
 import * as crm from './modules/crm/service.ts'
 import * as crmAct from './modules/crm/actions.ts' // 大客户模块（E5）：改阶段、下次跟进、答应的事、关怀
 import * as crmEx from './modules/crm/extract.ts'
@@ -37,21 +39,33 @@ const HELP = `用法：node 工作台/程序/server/cli.ts <命令> [参数] [--
   events [--from 日期] [--to 日期]    日程（默认今天起 7 天）
   projects                           项目和风险
   receivables                        应收款
-写入
+写入（进内容先拆再问：材料里的待办问清谁做、哪天前，答应的事、进展、里程碑都拆开写；一张清单确认后可以用 apply 一次写入）
   log <客户> <内容> [--date 日期] [--channel 微信] [--step 下一步] [--next 下次跟进日期]
     例：log 澜拓科技 "电话聊了春节茶礼，人数下周给（待确认）" --next 2026-11-03 --step "出两版春节方案"
   client-add <称呼> [--label 补充说明] [--stage 阶段] [--source 来源] [--next 下次跟进] [--kb 知识库里的客户文件] [--note 备注]
   project-add <名称> [--stage 筹备|进行中|收尾|已完成|暂停] [--due 截止] [--owner 负责人] [--goal 想达到什么] [--step 下一步]
               [--client 客户] [--kb 06-项目/某项目.md] [--milestone "2026-11-05 四平台上线" …（可写多个）]
   client-set <客户> [--next 日期] [--note 备注]    （改阶段用下面的 stage，要写原因）
-  todo-add <标题> [--due 日期] [--time 15:30] [--client 客户] [--project 项目] [--priority 紧急|重要|普通] [--status 进行中] [--note 来源或备注]
+  todo-add <标题> [--owner 谁做] [--due 日期] [--time 15:30] [--client 客户] [--project 项目] [--priority 紧急|重要|普通] [--status 进行中|等别人] [--source 从哪来] [--note 备注]
+                                     --owner 不写 = 你自己做；写团队里的人名；在等对方写 --owner 对方 --status 等别人
                                      --time 到期时间：到期前 1 小时提醒；--in 5 = 今天、5 分钟后到期（试提醒用）
-  todo-set <待办ID> [--status 待办|进行中|等别人|完成|取消] [--due 日期] [--time 15:30|none]
+  todo-set <待办ID> [--status 待办|进行中|等别人|完成|取消] [--due 日期] [--time 15:30|none] [--owner 谁做|none]
   event-add <标题> --start 2026-10-08T15:00 [--end ...] [--kind 会面] [--client 客户] [--location 地点]
   collect <应收ID> <金额(万)> [--date 日期]
-  inbox <内容>
+  inbox <内容> [--kind 随手记|材料|后台] [--why AI 的判断] [--suggest 建议去向] [--client 客户] [--project 项目] [--from 原件路径]
+                                     AI 放进来的一律写 --why 和 --suggest：这是什么、建议怎么办，不只放原文
+  inbox-done <收件箱ID> --result "处理成什么了"
+  promise-add <客户> <答应了什么> [--to 给谁] [--due 哪天前]      记一件答应的事（谁答应的默认是你）
+  project-set <项目> [--stage 进行中|收尾|暂停…] [--step 下一步] [--waiting 在等谁|none] [--due 截止]
+  milestone-add <项目> "2026-12-20 年会"                    加一个里程碑（关键日期）
+  apply <清单.json> [--yes]          一张清单一次写入：不加 --yes 是预演（照样检查，什么都不留）；加 --yes 才写。中间哪步不行，整张都不写
+                                     清单格式见 server/services/apply.ts 开头
   settings-set [--owner 称呼] [--business 店名或工作台名称] [--xhs 小红书账号名] [--theme jade|wood|navy|mono|night] [--nav simple|complex|top]
+               [--modules today,tasks,inbox,kb|all]
                                      改设置（搭建时按知识库写老板的称呼、店名、小红书账号名、配色、导航）
+                                     --modules 只打开这几个模块（今日、设置一定开着；打开经营或内容会自动带上数据源与导入）；all = 全部打开
+  modules [--on 模块id,…] [--off 模块id,…]
+                                     看每个模块开没开；--on 打开、--off 收起（只从导航、今日页、提醒里拿掉，代码和数据都留着）
   snapshot                           导出只读快照到 工作台/快照/
   backup                             改功能、换数据前先备份数据库：存到数据库旁边的 备份/workbench-日期时间.db
 ${REMIND_HELP}
@@ -117,7 +131,8 @@ function parseCli() {
         file: { type: 'string' }, by: { type: 'string' },
         kb: { type: 'string' }, owner: { type: 'string' }, goal: { type: 'string' }, milestone: { type: 'string', multiple: true },
         project: { type: 'string' }, business: { type: 'string' }, theme: { type: 'string' }, nav: { type: 'string' }, xhs: { type: 'string' },
-        time: { type: 'string' }, in: { type: 'string' },
+        time: { type: 'string' }, in: { type: 'string' }, modules: { type: 'string' }, on: { type: 'string' }, off: { type: 'string' },
+        why: { type: 'string' }, suggest: { type: 'string' }, result: { type: 'string' }, waiting: { type: 'string' }, yes: { type: 'boolean' },
       },
     })
   } catch (err) {
@@ -135,6 +150,11 @@ const { values: o, positionals } = parseCli()
 const [cmd, a1, a2] = positionals
 const clientId = (q?: string) => (q ? clients.findClient(q).id : undefined)
 
+/** 模块开关的一张表：开 / 收起、名字、id */
+function moduleText(r: ReturnType<typeof modules.list>) {
+  const rows = r.modules.map((m) => `- ${m.on ? '开着' : '收起'}  ${m.name}（${m.id}）${m.required ? '：一定开着' : m.needs.length ? `：会带上 ${m.needs.join('、')}` : ''}`)
+  return [`模块${r.all_on ? '（没单独设过，全部开着）' : ''}：`, ...rows].join('\n')
+}
 function print(data: unknown, text: string) {
   console.log(o.json ? JSON.stringify(data, null, 2) : text)
 }
@@ -160,18 +180,21 @@ function main() {
       const sales = v.sales
       const yuan = (n: number | null) => (n == null ? '—' : `${Math.round(n).toLocaleString('zh-CN')} 元`)
       const delta = (n: number | null) => (n == null ? '' : `（比前天 ${n > 0 ? '+' : ''}${n}%）`)
+      // 没打开的模块不列（模块开关，见 shared/modules.ts）
+      const has = (id: string) => v.modules.includes(id)
+      const part = (id: string | string[], lines: string[]) => ([id].flat().some(has) ? lines : [])
       return print(v, [`# ${v.date} 今日`, `最该做的一件事：${v.headline?.title ?? '（无）'}`,
-        sales ? `\n## 各平台昨天（${sales.date}）：合计 ${yuan(sales.total.gmv)}${delta(sales.total.vs_prev)}` : '\n## 各平台昨天：没有数据',
-        sales ? line(sales.channels as R[], (c) => `${c.name} ${yuan(c.gmv as number | null)}${delta(c.vs_prev as number | null)}，退款率 ${c.refund_rate ?? '—'}%，ROI ${c.roi == null ? '—' : Number(c.roi).toFixed(1)}`) : '',
-        '\n## 数据异常', line(v.alerts as R[], (a) => `[${a.level}] ${a.title}：${a.detail}${a.cause ? `；${a.cause}` : ''}`),
-        '\n## 今天该跟进的大客户', line(v.key_clients as R[], (c) => `${c.name}（${c.contact ?? ''}）：${(c.reasons as string[]).slice(0, 2).join('；')}${c.next_step ? `。下一步：${c.next_step}` : ''}`),
-        '\n## 小红书今天发什么', v.xhs ? line(v.xhs.posts as R[], (p) => `${p.time ?? ''} ${p.title}（${p.status}${p.draft_status ? `，草稿${p.draft_status}` : ''}）`) : '- （内容模块没数据）',
-        v.xhs ? `今天的选题 ${v.xhs.topics_total} 个，前三：${(v.xhs.topics as R[]).map((x) => x.title).join('；')}` : '',
-        '\n## 今天的日程', line(v.events as R[], (e) => `${String(e.start).slice(11) || '全天'} ${e.title}`),
-        '\n## 今天要做（含已逾期）', line(v.todos.today as R[], (t) => `[${t.id}] ${t.title}（${t.status}，截止 ${t.due}）`),
-        '\n## 该联系了', line(v.follow.due as R[], (c) => `${c.name}（${c.label}）计划 ${c.next_follow}，${Number(c.overdue) > 0 ? `已过 ${c.overdue} 天` : '快到了'}`),
-        '\n## 有风险的项目', line(v.risks as R[], (p) => `${p.name}：${(p.risks as { text: string }[]).map((r) => r.text).join('；')}`),
-        `\n## 钱：应收 ${v.cash.outstanding} 万，其中逾期 ${v.cash.overdue.amount} 万（${v.cash.overdue.count} 笔）`].filter((x) => x !== '').join('\n'))
+        ...part('biz', [sales ? `\n## 各平台昨天（${sales.date}）：合计 ${yuan(sales.total.gmv)}${delta(sales.total.vs_prev)}` : '\n## 各平台昨天：没有数据',
+          sales ? line(sales.channels as R[], (c) => `${c.name} ${yuan(c.gmv as number | null)}${delta(c.vs_prev as number | null)}，退款率 ${c.refund_rate ?? '—'}%，ROI ${c.roi == null ? '—' : Number(c.roi).toFixed(1)}`) : '']),
+        ...part(['biz', 'data'], ['\n## 数据异常', line(v.alerts as R[], (a) => `[${a.level}] ${a.title}：${a.detail}${a.cause ? `；${a.cause}` : ''}`)]),
+        ...part('clients', ['\n## 今天该跟进的大客户', line(v.key_clients as R[], (c) => `${c.name}（${c.contact ?? ''}）：${(c.reasons as string[]).slice(0, 2).join('；')}${c.next_step ? `。下一步：${c.next_step}` : ''}`)]),
+        ...part('content', ['\n## 小红书今天发什么', v.xhs ? line(v.xhs.posts as R[], (p) => `${p.time ?? ''} ${p.title}（${p.status}${p.draft_status ? `，草稿${p.draft_status}` : ''}）`) : '- （内容模块没数据）',
+          v.xhs ? `今天的选题 ${v.xhs.topics_total} 个，前三：${(v.xhs.topics as R[]).map((x) => x.title).join('；')}` : '']),
+        ...part('tasks', ['\n## 今天的日程', line(v.events as R[], (e) => `${String(e.start).slice(11) || '全天'} ${e.title}`),
+          '\n## 今天要做（含已逾期）', line(v.todos.today as R[], (t) => `[${t.id}] ${t.title}（${t.status}，截止 ${t.due}）`)]),
+        ...part('clients', ['\n## 该联系了', line(v.follow.due as R[], (c) => `${c.name}（${c.label}）计划 ${c.next_follow}，${Number(c.overdue) > 0 ? `已过 ${c.overdue} 天` : '快到了'}`)]),
+        ...part('projects', ['\n## 有风险的项目', line(v.risks as R[], (p) => `${p.name}：${(p.risks as { text: string }[]).map((r) => r.text).join('；')}`)]),
+        ...part('clients', [`\n## 钱：应收 ${v.cash.outstanding} 万，其中逾期 ${v.cash.overdue.amount} 万（${v.cash.overdue.count} 笔）`])].filter((x) => x !== '').join('\n'))
     }
     case 'biz': {
       const sm = biz.summary(o.date)
@@ -214,7 +237,7 @@ function main() {
     }
     case 'todos': {
       const xs = schedule.listTodos({ open: true }) as R[]
-      return print(xs, line(xs, (t) => `[${t.id}] ${t.title}（${t.status}·${t.priority}${t.due ? `·截止 ${t.due}${t.due_time ? ` ${t.due_time}` : ''}` : ''}${t.client_name ? `·${t.client_name}` : ''}）`))
+      return print(xs, line(xs, (t) => `[${t.id}] ${t.title}（${t.status}·${t.priority}${t.due ? `·截止 ${t.due}${t.due_time ? ` ${t.due_time}` : ''}` : ''}${t.client_name ? `·${t.client_name}` : ''}${t.owner ? `·${t.owner}做` : ''}）`))
     }
     case 'events': {
       const from = o.from ?? today()
@@ -257,11 +280,11 @@ function main() {
     }
     case 'todo-add': {
       const soon = inMinutes(o.in)
-      const t = schedule.createTodo({ title: a1, due: soon?.due ?? o.due, due_time: soon?.time ?? o.time, client_id: clientId(o.client), project_id: o.project ? projects.getProject(o.project).project.id : undefined, priority: o.priority, status: o.status, note: o.note }, ACTOR) as R
-      return print(t, `已新增待办 [${t.id}] ${t.title}${t.due ? `，截止 ${t.due}${t.due_time ? ` ${t.due_time}（到期前 1 小时提醒）` : ''}` : ''}`)
+      const t = schedule.createTodo({ title: a1, due: soon?.due ?? o.due, due_time: soon?.time ?? o.time, client_id: clientId(o.client), project_id: o.project ? projects.getProject(o.project).project.id : undefined, priority: o.priority, status: o.status, note: o.note, owner: o.owner, source: o.source }, ACTOR) as R
+      return print(t, `已新增待办 [${t.id}] ${t.title}${t.owner ? `（${t.owner}做）` : ''}${t.due ? `，截止 ${t.due}${t.due_time ? ` ${t.due_time}（到期前 1 小时提醒）` : ''}` : ''}`)
     }
     case 'todo-set': {
-      const t = schedule.updateTodo(a1, { status: o.status, due: o.due, due_time: o.time === 'none' ? null : o.time }, ACTOR) as R
+      const t = schedule.updateTodo(a1, { status: o.status, due: o.due, due_time: o.time === 'none' ? null : o.time, owner: o.owner === 'none' ? null : o.owner }, ACTOR) as R
       return print(t, `已更新待办 [${t.id}] ${t.title}：${t.status}${t.due ? `，截止 ${t.due}${t.due_time ? ` ${t.due_time}` : ''}` : ''}`)
     }
     case 'event-add': {
@@ -273,15 +296,57 @@ function main() {
       return print(r, `已登记回款 ${a2} 万`)
     }
     case 'inbox': {
-      const r = home.addInbox({ text: a1, source: 'Codex' }, ACTOR)
-      return print(r, '已放进收件箱')
+      const r = home.addInbox({ text: a1, source: 'Codex', kind: o.kind, judgement: o.why, suggest: o.suggest, client_id: clientId(o.client),
+        project_id: o.project ? projects.getProject(o.project).project.id : undefined, origin: o.from }, ACTOR)
+      return print(r, `已放进收件箱${o.why ? '（带上了判断）' : ''}`)
+    }
+    case 'inbox-done': {
+      if (!o.result) throw new Error('要写 --result：这条处理成什么了（比如“已拆进云杉物流的往来和待办”）')
+      return print(home.doneInbox(a1, o.result, ACTOR), `收件箱这条处理完了：${o.result}`)
+    }
+    case 'promise-add': {
+      const r = crmAct.addPromise({ client_id: clientId(a1), text: a2, due: o.due, to_whom: o.to }, ACTOR) as R
+      return print(r, `已记下答应的事：${String(r.text)}${r.due ? `，${String(r.due)} 前` : ''}`)
+    }
+    case 'project-set': {
+      const patch = Object.fromEntries(Object.entries({ stage: o.stage, next_step: o.step, waiting_on: o.waiting === 'none' ? null : o.waiting, due: o.due }).filter(([, v]) => v !== undefined))
+      const r = projects.updateProject(a1, patch, ACTOR)
+      return print(r, `已更新项目「${r.project.name}」：阶段 ${r.project.stage}${r.project.next_step ? `，下一步 ${r.project.next_step}` : ''}${r.project.waiting_on ? `，在等 ${r.project.waiting_on}` : ''}`)
+    }
+    case 'milestone-add': {
+      const items = [a2, ...(o.milestone ?? [])].filter(Boolean).map((x) => {
+        const m = String(x).trim().match(/^(\d{4}-\d{2}-\d{2})\s+(.+)$/)
+        if (!m) throw new Error(`里程碑写成 "2026-12-20 年会"（日期 + 空格 + 做什么）：${x}`)
+        return { date: m[1], title: m[2] }
+      })
+      const r = projects.addMilestones(a1, items, ACTOR)
+      return print(r, `项目「${r.project.name}」加了 ${items.length} 个里程碑`)
+    }
+    case 'apply': {
+      if (!a1) throw new Error('要写清单文件：apply <清单.json> [--yes]')
+      let plan: unknown
+      try { plan = JSON.parse(readFileSync(a1, 'utf8')) } catch (err) { throw new Error(`读不了清单 ${a1}：${(err as Error).message}`) }
+      const r = applyPlan(plan, { yes: !!o.yes, actor: ACTOR })
+      const lines = r.steps.map((x) => `${x.n}. ${x.text}`)
+      return print(r, r.done ? [`已写入 ${r.steps.length} 步：`, ...lines].join('\n')
+        : [`预演通过，会写这 ${r.steps.length} 步（这次什么都没写）：`, ...lines, '老板确认后，同一条命令加 --yes 再跑一次。'].join('\n'))
     }
     case 'settings-set': {
       // 搭建时把老板的称呼、店名（也是工作台名称）、小红书账号名、配色、导航写进设置（网页“设置”页同一套规则）。
       // 称呼、店名、账号名会用在网页文案、给 Codex 的提示词和小红书手机预览里；--xhs "" 清掉账号名，改用店名
-      if (![o.owner, o.business, o.xhs, o.theme, o.nav].some((v) => v !== undefined)) throw new Error('要写改什么：--owner、--business、--xhs、--theme 或 --nav')
-      const r = home.saveSettings({ owner: o.owner, business: o.business, xhs_name: o.xhs, theme: o.theme, nav_mode: o.nav }, ACTOR)
-      return print(r, `已改设置：称呼 ${r.owner}，店名 / 工作台 ${r.business}，小红书账号 ${r.xhs}${r.xhs_name ? '' : '（跟店名）'}，配色 ${r.theme}，导航 ${r.nav_mode}`)
+      // --modules：只打开确认页里选中的模块（模块开关，见 shared/modules.ts）
+      if (![o.owner, o.business, o.xhs, o.theme, o.nav, o.modules].some((v) => v !== undefined)) throw new Error('要写改什么：--owner、--business、--xhs、--theme、--nav 或 --modules')
+      const m = o.modules !== undefined ? modules.setModules(o.modules.trim() === 'all' ? 'all' : o.modules, ACTOR) : null
+      const rest = [o.owner, o.business, o.xhs, o.theme, o.nav].some((v) => v !== undefined)
+      const r = rest ? home.saveSettings({ owner: o.owner, business: o.business, xhs_name: o.xhs, theme: o.theme, nav_mode: o.nav }, ACTOR) : home.getSettings()
+      const mText = m ? `\n${moduleText(m)}${m.added.length ? `\n（自动带上：${m.added.join('、')}）` : ''}` : ''
+      return print({ ...r, modules_detail: m }, `已改设置：称呼 ${r.owner}，店名 / 工作台 ${r.business}，小红书账号 ${r.xhs}${r.xhs_name ? '' : '（跟店名）'}，配色 ${r.theme}，导航 ${r.nav_mode}${mText}`)
+    }
+    case 'modules': {
+      const split = (v?: string) => (v ? v.split(/[\s,，、]+/).map((x) => x.trim()).filter(Boolean) : [])
+      const on = split(o.on), off = split(o.off)
+      const r = on.length || off.length ? modules.toggleModules(on, off, ACTOR) : modules.list()
+      return print(r, moduleText(r))
     }
     case 'snapshot': {
       const files = writeSnapshots()

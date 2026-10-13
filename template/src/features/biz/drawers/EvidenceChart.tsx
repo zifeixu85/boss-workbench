@@ -41,9 +41,9 @@ export function EvidenceChart({ ev, channel, opNo }: { ev: Evidence; channel: st
           <ChartTooltip cursor={{ stroke: 'var(--border)' }} content={<UnitTip config={config} unit={unit} labelFormatter={(_, p) => { const r = p?.[0]?.payload as { date?: string } | undefined; return r?.date ? `${shortDate(r.date)} ${weekday(r.date)}` : '' }} />} />
           {since && last && <ReferenceArea x1={since} x2={last} fill="var(--danger)" fillOpacity={0.06} ifOverflow="extendDomain" />}
           {ev.bands.map((b) => <ReferenceArea key={b.from} x1={md(b.from)} x2={md(b.to)} fill="var(--danger)" fillOpacity={0.1} ifOverflow="extendDomain"
-            label={{ value: b.label, position: 'insideTop', fill: 'var(--danger)', fontSize: 11, fontWeight: 600 }} />)}
+            label={{ value: b.label, position: 'insideTop', fill: 'var(--danger)', fontSize: 12, fontWeight: 600 }} />)}
           {ev.threshold !== null && <ReferenceLine y={ev.threshold} stroke="var(--danger)" strokeDasharray="5 4" strokeOpacity={0.8}
-            label={{ value: ev.threshold_label ?? '', position: leftAbove ? 'insideBottomLeft' : 'insideTopLeft', fill: 'var(--danger)', fontSize: 11 }} />}
+            label={{ value: ev.threshold_label ?? '', position: leftAbove ? 'insideBottomLeft' : 'insideTopLeft', fill: 'var(--danger)', fontSize: 12 }} />}
           {marks.map((m, i) => {
             const n = opNo(m.op_id)
             return <ReferenceLine key={`${m.date}-${i}`} x={md(m.date)} stroke={m.op_id ? 'var(--muted-foreground)' : color} strokeDasharray={m.op_id ? '2 3' : undefined} strokeWidth={m.op_id ? 1 : 1.5}

@@ -8,6 +8,7 @@ import { now as rawNow, demoDate } from '../clock.ts'
 import { addDays } from '../services/common.ts'
 import { listEvents } from '../services/schedule.ts'
 import { identity } from '../services/identity.ts'
+import { enabled as enabledModules } from '../services/modules.ts'
 import * as biz from '../modules/biz/service.ts'
 import * as dataSources from '../modules/data/service.ts'
 import { readRemindSettings, type RemindSettings } from './settings.ts'
@@ -48,7 +49,7 @@ let timer: NodeJS.Timeout | null = null
 export const EPISODE_GAP_DAYS = 2
 /** 经营异常、数据源的检查要扫知识库和导入记录，5 分钟取一次就够（每 30 秒取一次会反复扫整个知识库） */
 const ALERTS_TTL_MS = 5 * 60_000
-let alertsCache: { at: number; day: string; rows: AlertRow[] } | null = null
+let alertsCache: { at: number; day: string; on: string; rows: AlertRow[] } | null = null
 
 const log = (s: string) => console.log(`[提醒] ${s}`)
 const safe = <T>(what: string, fn: () => T, fallback: T): T => {
@@ -69,9 +70,11 @@ function followsOn(day: string): FollowRow[] {
 }
 function alertsNow(day: string): AlertRow[] {
   if (hooks.alerts) return hooks.alerts()
-  if (alertsCache && alertsCache.day === day && Date.now() - alertsCache.at < ALERTS_TTL_MS) return alertsCache.rows
-  const rows = [...safe('读经营异常', () => biz.anomalies() as AlertRow[], []), ...safe('读数据源', () => dataSources.issues() as AlertRow[], [])]
-  alertsCache = { at: Date.now(), day, rows }
+  // 模块开关：经营、数据源没打开就不提醒它们的异常；开关一变，缓存作废
+  const on = enabledModules()
+  if (alertsCache && alertsCache.day === day && alertsCache.on === on.join() && Date.now() - alertsCache.at < ALERTS_TTL_MS) return alertsCache.rows
+  const rows = [...(on.includes('biz') ? safe('读经营异常', () => biz.anomalies() as AlertRow[], []) : []), ...(on.includes('data') ? safe('读数据源', () => dataSources.issues() as AlertRow[], []) : [])]
+  alertsCache = { at: Date.now(), day, on: on.join(), rows }
   return rows
 }
 function countsFor(day: string, alerts: number): SummaryCounts {
@@ -80,7 +83,7 @@ function countsFor(day: string, alerts: number): SummaryCounts {
     events: listEvents(day, `${addDays(day, 1)}T00:00`).length,
     todos_today: one("SELECT COUNT(*) AS n FROM todos WHERE due = :day AND status IN ('待办','进行中','等别人')"),
     todos_overdue: one("SELECT COUNT(*) AS n FROM todos WHERE due < :day AND status IN ('待办','进行中','等别人')"),
-    follows: one("SELECT COUNT(*) AS n FROM clients WHERE kind = '客户' AND stage NOT IN ('暂停','流失') AND next_follow IS NOT NULL AND next_follow <= :day"),
+    follows: enabledModules().includes('clients') ? one("SELECT COUNT(*) AS n FROM clients WHERE kind = '客户' AND stage NOT IN ('暂停','流失') AND next_follow IS NOT NULL AND next_follow <= :day") : 0,
     alerts,
   }
 }
@@ -92,7 +95,7 @@ export function candidates(now: Date, s: RemindSettings): Candidate[] {
   const out = [
     ...safe('算待办', () => todoCandidates(todosNear(day), now), []),
     ...safe('算日程', () => eventCandidates(eventsNear(day), now), []),
-    ...safe('算跟进', () => followCandidates(followsOn(day), now, s), []),
+    ...(enabledModules().includes('clients') ? safe('算跟进', () => followCandidates(followsOn(day), now, s), []) : []),
     ...alertCandidates(alerts, now),
   ]
   if (summaryDue(now, s, startedAt ?? now) && !seen(`summary:${day}`)) out.push(summaryCandidate(now, safe('算汇总', () => countsFor(day, alerts.length), { events: 0, todos_today: 0, todos_overdue: 0, follows: 0, alerts: 0 })))

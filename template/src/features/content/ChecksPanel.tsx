@@ -58,7 +58,7 @@ export function ChecksPanel({ checks, ai, dirty }: { checks: CheckResult | null;
         </li>
         {open && good.map((i) => <Row key={i.key} i={i} />)}
       </ul>
-      <p className="mt-2 text-[11.5px] leading-relaxed text-muted-foreground">
+      <p className="mt-2 text-[12px] leading-relaxed text-muted-foreground">
         查的词从{checks.sources.map((s, k) => (
           <span key={s.label}>{k > 0 && '、'}{s.path ? <button type="button" className="text-primary underline-offset-2 hover:underline" onClick={() => doc.open(s.path!)}>{s.label}</button> : s.label}{s.note ? `（${s.note}）` : ''}</span>
         ))}里取，文件改了马上按新的查。

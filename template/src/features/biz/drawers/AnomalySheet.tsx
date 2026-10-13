@@ -119,16 +119,16 @@ function Reasons({ a, opNo }: { a: AnomalyDetail; opNo: (id: string | null) => n
             return (
               <li key={r.title} className="rounded-lg border bg-background/60 px-4 py-3">
                 <div className="flex items-start gap-2">
-                  <span className="num mt-0.5 grid size-5 shrink-0 place-content-center rounded-full bg-accent text-[11px] font-semibold text-accent-foreground">{i + 1}</span>
+                  <span className="num mt-0.5 grid size-5 shrink-0 place-content-center rounded-full bg-accent text-[12px] font-semibold text-accent-foreground">{i + 1}</span>
                   <div className="min-w-0">
                     <div className="text-[14px] leading-snug font-medium">{r.title}</div>
                     {(r.tags.length > 0 || refs.length > 0) && (
                       <div className="mt-2 flex flex-wrap gap-1.5">
-                        {r.tags.map((b) => <span key={b.label + b.value} className="rounded-md border bg-card px-1.5 py-0.5 text-[11.5px] whitespace-nowrap"><span className="text-muted-foreground">{b.label} </span><span className="num font-medium">{b.value}</span></span>)}
-                        {refs.length > 0 && <span className="rounded-md border border-dashed px-1.5 py-0.5 text-[11.5px] whitespace-nowrap text-muted-foreground">运营记录 <span className="text-foreground">{refs.map(circled).join('')}</span></span>}
+                        {r.tags.map((b) => <span key={b.label + b.value} className="rounded-md border bg-card px-1.5 py-0.5 text-[12px] whitespace-nowrap"><span className="text-muted-foreground">{b.label} </span><span className="num font-medium">{b.value}</span></span>)}
+                        {refs.length > 0 && <span className="rounded-md border border-dashed px-1.5 py-0.5 text-[12px] whitespace-nowrap text-muted-foreground">运营记录 <span className="text-foreground">{refs.map(circled).join('')}</span></span>}
                       </div>
                     )}
-                    <div className="mt-1.5 flex items-center gap-1 text-[11px] text-muted-foreground"><Database className="size-3" aria-hidden />依据：{r.source}</div>
+                    <div className="mt-1.5 flex items-center gap-1 text-[12px] text-muted-foreground"><Database className="size-3" aria-hidden />依据：{r.source}</div>
                   </div>
                 </div>
               </li>

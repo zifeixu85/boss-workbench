@@ -50,7 +50,7 @@ export default function SourcesPage() {
             {sum && <SummaryCards s={sum} />}
             <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-2">
               <ViewTabs label="按状态" value={tab} onChange={(v) => setParam('status', v === 'all' ? null : v)} items={TABS.map((t) => ({ value: t.value, label: t.label, count: t.value === 'all' ? list.length : t.value === 'bad' ? bad.length : list.filter((s) => s.display === '正常').length }))} />
-              <span className="ml-auto hidden items-center gap-2 md:inline-flex"><span className="text-[11.5px] text-muted-foreground">近 7 天：</span><StripLegend /></span>
+              <span className="ml-auto hidden items-center gap-2 md:inline-flex"><span className="text-[12px] text-muted-foreground">近 7 天：</span><StripLegend /></span>
             </div>
             <SourceTable rows={rows} strips={strips} onOpen={(id) => setParam('source', id)} />
             <SourceCards rows={rows} onOpen={(id) => setParam('source', id)} />

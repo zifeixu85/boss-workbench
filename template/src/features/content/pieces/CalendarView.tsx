@@ -121,17 +121,17 @@ function MonthWeek({ pieces }: { pieces: Piece[] }) {
       return (
         <div className="grid gap-1.5">
           {d ? <div className="overflow-hidden rounded-[5px]"><CoverArt text={d.cover_text} cover={d.cover} pages={d.pages} seed={d.title} /></div>
-            : <div className="grid place-items-center rounded-[5px] border border-dashed text-[11px] text-muted-foreground" style={{ aspectRatio: '4 / 3' }}>还没动笔</div>}
-          <div className="num text-[11px] opacity-80">{head}</div>
+            : <div className="grid place-items-center rounded-[5px] border border-dashed text-[12px] text-muted-foreground" style={{ aspectRatio: '4 / 3' }}>还没动笔</div>}
+          <div className="num text-[12px] opacity-80">{head}</div>
           <div className="line-clamp-2 text-[12.5px] leading-snug font-semibold">{a.event.title}</div>
-          {p.check && <div className={cn('text-[11px] font-medium', p.check.blocks ? 'text-danger' : p.check.warns ? 'text-warn' : 'text-ok')}>{p.check.blocks ? `检查：${p.check.blocks} 处要改` : p.check.warns ? `检查：${p.check.warns} 项提醒` : '检查都过了'}</div>}
-          {p.status === '已发布' && (p.total ? <div className="num text-[11px]">阅读 {p.total.reads.toLocaleString('zh-CN')} · 藏 {p.total.saves}</div> : <div className="text-[11px]">还没有数据</div>)}
+          {p.check && <div className={cn('text-[12px] font-medium', p.check.blocks ? 'text-danger' : p.check.warns ? 'text-warn' : 'text-ok')}>{p.check.blocks ? `检查：${p.check.blocks} 处要改` : p.check.warns ? `检查：${p.check.warns} 项提醒` : '检查都过了'}</div>}
+          {p.status === '已发布' && (p.total ? <div className="num text-[12px]">阅读 {p.total.reads.toLocaleString('zh-CN')} · 藏 {p.total.saves}</div> : <div className="text-[12px]">还没有数据</div>)}
         </div>
       )
     }
     return (
       <div className="min-w-0 px-0.5 py-px leading-tight">
-        <div className="num text-[10.5px] opacity-80">{head}</div>
+        <div className="num text-[12px] opacity-80">{head}</div>
         <div className="line-clamp-2 text-[12px] break-all">{a.event.title}</div>
       </div>
     )
@@ -196,7 +196,7 @@ function MonthWeek({ pieces }: { pieces: Piece[] }) {
                 <button type="button" onClick={() => sheet.open(p.id)} className="min-w-0 text-left">
                   <StatusTag s={p.status} />
                   <div className="mt-1 line-clamp-2 text-[13px] font-medium">{p.title}</div>
-                  {p.memo && <div className="mt-0.5 line-clamp-1 text-[11.5px] text-muted-foreground">{p.memo}</div>}
+                  {p.memo && <div className="mt-0.5 line-clamp-1 text-[12px] text-muted-foreground">{p.memo}</div>}
                 </button>
               </div>
             ))}

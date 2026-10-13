@@ -1,4 +1,4 @@
-// 设置：导航样式、基本信息、提醒、数据放在哪里、快捷键
+// 设置：导航样式、基本信息、模块开关、提醒、数据放在哪里、快捷键
 import type { Settings } from '@/lib/types'
 import { useApi } from '@/lib/api'
 import { fullDate } from '@/lib/format'
@@ -8,6 +8,7 @@ import { NavStylePicker } from './NavStylePicker'
 import { MobileNavPicker, ThemePicker } from './LookPickers'
 import { BasicInfoForm, DataLocations, Shortcuts } from './sections'
 import { ReminderSettings } from './ReminderSettings'
+import { ModuleSettings } from './ModuleSettings'
 
 export default function SettingsPage() {
   const { data, error } = useApi<Settings>('/settings')
@@ -32,6 +33,9 @@ export default function SettingsPage() {
         </Panel>
         <Panel title="基本信息">
           {data ? <BasicInfoForm key={`${data.owner}|${data.business}|${data.xhs_name}`} settings={data} /> : <div className="grid gap-4 sm:grid-cols-2"><Skeleton className="h-16" /><Skeleton className="h-16" /></div>}
+        </Panel>
+        <Panel title="模块" desc="关掉的模块从导航、今日页和提醒里收起来，代码和数据都留着，随时能打开">
+          {data ? <ModuleSettings settings={data} /> : <Skeleton className="h-48" />}
         </Panel>
         <Panel title="提醒" desc="待办到期前 1 小时、日程开始前 15 分钟、该跟进的客户、数据异常、每天看汇总。页面关着时由电脑系统通知提醒，电脑要开着、不合盖">
           {data ? <ReminderSettings key={JSON.stringify(data.reminders ?? {})} settings={data} /> : <Skeleton className="h-48" />}

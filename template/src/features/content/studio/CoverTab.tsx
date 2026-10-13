@@ -11,7 +11,7 @@ function Opt({ on, onClick, children, label }: { on: boolean; onClick: () => voi
     <button type="button" onClick={onClick} aria-pressed={on} title={label}
       className={cn('min-w-0 overflow-hidden rounded-lg border-2 bg-background text-left transition-colors', on ? 'border-primary' : 'border-transparent hover:border-border')}>
       {children}
-      <div className={cn('truncate px-1.5 py-1 text-[11.5px]', on ? 'font-medium text-primary' : 'text-muted-foreground')}>{label}</div>
+      <div className={cn('truncate px-1.5 py-1 text-[12px]', on ? 'font-medium text-primary' : 'text-muted-foreground')}>{label}</div>
     </button>
   )
 }
@@ -23,7 +23,7 @@ export function CoverTab({ draft, onChange, readOnly }: { draft: Draft; onChange
       <div className="grid gap-6 lg:grid-cols-[300px_minmax(0,1fr)]">
         <div>
           <div className="overflow-hidden rounded-xl shadow-float"><CoverArt text={draft.cover_text} cover={draft.cover} pages={draft.pages} seed={draft.title} /></div>
-          <p className="mt-2 text-center text-[11.5px] text-muted-foreground">3:4 · 按模板实时画，改字马上变</p>
+          <p className="mt-2 text-center text-[12px] text-muted-foreground">3:4 · 按模板实时画，改字马上变</p>
         </div>
         <div className="grid content-start gap-5">
           <div className="grid gap-1.5">

@@ -68,7 +68,7 @@ test('有知识库：第一步那句开场白不动（还是“从你的知识�
   assert.equal(el('lead0').textContent, '', '有知识库时不改这句')
   assert.match(el('readSide').innerHTML, /我读了什么/)
   assert.equal(el('wantsBox').hidden, false)
-  assert.match(el('wants').innerHTML, /data-want="sales"/)
+  assert.match(el('wants').innerHTML, /data-want="follow"/)
 })
 
 test('空白起步（没有 kb）：开场白改成“你刚才在对话里说的”；没有 wants 时不显示“最想先看到”那一行', async () => {
@@ -89,7 +89,10 @@ test('空白起步但写了 wants（用四句话的第 3 句生成）：照样�
 })
 
 test('要接数据的模块标“稍后接数据”，不按课程节奏写“明天”', async () => {
-  const { el } = await openPage(EXAMPLE, '?step=1&active=biz')
+  // 示例里的经营看板、内容中心 2026-10-13 起不在搭建时选（以后走立项对焦加），这里自己造一个要接数据的模块
+  const r = copy(EXAMPLE)
+  Object.assign(r.modules.find((m) => m.id === 'projects'), { status: 'later', needs: '项目表格' })
+  const { el } = await openPage(r, '?step=1&active=projects')
   assert.match(el('modList').innerHTML, /稍后接数据/)
   assert.ok(!/明天接数据/.test(el('modList').innerHTML))
   assert.match(el('modDetail').innerHTML, /稍后接数据/)

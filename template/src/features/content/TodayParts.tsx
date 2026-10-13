@@ -31,7 +31,7 @@ export function WeekStrip({ week }: { week: CenterToday['week'] }) {
               <div className="flex flex-1 flex-col gap-1.5">
                 {d.items.map((x) => (
                   <button key={x.id} type="button" onClick={() => sheet.open(x.id)} className="group min-w-0 rounded-md border bg-card p-2 text-left shadow-paper transition-colors hover:border-primary">
-                    <div className="mb-1 flex items-center justify-between gap-1"><StatusTag s={x.status} /><span className="num text-[11px] text-muted-foreground">{x.time}</span></div>
+                    <div className="mb-1 flex items-center justify-between gap-1"><StatusTag s={x.status} /><span className="num text-[12px] text-muted-foreground">{x.time}</span></div>
                     <div className="line-clamp-3 text-[12.5px] leading-snug group-hover:text-primary">{x.title}</div>
                   </button>
                 ))}
@@ -71,7 +71,7 @@ function GroupHead({ g }: { g: Group }) {
 function TopicItem({ t, n, onBegin, onPick, pending }: { t: Piece; n: number; onBegin: () => void; onPick: () => void; pending: boolean }) {
   return (
     <li className={cn('flex min-w-0 flex-col gap-1.5 border-b px-5 py-3.5 md:[&:nth-child(odd)]:border-r', t.status !== '灵感池' && 'bg-muted/30')}>
-      <div className="flex flex-wrap items-center gap-1.5 text-[11.5px] text-muted-foreground">
+      <div className="flex flex-wrap items-center gap-1.5 text-[12px] text-muted-foreground">
         <span className="num w-5 font-medium">{String(n).padStart(2, '0')}</span>
         <StatusBadge value={SOURCE_SHORT[t.source] ?? t.source} tone="primary" />
         <span>{t.pillar_name ?? '不在四个支柱里'}</span>

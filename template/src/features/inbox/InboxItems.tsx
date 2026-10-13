@@ -68,9 +68,20 @@ export function InboxCard({ item }: { item: InboxItem }) {
   return (
     <article className="rounded-xl border bg-card px-4 py-3.5 shadow-paper">
       <p className="text-[14.5px] leading-relaxed break-words whitespace-pre-wrap">{item.text}</p>
+      {/* 2026-10-13 起 AI 放进来的每条都带判断和建议去向（进内容先判断），不只是一段原文 */}
+      {(item.judgement || item.suggest) && (
+        <div className="mt-2.5 grid gap-1 rounded-lg bg-muted/60 px-3 py-2 text-[13px] leading-relaxed">
+          {item.judgement && <p><span className="font-medium">AI 的看法：</span>{item.judgement}</p>}
+          {item.suggest && <p><span className="font-medium">建议：</span>{item.suggest}</p>}
+        </div>
+      )}
       <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
         <time dateTime={item.created_at} title={new Date(item.created_at).toLocaleString('zh-CN', { hour12: false })}>{ago(item.created_at)}</time>
         <Badge variant="outline" className="font-normal text-muted-foreground">来自{item.source}</Badge>
+        {item.kind && item.kind !== '随手记' && <Badge variant="outline" className="font-normal text-muted-foreground">{item.kind}</Badge>}
+        {item.client_name && <span>· {item.client_name}</span>}
+        {item.project_name && <span>· {item.project_name}</span>}
+        {item.origin && <span className="break-all">· 原件：{item.origin}</span>}
       </div>
       <div className="mt-3 flex flex-wrap gap-1.5 border-t pt-3">
         {CONVERTS.map((c) => (

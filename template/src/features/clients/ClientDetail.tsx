@@ -77,9 +77,9 @@ export function ClientActions({ id, withPageLink = true }: { id: string; withPag
 function Fact({ label, children, sub, tone }: { label: string; children: ReactNode; sub?: ReactNode; tone?: 'danger' | 'warn' }) {
   return (
     <div className="min-w-0 bg-card px-4 py-3">
-      <div className="text-[11.5px] whitespace-nowrap text-muted-foreground">{label}</div>
+      <div className="text-[12px] whitespace-nowrap text-muted-foreground">{label}</div>
       <div className={cn('mt-0.5 truncate text-[14.5px] font-medium', tone === 'danger' && 'text-danger', tone === 'warn' && 'text-warn')}>{children}</div>
-      {sub && <div className="mt-0.5 truncate text-[11.5px] text-muted-foreground">{sub}</div>}
+      {sub && <div className="mt-0.5 truncate text-[12px] text-muted-foreground">{sub}</div>}
     </div>
   )
 }

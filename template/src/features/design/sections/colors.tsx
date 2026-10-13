@@ -24,8 +24,8 @@ function Swatch({ token, title, sub }: { token: string; title: string; sub?: str
       <span aria-hidden className="size-10 shrink-0 rounded-lg border shadow-paper" style={{ background: `var(${token})` }} />
       <div className="min-w-0 text-[12.5px] leading-snug">
         <div className="font-medium">{title}</div>
-        <div className="font-mono text-[11px] text-muted-foreground">{token} · {value || '—'}</div>
-        {sub && <div className="text-[11.5px] text-muted-foreground">{sub}</div>}
+        <div className="font-mono text-[12px] text-muted-foreground">{token} · {value || '—'}</div>
+        {sub && <div className="text-[12px] text-muted-foreground">{sub}</div>}
       </div>
     </div>
   )
@@ -98,7 +98,7 @@ export function ChartPalette() {
         {CHART_NAMES.map((n, i) => (
           <div key={n} className="min-w-0 text-center">
             <span aria-hidden className="block h-10 rounded-md" style={{ background: `var(--chart-${i + 1})` }} />
-            <span className="mt-1 block text-[11.5px] text-muted-foreground"><span className="num">{i + 1}</span> {n}</span>
+            <span className="mt-1 block text-[12px] text-muted-foreground"><span className="num">{i + 1}</span> {n}</span>
           </div>
         ))}
       </div>

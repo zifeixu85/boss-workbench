@@ -52,7 +52,7 @@ export function PieceSheet() {
               <div className="flex flex-col items-center gap-3 md:sticky md:top-0 md:self-start">
                 <ViewTabs label="手机画面" value={view} onChange={setView} items={[{ value: '发现页', label: '发现页' }, { value: '笔记页', label: '笔记页' }]} />
                 <PhonePreview draft={data.draft} view={view} selfNote={p!.note_id} comments={data.comments} stats={p!.status === '已发布' && p!.total ? { likes: p!.total.likes, saves: p!.total.saves, comments: p!.total.comments, date: p!.published_at!.slice(0, 10) } : null} />
-                <p className="text-center text-[11.5px] text-muted-foreground">{view === '发现页' ? '红框是这篇，旁边是自己最近的笔记和收藏的同行笔记' : p!.status === '已发布' ? '点图片翻页；评论是赞最多的几条（后台导出的）' : '点图片翻页；封面和内页按模板实时画'}</p>
+                <p className="text-center text-[12px] text-muted-foreground">{view === '发现页' ? '红框是这篇，旁边是自己最近的笔记和收藏的同行笔记' : p!.status === '已发布' ? '点图片翻页；评论是赞最多的几条（后台导出的）' : '点图片翻页；封面和内页按模板实时画'}</p>
               </div>
               <div className="min-w-0">{p!.status === '已发布' ? <Published d={data} /> : <Draft d={data} />}</div>
             </div>
@@ -173,7 +173,7 @@ function Big({ label, total, organic, paid }: { label: string; total: number | n
     <div className="rounded-lg border bg-background/60 px-3 py-2.5">
       <div className="text-xs text-muted-foreground">{label}</div>
       <div className="num mt-0.5 font-heading text-[22px] leading-tight font-semibold">{thousands(total)}</div>
-      <div className="num mt-1 text-[11.5px] text-muted-foreground">自然 {thousands(organic)}{paid != null ? ` · 投流 ${thousands(paid)}` : ''}</div>
+      <div className="num mt-1 text-[12px] text-muted-foreground">自然 {thousands(organic)}{paid != null ? ` · 投流 ${thousands(paid)}` : ''}</div>
     </div>
   )
 }

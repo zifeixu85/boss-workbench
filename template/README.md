@@ -49,7 +49,10 @@ node server/cli.ts project-add "新店开业" --stage 进行中 --due 2026-12-15
   --milestone "2026-11-30 装修完工" --milestone "2026-12-15 开业"
 node server/cli.ts todo-add "给星禾出两版礼盒方案" --due 2026-11-18 --client 星禾科技 --priority 紧急 --note "来源：06-项目/近期要事.md"
 node server/cli.ts todo-add "定开业活动" --project 新店开业 --status 进行中
-node server/cli.ts inbox "收件箱里的新材料：2026-11-10-星禾科技-电话纪要.md"
+node server/cli.ts inbox "星禾电话纪要：问年底礼盒能不能 12/10 前到" --kind 材料 --why "在问交期，涉及承诺" --suggest "问老板 12/10 能不能交，默认先答 12/15" --client 星禾科技 --from "00-收件箱/2026-11-10-星禾科技-电话纪要.md"
+node server/cli.ts todo-add "出年底礼盒效果图" --owner 小艾 --due 2026-11-15 --client 星禾科技 --source "00-收件箱/2026-11-10-星禾科技-电话纪要.md"
+node server/cli.ts apply 清单.json            # 进内容：老板在对话里确认了一张清单，先预演；没问题再加 --yes 一次写入（格式见 server/services/apply.ts）
+node server/cli.ts modules --off biz          # 模块开关：收起 / 打开（--on），代码和数据都留着；settings-set --modules 整组设
 node server/cli.ts backup                                   # 改功能、换数据前先备份数据库
 node server/cli.ts todo-add "给星禾回电话" --due 2026-11-18 --time 15:30   # 填了到期时间，到期前 1 小时提醒；--in 5 = 今天、5 分钟后到期（试提醒用）
 node server/cli.ts remind-set --at 8:30 --quiet 22:00-08:00 # 每天几点提醒看汇总（确认页第 4 步的时间）、免打扰时段
@@ -113,15 +116,15 @@ node server/seed/index.ts --only biz # 只重灌一个模块（biz、content、d
 | 小红书内容中心（今天、内容、创作、数据、复盘） | `/content…` | `src/features/content` | `server/modules/content` | `004_content.sql`、`013_content_center*.sql` |
 | 数据源与导入（导入文件、对字段、导入记录、导入规则） | `/sources`、`/imports…` | `src/features/data` | `server/modules/data` | `005_data.sql`、`014_data_import*.sql` |
 
-- 菜单只有一个来源：`src/app/nav.ts`；页面登记在 `src/app/router.tsx`。没选的模块从 `nav.ts` 拿掉就行，代码留着，以后加回来。
+- 菜单只有一个来源：`src/app/nav.ts`，分三层：分区（今日 / 客户 / 经营 / 内容 / 数据 / 资料；设置、组件规范从头像菜单进）→ 页面（可以分组）→ 页内 Tab，不嵌第四层。页面登记在 `src/app/router.tsx`。加模块 = `nav.ts` 加一项（写上 `section` 和 `module`）+ `router.tsx` 用 `gate('<id>', …)` 登记 + `shared/modules.ts` 登记模块 id。不用的模块用模块开关收起（`node server/cli.ts modules --off <id>`，或网页“设置 → 模块”）：菜单、手机底栏、搜索里都不出现，空了的分区自动不显示，代码和数据都留着，随时打开；不用改 `nav.ts`。外壳从 `src/app/nav-sections.ts` 的 `useNav()` 取菜单。细则见 `规范/导航与Tab.md`。
 - 数据库升级文件（`server/migrations/`）只加不改，程序打开数据库时自动执行没跑过的。
 - 改界面先读 `规范/README.md` 和另外 6 篇，对照网页里的“组件规范”页（`/design`）；加减模块按 Skill 里的 `references/加减模块.md`。
-- 检查：`npm run build`（网页）、`npm run lint`、`npm run check:server`（服务端严格类型检查）、`npm test`（提醒规则、开机自启、自动跟进待办）、`npm run doctor`。
+- 检查：`npm run build`（网页）、`npm run lint`、`npm run check:server`（服务端严格类型检查）、`npm test`（提醒规则、开机自启、自动跟进待办、菜单）、`npm run doctor`。
 
 ## 和示例数据（--demo）的关系
 
 - 模板和带示例数据的那份工作台是同一套代码；默认端口 4517，不带数据库、依赖包、构建好的网页和截图。
 - 经营、客户、小红书、数据源四个模块是照着示例里那家茶社做出来的：称呼、店名、小红书账号名已经从设置读，但有些用词还是茶社的（茶礼、门店品鉴、礼盒……）。给别的行业的老板搭时，按他的行业改这些说法，改法按 Skill 的 `references/加减模块.md`。
-- 经营模块要先有渠道：空库里没有渠道时，渠道页显示“没有这个渠道”。渠道、商品和每天的数，按 Skill 的 `references/配方-多平台经营.md` 和 `references/配方-数据导入与对字段.md` 接。
+- 经营模块要先有渠道：空库里没有渠道时，渠道页显示“没有这个渠道”。渠道、商品和每天的数，按 Skill 的 `references/需求文档-多平台经营.md` 和 `references/配方-数据导入与对字段.md` 接。
 
 <!-- 由 导出工作台模板.mjs 生成 -->

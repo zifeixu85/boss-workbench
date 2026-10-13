@@ -16,7 +16,7 @@ export default function InboxPage() {
 
   return (
     <>
-      <PageHeader eyebrow="日常" title="收件箱" desc="想到什么先记下来，不用想放哪。有空再一条条转成待办、跟进或日程。" />
+      <PageHeader eyebrow="今日" title="收件箱" desc="想到什么先记下来，不用想放哪。有空再一条条转成待办、跟进或日程。" />
       <PageBody className="max-w-3xl">
         <QuickAdd />
 
@@ -45,7 +45,7 @@ export default function InboxPage() {
 
         <p className="mt-5 flex items-start gap-2 rounded-lg bg-accent/50 px-3.5 py-2.5 text-[13px] text-accent-foreground">
           <Sparkles className="mt-0.5 size-4 shrink-0" aria-hidden />
-          <span>也可以对 Codex 说“整理收件箱”，它会逐条建议放到哪里。</span>
+          <span>也可以对 Codex 说“整理收件箱”：它会逐条拆出下一步、待办（谁做、哪天前）和要你定的事，问清后列一张清单，你确认了再写。</span>
         </p>
 
         <DoneList items={done} />

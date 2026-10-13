@@ -70,7 +70,7 @@ export function DraftEditor({ draft, onChange, readOnly, hasDraft, publishOn, ai
         <ol className="grid gap-2">
           {draft.pages.map((p, i) => (
             <li key={i} className="grid grid-cols-[28px_minmax(0,1fr)_auto] items-start gap-2">
-              <span className={cn('num mt-2 grid size-6 place-items-center rounded text-[11px] font-semibold', i === 0 ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground')}>{i === 0 ? '封' : i + 1}</span>
+              <span className={cn('num mt-2 grid size-6 place-items-center rounded text-[12px] font-semibold', i === 0 ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground')}>{i === 0 ? '封' : i + 1}</span>
               <Textarea rows={2} value={p.text} onChange={(e) => setPage(i, { text: e.target.value })} className={cn('min-h-0 text-[13px]', /【待补/.test(p.text) && 'border-warn bg-warn-soft/40')} />
               <div className="flex items-center gap-1">
                 {i > 0 && (

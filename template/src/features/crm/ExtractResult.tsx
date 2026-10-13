@@ -114,7 +114,7 @@ export function ExtractResult({ x }: { x: Extraction }) {
                     <span className="text-[14px] font-medium">{p.text}</span>
                     <span className="num text-[12.5px] whitespace-nowrap text-muted-foreground">{p.due ? `${shortDate(p.due)}前 · ${relDay(p.due)}` : '没说哪天'}</span>
                   </div>
-                  <p className="mt-0.5 text-[11.5px] text-muted-foreground">{p.who} 答应 {p.to_whom || '对方'} · 原话：“{p.quote}”</p>
+                  <p className="mt-0.5 text-[12px] text-muted-foreground">{p.who} 答应 {p.to_whom || '对方'} · 原话：“{p.quote}”</p>
                   {p.dup && <p className="mt-1 text-[12px] text-muted-foreground">和已经记着的“{p.dup}”是一件事，默认不重复写。</p>}
                 </div>
               </div>
@@ -158,7 +158,7 @@ export function ExtractResult({ x }: { x: Extraction }) {
           {d.todos.map((t, i) => (
             <li key={i} className={cn('flex items-start gap-2.5 text-[13.5px]', !t.on && 'text-muted-foreground')}>
               <Checkbox className="mt-0.5" checked={t.on} onCheckedChange={(c) => set('todos', d.todos.map((q, j) => (j === i ? { ...q, on: !!c } : q)))} aria-label="建成待办" />
-              <span className="min-w-0 flex-1">{t.title}{t.due && <span className="num ml-1.5 whitespace-nowrap text-muted-foreground">{shortDate(t.due)}</span>}{!t.on && t.why && <span className="block text-[11.5px]">没勾：{t.why}</span>}</span>
+              <span className="min-w-0 flex-1">{t.title}{t.due && <span className="num ml-1.5 whitespace-nowrap text-muted-foreground">{shortDate(t.due)}</span>}{!t.on && t.why && <span className="block text-[12px]">没勾：{t.why}</span>}</span>
             </li>
           ))}
         </ul>
@@ -184,7 +184,7 @@ export function ExtractResult({ x }: { x: Extraction }) {
             {d.traits.map((t, i) => (
               <li key={`t${i}`} className="flex items-start gap-2.5">
                 <Checkbox className="mt-0.5" checked={t.on} onCheckedChange={(c) => set('traits', d.traits.map((q, j) => (j === i ? { ...q, on: !!c } : q)))} />
-                <StatusBadge value={t.kind} tone="neutral" /><span className="min-w-0 flex-1">{t.text}{t.why && !t.on && <span className="ml-1.5 text-[11.5px] text-muted-foreground">{t.why}</span>}</span>
+                <StatusBadge value={t.kind} tone="neutral" /><span className="min-w-0 flex-1">{t.text}{t.why && !t.on && <span className="ml-1.5 text-[12px] text-muted-foreground">{t.why}</span>}</span>
               </li>
             ))}
           </ul>
@@ -212,10 +212,10 @@ export function ExtractResult({ x }: { x: Extraction }) {
               <li key={c.id} className={cn('flex items-start gap-2.5', !c.on && 'text-foreground/90')}>
                 <Checkbox className="mt-0.5" checked={c.on} onCheckedChange={(v) => set('close', d.close.map((q, j) => (j === i ? { ...q, on: !!v } : q)))} aria-label="确认写入时关掉这一件" />
                 <span className="min-w-0 flex-1">
-                  <span className="mr-1.5 inline-flex h-5 items-center rounded-md border bg-surface-2/60 px-1.5 align-middle text-[11.5px] text-muted-foreground">{c.kind}</span>
+                  <span className="mr-1.5 inline-flex h-5 items-center rounded-md border bg-surface-2/60 px-1.5 align-middle text-[12px] text-muted-foreground">{c.kind}</span>
                   <span className="align-middle">{c.text.length > 60 ? `${c.text.slice(0, 60)}…` : c.text}</span>
                   {c.date && <span className="num ml-1 align-middle whitespace-nowrap text-muted-foreground">（{shortDate(c.date)}）</span>}
-                  {c.on && <span className="block text-[11.5px] text-muted-foreground">{c.why ?? '确认写入时关掉'}{c.kind === '关怀草稿' ? '：标“不做”' : c.kind === '待办' ? '：标“取消”' : '：标“不做了”'}</span>}
+                  {c.on && <span className="block text-[12px] text-muted-foreground">{c.why ?? '确认写入时关掉'}{c.kind === '关怀草稿' ? '：标“不做”' : c.kind === '待办' ? '：标“取消”' : '：标“不做了”'}</span>}
                 </span>
               </li>
             ))}

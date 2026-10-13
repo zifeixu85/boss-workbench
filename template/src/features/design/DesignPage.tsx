@@ -83,7 +83,7 @@ function TocLink({ s, n, on }: { s: (typeof SECTIONS)[number]; n: number; on: bo
         on ? 'border-primary bg-accent font-semibold text-accent-foreground lg:before:absolute lg:before:top-2 lg:before:bottom-2 lg:before:left-0 lg:before:w-[3px] lg:before:rounded-full lg:before:bg-primary' : 'bg-card text-muted-foreground hover:bg-muted hover:text-foreground lg:bg-transparent',
       )}
     >
-      <span className="num hidden w-3.5 text-[11px] opacity-60 lg:inline">{n}</span>
+      <span className="num hidden w-3.5 text-[12px] opacity-60 lg:inline">{n}</span>
       <s.icon className="size-4 shrink-0" aria-hidden />
       {s.label}
     </Link>

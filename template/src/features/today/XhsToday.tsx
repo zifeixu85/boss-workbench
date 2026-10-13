@@ -37,7 +37,7 @@ export function XhsToday({ plan }: { plan: Plan | null }) {
         {plan.topics.map((t) => (
           <Link key={t.id} to={`/content?piece=${t.id}`} className="block rounded-md px-1 py-1.5 hover:bg-muted/60">
             <span className="line-clamp-2 block text-[13px] leading-snug">{t.title}</span>
-            <span className="mt-0.5 flex flex-wrap items-center gap-1.5 text-[11.5px] text-muted-foreground"><StatusBadge value={t.source} tone="neutral" />{t.pillar_name ?? '不在内容支柱里'}</span>
+            <span className="mt-0.5 flex flex-wrap items-center gap-1.5 text-[12px] text-muted-foreground"><StatusBadge value={t.source} tone="neutral" />{t.pillar_name ?? '不在内容支柱里'}</span>
           </Link>
         ))}
       </div>

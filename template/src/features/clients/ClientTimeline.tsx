@@ -43,7 +43,7 @@ export function ClientTimeline({ d, openPromises }: { d: ClientProfile; openProm
               <li key={i.id} className="relative mb-5 last:mb-1">
                 <div className="absolute top-0 -left-[90px] w-[60px] text-right">
                   <div className="num text-[13px] font-semibold whitespace-nowrap">{shortDate(i.date).replace(/^\d{4}年/, '')}</div>
-                  <div className="text-[11px] whitespace-nowrap text-muted-foreground">{sameYear(i.date) ? weekday(i.date) : `${i.date.slice(0, 4)}年`}</div>
+                  <div className="text-[12px] whitespace-nowrap text-muted-foreground">{sameYear(i.date) ? weekday(i.date) : `${i.date.slice(0, 4)}年`}</div>
                 </div>
                 <span className="absolute top-1 -left-[28px] grid size-3.5 place-items-center rounded-full border-2 border-card bg-primary" />
                 <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">

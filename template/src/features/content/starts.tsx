@@ -62,13 +62,13 @@ export function OneLine({ className, autoFocus }: { className?: string; autoFocu
           placeholder="说一句就行，比如：降温了，写一篇办公室一个杯子泡白茶" className="min-h-[68px] resize-none border-0 bg-transparent pr-28 text-[15px] shadow-none focus-visible:ring-0" />
         <Button className="absolute right-2.5 bottom-2.5" onClick={submit} disabled={pending}>{pending ? <Loader2 className="animate-spin" /> : <ArrowRight />}开始</Button>
       </div>
-      <div className="mt-1.5 flex items-center gap-1 text-[11.5px] text-muted-foreground"><CornerDownLeft className="size-3" />⌘ + 回车也能开始。进创作页后，本机 Codex 按小红书的写法翻资料，写第一版。</div>
+      <div className="mt-1.5 flex items-center gap-1 text-[12px] text-muted-foreground"><CornerDownLeft className="size-3" />⌘ + 回车也能开始。进创作页后，本机 Codex 按小红书的写法翻资料，写第一版。</div>
       <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
         {START_ITEMS.map((s) => (
           <button key={s.kind} type="button" onClick={() => st.open(s.kind)}
             className="group flex min-w-0 items-center gap-2.5 rounded-lg border bg-card px-3 py-2 text-left transition-colors hover:border-primary hover:bg-accent/40">
             <span className="grid size-8 shrink-0 place-items-center rounded-md bg-accent text-accent-foreground"><s.icon className="size-4" /></span>
-            <span className="min-w-0"><span className="block truncate text-[13px] font-medium group-hover:text-primary">{s.label}</span><span className="block truncate text-[11.5px] text-muted-foreground">{s.desc}</span></span>
+            <span className="min-w-0"><span className="block truncate text-[13px] font-medium group-hover:text-primary">{s.label}</span><span className="block truncate text-[12px] text-muted-foreground">{s.desc}</span></span>
           </button>
         ))}
       </div>
@@ -101,7 +101,7 @@ export function StartPicker() {
             {st.kind === 'topic' && data.topics.filter((t) => has(t.title)).map((t) => (
               <Pick key={t.id} disabled={pending} onClick={() => begin({ piece: t })}>
                 <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-1.5 text-[11.5px] text-muted-foreground"><StatusBadge value={SOURCE_SHORT[t.source] ?? t.source} tone="primary" />{t.pillar_name ?? '不在支柱里'}</div>
+                  <div className="flex items-center gap-1.5 text-[12px] text-muted-foreground"><StatusBadge value={SOURCE_SHORT[t.source] ?? t.source} tone="primary" />{t.pillar_name ?? '不在支柱里'}</div>
                   <div className="mt-1 truncate text-sm font-medium">{t.title}</div>
                   <div className="line-clamp-1 text-xs text-muted-foreground">{t.reason}</div>
                 </div>
@@ -129,7 +129,7 @@ export function StartPicker() {
                 <div className="min-w-0 flex-1"><div className="truncate text-sm font-medium">{b.title}</div><div className="num truncate text-xs text-muted-foreground">{b.account} · 赞 {thousands(b.likes)} · 藏 {thousands(b.saves)} · {b.borrow}</div></div>
               </Pick>
             ))}
-            {st.kind === 'note' && <p className="text-center text-[11.5px] text-muted-foreground">按自然收藏排，前 12 篇</p>}
+            {st.kind === 'note' && <p className="text-center text-[12px] text-muted-foreground">按自然收藏排，前 12 篇</p>}
           </div>
         )}
       </DialogContent>

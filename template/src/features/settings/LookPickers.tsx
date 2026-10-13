@@ -23,7 +23,7 @@ function Option({ on, onClick, children, disabled }: { on: boolean; onClick: () 
   )
 }
 
-const Using = () => <span className="inline-flex items-center gap-1 rounded-md bg-primary px-1.5 py-0.5 text-[11px] font-medium text-primary-foreground"><Check className="size-3" />正在用</span>
+const Using = () => <span className="inline-flex items-center gap-1 rounded-md bg-primary px-1.5 py-0.5 text-[12px] font-medium text-primary-foreground"><Check className="size-3" />正在用</span>
 
 export function ThemePicker({ value }: { value?: Theme }) {
   const save = useWrite((theme: Theme) => api.patch<Settings>('/settings', { theme }), (o) => `已换成「${THEMES.find((t) => t.value === o.theme)?.name}」风格`)
@@ -50,8 +50,8 @@ export function MobileNavPicker({ value }: { value?: Settings['mobile_nav'] }) {
   const save = useWrite((mobile_nav: Settings['mobile_nav']) => api.patch<Settings>('/settings', { mobile_nav }), (o) => `手机导航已换成${o.mobile_nav === 'tabs' ? '底部标签' : '汉堡菜单'}`)
   if (!value) return <Skeleton className="h-48" />
   const opts = [
-    { v: 'tabs' as const, name: '底部标签', desc: '最常用的 4 个入口放在底部，大拇指一点就到；其余放“更多”。' },
-    { v: 'drawer' as const, name: '汉堡菜单', desc: '左上角一个菜单按钮，点开是完整分组菜单；屏幕留给内容。' },
+    { v: 'tabs' as const, name: '底部标签', desc: '每个分区一个入口放在底部（今日、客户、经营、内容），大拇指一点就到；全部页面按分区放在“更多”里。' },
+    { v: 'drawer' as const, name: '汉堡菜单', desc: '左上角一个菜单按钮，点开是按分区分段的完整菜单；屏幕留给内容。' },
   ]
   return (
     <div className="grid gap-3 sm:grid-cols-2" role="group" aria-label="手机导航">

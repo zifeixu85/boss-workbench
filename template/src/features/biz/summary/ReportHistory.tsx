@@ -23,13 +23,13 @@ export function ReportHistory() {
                 <button type="button" onClick={() => ov.openReport(r.id)} className="grid w-full grid-cols-[42px_minmax(0,1fr)_auto] items-start gap-3 px-5 py-2.5 text-left hover:bg-muted/50 focus-visible:bg-muted/50 focus-visible:outline-none">
                   <span className="grid text-center leading-tight">
                     <span className="num text-[15px] font-semibold">{md(r.date)}</span>
-                    <span className="text-[11px] text-muted-foreground">{weekday(r.date)}</span>
+                    <span className="text-[12px] text-muted-foreground">{weekday(r.date)}</span>
                   </span>
                   <span className="min-w-0">
                     <span className="line-clamp-2 text-[13px] leading-snug">{p.text}</span>
-                    <span className="mt-0.5 flex items-center gap-1 text-[11.5px] text-muted-foreground"><Bot className="size-3" aria-hidden />{r.author} {md(r.written_at)} {r.written_at.slice(11, 16)}</span>
+                    <span className="mt-0.5 flex items-center gap-1 text-[12px] text-muted-foreground"><Bot className="size-3" aria-hidden />{r.author} {md(r.written_at)} {r.written_at.slice(11, 16)}</span>
                   </span>
-                  <span className="pt-0.5 text-[11.5px] whitespace-nowrap">
+                  <span className="pt-0.5 text-[12px] whitespace-nowrap">
                     {p.n > 0 ? <span className="font-medium text-danger">{p.n} 处异常</span> : p.watch ? <span className="text-warn">先盯着 {p.watch}</span> : <span className="text-muted-foreground">没有异常</span>}
                   </span>
                 </button>

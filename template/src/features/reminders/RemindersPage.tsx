@@ -93,7 +93,7 @@ export default function RemindersPage() {
   }
   return (
     <>
-      <PageHeader eyebrow="日常" title="提醒"
+      <PageHeader eyebrow="今日" title="提醒"
         desc="待办到期前 1 小时、日程开始前 15 分钟、今天该跟进的客户、新出现的经营异常、没按时更新的数据源，每天还提醒你看一次汇总。每条只弹一次，点开直接去对应的地方。"
         actions={<Button variant="outline" disabled={!data?.unread || read.isPending} onClick={() => read.mutate({ all: true })}><CheckCheck />全部标为已读</Button>} />
       <PageBody className="grid max-w-5xl gap-5">

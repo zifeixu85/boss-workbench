@@ -33,7 +33,7 @@ export function HintList({ hints, className }: { hints: Hint[]; className?: stri
         {hints.map((h) => (
           <li key={h.line} className="grid grid-cols-[minmax(0,1fr)] gap-1 text-[13px] leading-relaxed sm:grid-cols-[minmax(0,1fr)_auto] sm:items-baseline sm:gap-3">
             <span className="min-w-0">{h.line}</span>
-            <span className="flex flex-wrap gap-1 sm:justify-end">{h.tags.map((t) => <span key={t} className={cn('inline-flex h-5 items-center rounded-md border px-1.5 text-[11px] whitespace-nowrap', TAG_TONE[t] ?? (t.endsWith('答应') ? TAG_TONE.答应 : 'bg-surface-2/60 text-muted-foreground'))}>{t}</span>)}</span>
+            <span className="flex flex-wrap gap-1 sm:justify-end">{h.tags.map((t) => <span key={t} className={cn('inline-flex h-5 items-center rounded-md border px-1.5 text-[12px] whitespace-nowrap', TAG_TONE[t] ?? (t.endsWith('答应') ? TAG_TONE.答应 : 'bg-surface-2/60 text-muted-foreground'))}>{t}</span>)}</span>
           </li>
         ))}
       </ol>
@@ -53,7 +53,7 @@ function Waiting({ x }: { x: Extraction }) {
           <LoaderCircle className="size-8 animate-spin text-primary" />
           <p className="num text-3xl font-semibold">{sec}<span className="ml-1 text-sm font-normal text-muted-foreground">/ {x.timeout_s} 秒</span></p>
           <div className="h-1.5 w-40 overflow-hidden rounded-full bg-muted"><div className="h-full rounded-full bg-primary transition-all" style={{ width: `${Math.min(100, (sec / x.timeout_s) * 100)}%` }} /></div>
-          <p className="text-[11.5px] text-muted-foreground">一般 30—60 秒</p>
+          <p className="text-[12px] text-muted-foreground">一般 30—60 秒</p>
         </div>
         <div className="min-w-0">
           <h2 className="text-[16px] font-semibold">Codex 在这台电脑上提取</h2>

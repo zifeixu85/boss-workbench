@@ -69,7 +69,7 @@ function DirNode({ n, depth, ctx }: { n: KbNode; depth: number; ctx: NodeCtx }) 
           <ChevronRight className={cn('size-3.5 shrink-0 text-muted-foreground transition-transform', open && 'rotate-90')} aria-hidden />
           <Icon className="size-4 shrink-0 text-primary/80" aria-hidden />
           <span className="min-w-0 flex-1 truncate">{n.name}</span>
-          <span className="num shrink-0 text-[11px] text-muted-foreground">{countFiles(n)}</span>
+          <span className="num shrink-0 text-[12px] text-muted-foreground">{countFiles(n)}</span>
         </button>
       </CollapsibleTrigger>
       <CollapsibleContent>

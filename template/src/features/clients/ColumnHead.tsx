@@ -8,7 +8,7 @@ export function ColumnHead({ label, count, amount, hint }: { label: string; coun
         <span className="truncate">{label}</span><span className="num text-xs font-normal text-muted-foreground">{count}</span>
         <span className="num ml-auto text-xs font-normal whitespace-nowrap text-muted-foreground">{amount}</span>
       </span>
-      <span className="truncate text-[11px] font-normal text-muted-foreground">{hint ?? '\u00a0'}</span>
+      <span className="truncate text-[12px] font-normal text-muted-foreground">{hint ?? '\u00a0'}</span>
     </span>
   )
 }

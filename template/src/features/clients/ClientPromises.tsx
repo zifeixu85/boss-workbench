@@ -34,7 +34,7 @@ function ConflictLine({ p, clientName }: { p: ClientPromise; clientName: string 
     return (
       <p className="mt-2 flex items-start gap-1.5 rounded-md bg-muted/70 px-2.5 py-1.5 text-[12.5px] text-muted-foreground">
         <Scale className="mt-0.5 size-3.5 shrink-0" />
-        <span>{owner} {shortDate(p.decision_at)}{p.decision === '例外' ? '定为例外' : '说规则该改，已记进知识库“待确认的发现”'}：{p.decision_note}<span className="block text-[11.5px] opacity-80">原来对不上的地方：{p.conflict}</span></span>
+        <span>{owner} {shortDate(p.decision_at)}{p.decision === '例外' ? '定为例外' : '说规则该改，已记进知识库“待确认的发现”'}：{p.decision_note}<span className="block text-[12px] opacity-80">原来对不上的地方：{p.conflict}</span></span>
       </p>
     )
   }
@@ -63,7 +63,7 @@ export function OpenPromises({ d }: { d: ClientProfile }) {
           <li key={p.id} className={cn('rounded-xl border bg-card p-3.5', p.conflict && !p.decision && 'border-warn/40 bg-warn-soft/60')}>
             <div className="flex items-start gap-3">
               <div className="min-w-0 flex-1">
-                <div className="text-[11.5px] text-muted-foreground">{p.who} 答应{p.to_whom ? ` ${p.to_whom}` : ''} · {said(p)}</div>
+                <div className="text-[12px] text-muted-foreground">{p.who} 答应{p.to_whom ? ` ${p.to_whom}` : ''} · {said(p)}</div>
                 <div className="mt-0.5 text-[14px] font-medium">{withoutDue(p)}</div>
               </div>
               {dueBadge(p)}
@@ -107,7 +107,7 @@ export function PromiseHistory({ d }: { d: ClientProfile }) {
           <ul className="divide-y rounded-lg border bg-card">
             {closed.map((p) => (
               <li key={p.id} className="flex items-center gap-3 px-3 py-2 text-[13px]">
-                <span className="min-w-0 flex-1"><span className="block truncate">{p.text}</span><span className="block text-[11.5px] text-muted-foreground">{p.who} 答应{p.to_whom ? ` ${p.to_whom}` : ''}{p.due ? ` · ${shortDate(p.due)}前` : ''}{p.done_at ? ` · ${shortDate(p.done_at)}做到` : ''}{p.note ? ` · ${p.note}` : ''}</span></span>
+                <span className="min-w-0 flex-1"><span className="block truncate">{p.text}</span><span className="block text-[12px] text-muted-foreground">{p.who} 答应{p.to_whom ? ` ${p.to_whom}` : ''}{p.due ? ` · ${shortDate(p.due)}前` : ''}{p.done_at ? ` · ${shortDate(p.done_at)}做到` : ''}{p.note ? ` · ${p.note}` : ''}</span></span>
                 {dueBadge(p)}
               </li>
             ))}

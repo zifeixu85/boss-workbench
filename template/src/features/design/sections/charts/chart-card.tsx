@@ -13,7 +13,7 @@ export function ChartCard({ kind, question, desc, fit, unfit, note, children, cl
   return (
     <figure className={cn('flex min-w-0 flex-col overflow-hidden rounded-xl border bg-card shadow-paper', className)}>
       <figcaption className="px-5 pt-4">
-        <span className="inline-flex h-5 items-center rounded bg-muted px-1.5 text-[11px] font-medium text-muted-foreground">{kind}</span>
+        <span className="inline-flex h-5 items-center rounded bg-muted px-1.5 text-[12px] font-medium text-muted-foreground">{kind}</span>
         <div className="mt-1.5 text-[15px] leading-snug font-semibold">{question}</div>
         {desc && <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">{desc}</p>}
       </figcaption>
