@@ -74,7 +74,7 @@ export const NAV: NavItem[] = [
     ],
   },
 
-  // 数据源与导入：经营和小红书的数都从这里进来，单独一个“数据”分区（2026-10-13 A梦 定，不再挂在经营下面）
+  // 数据源与导入：经营和小红书的数都从这里进来，单独一个“数据”分区（2026-10-13 定，不再挂在经营下面）
   { key: 'sources', to: '/sources', label: '数据源', icon: Database, section: '数据', module: 'data', badge: (o) => o.alerts?.filter((a) => a.module === 'data').length || undefined, tone: 'warn' },
   {
     key: 'imports', to: '/imports', label: '导入', icon: FileUp, section: '数据', module: 'data',

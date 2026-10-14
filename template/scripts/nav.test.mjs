@@ -14,7 +14,7 @@ test('五个分区按顺序排，系统不占顶栏', () => {
   assert.deepEqual(SECTIONS.map((s) => s.key), ['今日', '客户', '经营', '内容', '数据', '资料', '系统'])
   assert.deepEqual(TOP_SECTIONS.map((s) => s.key), ['今日', '客户', '经营', '内容', '数据', '资料'])
   assert.deepEqual(SECTIONS.find((s) => s.key === '经营').groups.map((g) => g.label), [null, '渠道'])
-  // 数据源与导入单独一个分区（2026-10-13 A梦 定）：数据源不分组，导入的子页面以「导入」为组名
+  // 数据源与导入单独一个分区（2026-10-13 定）：数据源不分组，导入的子页面以「导入」为组名
   assert.deepEqual(SECTIONS.find((s) => s.key === '数据').groups.map((g) => g.label), [null, '导入'])
   assert.deepEqual(SECTIONS.find((s) => s.key === '客户').groups.map((g) => g.label), ['客户与跟进'])
   // 分区入口 = 第一页
