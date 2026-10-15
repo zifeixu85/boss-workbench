@@ -74,6 +74,7 @@ export default function ChannelPage() {
         ) : (
           <>
             <ChannelFreshBar f={d.freshness} run={d.runs[0]} today={todayStr()} />
+            {d.range.coverage.note && <p className="rounded-lg bg-muted/50 px-3 py-2 text-xs text-muted-foreground">{d.range.coverage.note}</p>}
             {store && <StoreNotice d={d} />}
             <ActiveAlerts items={d.anomalies.active} />
 

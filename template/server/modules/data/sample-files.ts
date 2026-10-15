@@ -1,4 +1,4 @@
-// 生成演示用的“平台导出表”样例：从数据库里 9/27—10/26 的经营数据导出，数字和经营页对得上。
+// 只从完整、仍有效且未被改写的预置示例批次生成 9/27—10/26 的平台样例；拒绝真实数据和未知值。
 // 每个平台的列名、日期格式、数字写法都不一样（照各家后台导出的样子），开头几行说明里写明“示例数据”。
 // 用法（在 工作台/程序/ 下）：node server/modules/data/sample-files.ts [--copy <另一个文件夹>]
 // 只读数据库，不改任何数据。归属：数据源与导入模块。
@@ -7,7 +7,7 @@ import { copyFileSync, mkdirSync, writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { DB_PATH, ROOT } from '../../db.ts'
 import { toCsv } from './csv.ts'
-import { rng } from '../../seed/lib.ts'
+import { rng, eachDay } from '../../seed/lib.ts'
 
 const FROM = '2026-09-27'
 const TO = '2026-10-26'
@@ -15,13 +15,51 @@ export const SAMPLE_DIR = join(ROOT, '工作台', '示例数据')
 
 type Day = { date: string; channel_id: string; gmv: number; orders: number; visitors: number; refund_amount: number; refund_orders: number; ad_spend: number; ad_gmv: number; new_buyers: number; old_buyers: number }
 
-const db = new DatabaseSync(DB_PATH, { readOnly: true })
-/** 表头里写的店名：设置里的店名（工作台名称），没设置时“我的店” */
-const SHOP = String((db.prepare("SELECT value FROM settings WHERE key = 'business'").get() as { value?: string } | undefined)?.value ?? '').trim() || '我的店'
-const days = (ch: string, from = FROM, to = TO) =>
-  db.prepare('SELECT * FROM channel_daily WHERE channel_id = ? AND date BETWEEN ? AND ? ORDER BY date').all(ch, from, to) as unknown as Day[]
-const liveShare = new Map((db.prepare(`SELECT date, ROUND(SUM(CASE WHEN source = '直播' THEN visitors END) * 100.0 / SUM(visitors), 1) AS s
-  FROM channel_traffic WHERE channel_id = 'douyin' GROUP BY date`).all() as { date: string; s: number }[]).map((r) => [r.date, r.s]))
+const NUMBERS = ['gmv', 'orders', 'visitors', 'refund_amount', 'refund_orders', 'ad_spend', 'ad_gmv', 'new_buyers', 'old_buyers'] as const
+const COUNTS = new Set<string>(['orders', 'visitors', 'refund_orders', 'new_buyers', 'old_buyers'])
+const CHANNEL_IDS = ['douyin', 'tmall', 'xhs', 'wechat', 'store']
+
+/** 先取得并校验整个只读快照；失败时连输出目录都不创建，更不能把真实数贴成“示例”。 */
+function presetSnapshot(): Day[] {
+  const db = new DatabaseSync(DB_PATH, { readOnly: true })
+  try {
+    db.exec('BEGIN')
+    const rows = db.prepare('SELECT * FROM channel_daily WHERE date BETWEEN ? AND ? ORDER BY date, channel_id').all(FROM, TO) as unknown as Day[]
+    const dates = eachDay(FROM, TO)
+    const expected = dates.length * CHANNEL_IDS.length
+    const keys = new Set(rows.map((r) => `${r.date}|${r.channel_id}`))
+    if (rows.length !== expected || CHANNEL_IDS.some((ch) => dates.some((d) => !keys.has(`${d}|${ch}`)))) {
+      throw new Error(`预置示例覆盖不完整：需要 ${CHANNEL_IDS.length} 个渠道 × ${dates.length} 天，不能将缺日补 0`)
+    }
+    const owner = db.prepare(`SELECT b.id, b.origin, b.channel_id, r.after_json
+      FROM data_batch_rows r JOIN data_batches b ON b.id = r.batch_id
+      WHERE r.tbl = 'channel_daily' AND r.row_key = ? AND b.status = '有效'
+      ORDER BY b.rowid DESC LIMIT 1`)
+    for (const row of rows) {
+      const key = `${row.date}|${row.channel_id}`
+      if (NUMBERS.some((k) => typeof row[k] !== 'number' || !Number.isFinite(row[k]) || row[k] < 0 || (COUNTS.has(k) && !Number.isInteger(row[k])))) {
+        throw new Error(`${key} 含未知或无效数字，不能生成示例或补成 0`)
+      }
+      const batch = owner.get(key) as { id: string; origin: string; channel_id: string | null; after_json: string } | undefined
+      if (!batch || batch.id !== `batch_sample_${row.channel_id}` || batch.origin !== '示例' || batch.channel_id !== row.channel_id) {
+        throw new Error(`${key} 不属于当前有效的预置示例批次，不能把自己的数据导出为示例`)
+      }
+      const recorded = JSON.parse(batch.after_json) as Partial<Day>
+      if (NUMBERS.some((k) => recorded?.[k] !== row[k])) throw new Error(`${key} 与预置示例审计不一致，不能生成示例`)
+    }
+    db.exec('COMMIT')
+    return rows
+  } catch (error) {
+    throw new Error(`样例生成已停止，未写任何文件：${error instanceof Error ? error.message : String(error)}`)
+  } finally {
+    db.close()
+  }
+}
+const snapshot = presetSnapshot()
+// 辅助文字与示意列不读取实际店名或未经批次审计的流量表。
+const SHOP = '示例茶社'
+const days = (ch: string, from = FROM, to = TO) => snapshot.filter((r) => r.channel_id === ch && r.date >= from && r.date <= to)
+const liveShare = (date: string) => rng(Number(date.replaceAll('-', ''))).between(35, 45).toFixed(1)
 
 const [y, m, d] = [(s: string) => s.slice(0, 4), (s: string) => s.slice(5, 7), (s: string) => s.slice(8, 10)]
 const fmt = {
@@ -34,7 +72,7 @@ const money = (n: number) => n.toFixed(2)
 const comma = (n: number, dp = 2) => n.toLocaleString('en-US', { minimumFractionDigits: dp, maximumFractionDigits: dp })
 const yen = (n: number) => `¥${comma(n)}`
 const pct = (n: number) => `${n.toFixed(2)}%`
-const sum = (xs: Day[], k: keyof Day) => xs.reduce((a, x) => a + Number(x[k]), 0)
+const sum = (xs: Day[], k: typeof NUMBERS[number]) => xs.reduce((a, x) => a + x[k], 0)
 
 type File = { name: string; title: string; what: string; rows: (string | number | null)[][] }
 const files: File[] = []
@@ -44,11 +82,11 @@ const files: File[] = []
   const xs = days('douyin')
   files.push({
     name: '抖店_罗盘经营数据_20260927-20261026.csv', title: '抖店（罗盘 · 经营数据，按日）',
-    what: '日期 2026/09/27；金额带“¥”和千分位；有“直播间成交占比”（工作台不导，自己会算）。工作台里已经存了这种表的导入规则，拖进去会直接按规则对上。',
+    what: '日期 2026/09/27；金额带“¥”和千分位；“直播间成交占比”为可复现示意值（不读取流量表，工作台不导此列）。工作台里已经存了这种表的导入规则，拖进去会直接按规则对上。',
     rows: [
       ['抖店罗盘 · 经营 · 核心数据（按日）'], [`店铺：${SHOP}官方旗舰店（示例数据，数字全部虚构）`], [`时间范围：${fmt.slash(FROM)} - ${fmt.slash(TO)}`], ['导出时间：2026/10/27 07:14'], [],
       ['日期', '成交金额', '成交订单数', '商品访客数', '退款金额', '退款订单数', '千川消耗', '千川成交金额', '新客数', '老客数', '直播间成交占比'],
-      ...xs.map((r) => [fmt.slash(r.date), yen(r.gmv), r.orders, comma(r.visitors, 0), yen(r.refund_amount), r.refund_orders, comma(r.ad_spend), comma(r.ad_gmv), r.new_buyers, r.old_buyers, `${(liveShare.get(r.date) ?? 40).toFixed(1)}%`]),
+      ...xs.map((r) => [fmt.slash(r.date), yen(r.gmv), r.orders, comma(r.visitors, 0), yen(r.refund_amount), r.refund_orders, comma(r.ad_spend), comma(r.ad_gmv), r.new_buyers, r.old_buyers, `${liveShare(r.date)}%`]),
     ],
   })
 }
@@ -61,7 +99,7 @@ function tmallRows(xs: Day[], withSpend: boolean, lateRefund = false) {
   const body = xs.map((x) => {
     const buyers = x.new_buyers + x.old_buyers
     const late = lateRefund && x.date === TO
-    return [fmt.compact(x.date), x.visitors, pv(x), buyers, money(x.gmv), x.orders, pct((buyers / x.visitors) * 100), money(x.gmv / buyers),
+    return [fmt.compact(x.date), x.visitors, pv(x), buyers, money(x.gmv), x.orders, x.visitors > 0 ? pct((buyers / x.visitors) * 100) : '', buyers > 0 ? money(x.gmv / buyers) : '',
       late ? '-' : money(x.refund_amount), late ? '-' : x.refund_orders, ...(withSpend ? [money(x.ad_spend)] : []), money(x.ad_gmv), x.new_buyers, x.old_buyers]
   })
   const tb = sum(xs, 'new_buyers') + sum(xs, 'old_buyers')
@@ -133,7 +171,7 @@ function tmallRows(xs: Day[], withSpend: boolean, lateRefund = false) {
 {
   const who: Record<string, string> = { douyin: '阿杰', tmall: '晓雯', xhs: '晓雯', wechat: '阿杰', store: '宋姐' }
   const name: Record<string, string> = { douyin: '抖店', tmall: '天猫', xhs: '小红书店', wechat: '视频号小店', store: '门店' }
-  const rows = (db.prepare('SELECT * FROM channel_daily WHERE date = ? ORDER BY CASE channel_id WHEN \'douyin\' THEN 0 WHEN \'tmall\' THEN 1 WHEN \'xhs\' THEN 2 WHEN \'wechat\' THEN 3 ELSE 4 END').all(TO) as unknown as Day[])
+  const rows = snapshot.filter((r) => r.date === TO).sort((a, b) => CHANNEL_IDS.indexOf(a.channel_id) - CHANNEL_IDS.indexOf(b.channel_id))
   files.push({
     name: '飞书多维表格_经营数据表_模板（示例数据）.csv', title: '飞书多维表格模板（经营数据表）',
     what: '在飞书新建多维表格时“导入 CSV”就能得到这张表的列；一行 = 一个渠道一天。带了 10/26 五个渠道的示例行。有“渠道”列，一张表能导几个渠道。',
@@ -149,7 +187,7 @@ function readme() {
 
 > 示例数据：${SHOP}和所有数字都是虚构的，只用于演示。每份表开头几行写了“示例数据”。
 
-这些表是从工作台数据库里 9/27—10/26 的经营数据导出来的，**数字和经营页对得上**；列名、日期格式、数字写法照各平台后台导出的样子做，故意各不相同，用来演示“拖进来 → 认出是哪家的表 → 对字段 → 预览 → 导入”。
+这些表只读取工作台数据库里 9/27—10/26 完整且有效的预置示例批次，并逐字段核对审计快照；**经营原始数字和经营页对得上**。店名固定为虚构的“示例茶社”，直播占比是可复现示意值，不读取实际店名或流量表。列名、日期格式、数字写法照各平台后台导出的样子做，故意各不相同，用来演示“拖进来 → 认出是哪家的表 → 对字段 → 预览 → 导入”。
 
 都是 CSV（UTF-8 带 BOM，Excel 双击打开不乱码）。工作台还读不了 .xlsx：平台导出的是 Excel 的话，先“另存为 CSV UTF-8”。
 
@@ -165,7 +203,7 @@ ${files.map((f) => `| ${f.name} | ${f.title} | ${f.what} |`).join('\n')}
 3. 想看“有规则就直接对上”，拖抖店、小红书店、视频号小店任意一份。门店那份演示“两列都像成交额，二选一”。
 4. 最后在“导入记录”里撤销这次导入，再点“放回天猫的示例数据”，经营页回到原来的样子。彩排完在知识库根目录运行 \`node 工作台/程序/server/cli.ts import-reset --yes\`，回到演示前的样子。
 
-重新生成：在 \`工作台/程序/\` 下运行 \`node server/modules/data/sample-files.ts\`（只读数据库）。
+重新生成：在 \`工作台/程序/\` 下运行 \`node server/modules/data/sample-files.ts\`（只读数据库）。缺日、未知值、自己的数据或失效示例会在写文件之前停止；请使用独立完整的演示库，不要为生成样例清除真实数据。
 `
 }
 
@@ -181,4 +219,3 @@ if (copyTo) {
   for (const f of [...files.map((x) => x.name), 'README.md']) copyFileSync(join(SAMPLE_DIR, f), join(copyTo, f))
   console.log(`已复制到：${copyTo}`)
 }
-db.close()

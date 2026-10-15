@@ -81,7 +81,7 @@ function roiSuggestions(a: Alert, d: string) {
   const name = NAMES().get(a.channel_id ?? '') ?? ''
   const { shifts, windows: w, conv, share } = roiReasons(a.channel_id!, name, d)
   const c = shifts[0]
-  if (!c || c.now.per_day <= c.base.per_day * 1.3) return ['看一下哪个推广计划花得多了，先给它设每天花费上限。']
+  if (!c || c.now.per_day === null || c.base.per_day === null || c.now.per_day <= c.base.per_day * 1.3) return ['看一下哪个推广计划花得多了，先给它设每天花费上限。']
   const cap = Math.ceil((c.base.per_day * 1.5) / 100) * 100
   return [
     `${shiftText(c, w)}。要不要把出价调回去，请林总或晓雯定（工作台只出建议，不动平台后台；出价的做法见${KB.出价}）。`,

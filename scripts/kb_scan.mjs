@@ -147,6 +147,25 @@ function tableUnder(text, heading) {
   return header ? { header, rows } : null
 }
 
+/** 作品索引按每张表的数据行计数；表头、分隔线、空行和全占位行不算作品。 */
+function workTableRows(text) {
+  const ls = lines(text)
+  const separator = (line) => /^\s*\|/.test(line || '') && splitRow(line).every((c) => /^:?-+:?$/.test(c.trim()))
+  let inTable = false, count = 0
+  for (let i = 0; i < ls.length; i++) {
+    const line = ls[i]
+    if (!/^\s*\|/.test(line)) { inTable = false; continue }
+    const cells = splitRow(line)
+    if (separator(ls[i + 1]) && cells.length === splitRow(ls[i + 1]).length) {
+      inTable = true
+      i++ // 每一张表都单独跳过表头和分隔线
+      continue
+    }
+    if (inTable && !separator(line) && cells.some((c) => cleanCell(c) && !PLACEHOLDER.test(cleanCell(c)))) count++
+  }
+  return count
+}
+
 /** 表头里第一个叫这些名字的列；都没有返回 fallback（按设计的位置取） */
 function colOf(header, names, fallback = -1) {
   for (const n of names) { const k = header.indexOf(n); if (k >= 0) return k }
@@ -384,9 +403,8 @@ async function readObjects(f, rel, base, meta, ctx) {
     result.works.cards++
   }
   if (/^作品索引\.md$/i.test(base)) { // 表格一行一件（.csv 在后面单独数）
-    const rows = lines(await readFile(f, 'utf8')).filter((l) => /^\s*\|/.test(l) && !/^\s*\|[\s:|-]+\|\s*$/.test(l))
     result.works.index = rel
-    result.works.rows += Math.max(0, rows.length - 1) // 去掉表头
+    result.works.rows += workTableRows(await readFile(f, 'utf8'))
   }
   if (base === '待确认的发现.md') readFindings(lines(await readFile(f, 'utf8')), rel, result)
 }

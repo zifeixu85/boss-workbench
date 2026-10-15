@@ -5,7 +5,7 @@ import { Link, Outlet, useLocation, useNavigate } from 'react-router'
 import { ChevronDown } from 'lucide-react'
 import { groupModule, pageBadge, resolveNav, sectionCount } from './nav'
 import { useNav } from './nav-sections'
-import { Brand, Badge, LiveDot, MobileMenuButton, MobileTabs, QuickCreate, SearchButton, SearchDialog, UserMenu, useHotkeys, useShellData } from './shell-parts'
+import { Brand, Badge, LiveDot, MobileMenuButton, MobileTabs, QuickCreate, SearchButton, SearchDialog, SettingsButton, UserMenu, useHotkeys, useShellData } from './shell-parts'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import type { LiveState } from '@/lib/api'
 import { cn } from '@/lib/utils'
@@ -68,6 +68,7 @@ export function TopShell({ live }: { live: LiveState }) {
             <span className="xl:hidden"><SearchButton onClick={() => setSearchOpen(true)} /></span>
             <LiveDot state={live} compact />
             <span className="hidden sm:inline-flex"><QuickCreate /></span><span className="sm:hidden"><QuickCreate compact /></span>
+            <span className="hidden md:inline-flex"><SettingsButton /></span>
             <span className="hidden md:inline-flex"><UserMenu settings={settings} compact /></span>
           </div>
         </div>

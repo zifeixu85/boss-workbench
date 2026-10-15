@@ -17,6 +17,7 @@ import * as dataSources from '../modules/data/service.ts'
 import { readRemindSettings } from '../reminders/settings.ts'
 import { unreadCount } from '../reminders/store.ts'
 import { enabled as enabledModules } from './modules.ts'
+import { homeFocus } from '../../shared/home.ts'
 
 const moduleErrors: { module: string; error: string }[] = []
 function safe<T>(module: string, fn: () => T, fallback: T): T {
@@ -66,6 +67,10 @@ export function overview() {
   const keyClients = on.has('clients') ? safe('大客户', () => crm.focus(t, 6), []) : []
   const xhs = on.has('content') ? safe('小红书', () => content.todayPlan(t), null) : null
   const dueRecs = listReceivables().filter((r) => r.status === '7天内到期')
+  // 基础版的两张重点卡：项目推进到哪、收件箱等你看的（2026-10-15）
+  const active = listProjects().filter((p) => p.stage !== '已完成' && p.stage !== '暂停')
+  const openInbox = (listInbox() as { done_at: string | null }[]).filter((n) => !n.done_at)
+  const homeSetting = get<{ value: string }>("SELECT value FROM settings WHERE key = 'home'")?.value
   return {
     date: t,
     sales, alerts, key_clients: keyClients, xhs, module_errors: [...moduleErrors],
@@ -80,6 +85,12 @@ export function overview() {
     reminders_unread: safe('提醒', () => unreadCount(), 0),
     source_count: on.has('data') ? safe('数据源', () => dataSources.sources().length, 0) : 0,
     modules: [...on],
+    home: homeFocus(homeSetting, [...on]),
+    projects_brief: active.slice(0, 5).map((p) => ({ id: p.id, name: p.name, stage: p.stage, due: p.due, next_step: p.next_step, waiting_on: p.waiting_on,
+      next_milestone: p.next_milestone ? { date: p.next_milestone.date, title: p.next_milestone.title } : null, risks: p.risks.length })),
+    projects_active: active.length,
+    inbox_brief: openInbox.slice(0, 4),
+    inbox_open: openInbox.length,
   }
 }
 
@@ -123,6 +134,8 @@ export function getSettings() {
     reminders: readRemindSettings(),
     // 打开着的模块（shared/modules.ts）；没设过 = 全部
     modules: enabledModules(),
+    // 今日页重点卡（shared/home.ts）：存的原值，空 = 默认
+    home: s.home ?? '',
   }
 }
 export function saveSettings(input: unknown, actor: Actor) {
@@ -134,7 +147,7 @@ export function saveSettings(input: unknown, actor: Actor) {
     run('INSERT INTO settings (key, value) VALUES (:key, :value) ON CONFLICT(key) DO UPDATE SET value = :value', { key, value })
   }
   const NAMES: Record<string, string> = {
-    nav_mode: '电脑导航', theme: '风格', mobile_nav: '手机导航', owner: '称呼', business: '工作台名称（店名）', xhs_name: '小红书账号名',
+    nav_mode: '电脑导航', theme: '风格', mobile_nav: '手机导航', owner: '称呼', business: '工作台名称（店名）', xhs_name: '小红书账号名', home: '首页重点卡', assistant_on: 'AI 助手开关',
     remind_on: '提醒开关', notify_at: '每天看汇总的时间', quiet_start: '免打扰时段', quiet_end: '免打扰时段', remind_demo_system: '演示时弹不弹系统通知',
   }
   const changed = [...new Set(Object.entries(data).filter(([, v]) => v !== undefined).map(([k]) => NAMES[k] ?? k))]

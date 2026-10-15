@@ -7,11 +7,13 @@ import type { Analysis } from './recognize.ts'
 import type { Table } from './csv.ts'
 import { md } from './time.ts'
 
-export type DailyValues = Record<Exclude<FieldKey, 'date' | 'channel'>, number>
+export type CoreNum = 'gmv' | 'orders' | 'visitors'
+export type DailyValues = Record<CoreNum, number> & Record<Exclude<FieldKey, 'date' | 'channel' | CoreNum>, number | null>
+export type FieldState = 'provided' | 'derived' | 'empty' | 'absent' | 'kept_empty' | 'kept_absent'
 type NumKey = keyof DailyValues
 export type PreviewRow = {
   line: number; date: string; channel_id: string; values: DailyValues; before: DailyValues | null
-  status: '新增' | '覆盖' | '一样'; changed: NumKey[]; kept: NumKey[]; warnings: string[]
+  status: '新增' | '覆盖' | '一样'; changed: NumKey[]; kept: NumKey[]; warnings: string[]; field_states: Record<NumKey, FieldState>
 }
 export type Problem = { line: number; date: string | null; channel_id: string | null; kind: '跳过' | '有问题'; reason: string }
 export type Preview = {
@@ -28,7 +30,7 @@ export type Preview = {
 }
 
 const yuanText = (n: number) => (Math.abs(n) >= 10000 ? `${(n / 10000).toFixed(1)} 万` : `${Math.round(n).toLocaleString('zh-CN')} 元`)
-const valueText = (k: NumKey, n: number) => (FIELD[k].kind === 'money' ? yuanText(n) : `${Math.round(n).toLocaleString('zh-CN')}`)
+const valueText = (k: NumKey, n: number | null) => n === null ? '暂无' : (FIELD[k].kind === 'money' ? yuanText(n) : `${Math.round(n).toLocaleString('zh-CN')}`)
 
 type Existing = Map<string, DailyValues>
 function existingRows(keys: { date: string; channel_id: string }[]): Existing {
@@ -37,7 +39,7 @@ function existingRows(keys: { date: string; channel_id: string }[]): Existing {
   const rows = all<DailyValues & { date: string; channel_id: string }>(
     'SELECT * FROM channel_daily WHERE date BETWEEN :f AND :t', { f: dates[0], t: dates[dates.length - 1] })
   return new Map(rows.map((r) => {
-    const v = Object.fromEntries(NUMERIC.map((k) => [k, Number(r[k as NumKey])])) as DailyValues
+    const v = Object.fromEntries(NUMERIC.map((k) => [k, r[k as NumKey] === null ? null : Number(r[k as NumKey])])) as DailyValues
     return [`${r.date}|${r.channel_id}`, v]
   }))
 }
@@ -56,7 +58,6 @@ export function buildPreview(table: Table, a: Analysis): Preview {
   const t = today()
   const cols = a.columns.filter((c) => c.state === '已对上' && c.field && c.field !== 'date' && c.field !== 'channel')
   const chCol = a.columns.find((c) => c.field === 'channel' && c.state === '已对上')
-  const acked = new Set<FieldKey>(a.required.map((r) => r.field).filter((f) => !cols.some((c) => c.field === f) && !a.missing.some((m) => m.field === f)))
   const problems: Problem[] = []
   type Parsed = { line: number; date: string; channel_id: string; got: Partial<DailyValues>; empty: NumKey[]; warnings: string[] }
   const parsed: Parsed[] = []
@@ -90,7 +91,7 @@ export function buildPreview(table: Table, a: Analysis): Preview {
     }
     // 按知识库口径算出来的字段（门店新客 = 单数 − 会员单数）
     for (const d of a.derived) {
-      if (d.field === 'new_buyers' && got.orders !== undefined && got.old_buyers !== undefined) got.new_buyers = Math.max(0, got.orders - got.old_buyers)
+      if (d.field === 'new_buyers' && got.orders != null && got.old_buyers != null) got.new_buyers = Math.max(0, got.orders - got.old_buyers)
     }
     const coreEmpty = empty.filter((k) => CORE.includes(k))
     if (bad.length) { problems.push({ line: r.line, date, channel_id, kind: '有问题', reason: bad.join('；') }); continue }
@@ -110,16 +111,20 @@ export function buildPreview(table: Table, a: Analysis): Preview {
     const prev = before.get(`${p.date}|${p.channel_id}`) ?? null
     const kept: NumKey[] = []
     const values = {} as DailyValues
-    let refuse: string | null = null
+    const field_states = {} as Record<NumKey, FieldState>
     for (const k of NUMERIC as NumKey[]) {
-      if (p.got[k] !== undefined) { values[k] = p.got[k]!; continue }
-      const reason = p.empty.includes(k) ? `${FIELD[k].label}没有数` : acked.has(k) ? `表里没有${FIELD[k].label}这一列` : null
-      if (reason && prev) { values[k] = prev[k]; kept.push(k); p.warnings.push(`${reason}，保留工作台里原来的 ${valueText(k, prev[k])}`); continue }
-      if (reason && !prev) { refuse = `${reason}，工作台里这一天也没有，不能当 0`; break }
-      values[k] = prev ? prev[k] : 0 // 这张表本来就没有、这个渠道平常也没有的数（例如门店没有推广）
+      if (p.got[k] !== undefined) {
+        Object.assign(values, { [k]: p.got[k] })
+        field_states[k] = a.derived.some((d) => d.field === k) ? 'derived' : 'provided'
+        continue
+      }
+      const empty = p.empty.includes(k)
+      const reason = empty ? `${FIELD[k].label}单元格为空` : `表里没有${FIELD[k].label}这一列`
+      Object.assign(values, { [k]: prev ? prev[k] : null })
+      field_states[k] = prev ? (empty ? 'kept_empty' : 'kept_absent') : (empty ? 'empty' : 'absent')
       if (prev) kept.push(k)
+      p.warnings.push(prev ? `${reason}，沿用旧值 ${valueText(k, prev[k])}（不是本次新报的数）` : `${reason}，记为暂无，不当 0`)
     }
-    if (refuse) { problems.push({ line: p.line, date: p.date, channel_id: p.channel_id, kind: '有问题', reason: refuse }); continue }
     const u = usual.get(p.channel_id)
     if (u) {
       for (const k of ['gmv', 'orders', 'visitors'] as const) {
@@ -133,9 +138,9 @@ export function buildPreview(table: Table, a: Analysis): Preview {
     // 日期要核对：今天的还没过完；离今天太远的多半是年份写错了（例如 2025-10-26）
     if (p.date === t) p.warnings.push('这是今天的数，今天还没过完、数不全；明早导昨天的表会覆盖它')
     else if (p.date < addDays(t, -60)) p.warnings.push(`这一天离今天 ${daysBetween(p.date, t)} 天，比近两个月还早，核对一下年份写没写错`)
-    if (values.ad_gmv > 0 && values.ad_spend === 0 && !kept.includes('ad_spend')) p.warnings.push('有推广成交、推广花费却是 0')
-    const changed = prev ? (NUMERIC as NumKey[]).filter((k) => Math.abs(prev[k] - values[k]) > 0.005) : []
-    rows.push({ line: p.line, date: p.date, channel_id: p.channel_id, values, before: prev, status: !prev ? '新增' : changed.length ? '覆盖' : '一样', changed, kept, warnings: p.warnings })
+    if (values.ad_gmv !== null && values.ad_gmv > 0 && values.ad_spend === 0 && !kept.includes('ad_spend')) p.warnings.push('有推广成交、推广花费却是 0')
+    const changed = prev ? (NUMERIC as NumKey[]).filter((k) => prev[k] === null || values[k] === null ? prev[k] !== values[k] : Math.abs(prev[k]! - values[k]!) > 0.005) : []
+    rows.push({ line: p.line, date: p.date, channel_id: p.channel_id, values, before: prev, field_states, status: !prev ? '新增' : changed.length ? '覆盖' : '一样', changed, kept, warnings: p.warnings })
   }
 
   rows.sort((x, y) => x.date.localeCompare(y.date) || x.channel_id.localeCompare(y.channel_id))

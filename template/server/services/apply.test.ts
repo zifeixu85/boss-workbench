@@ -80,12 +80,13 @@ test('通用接口改阶段要写原因；阶段没变照常保存别的字段',
 
 test('模块开关：整组设、打开、收起，关依赖要先关用它的', () => {
   assert.equal(modules.list().all_on, true)
-  modules.setModules('tasks,kb', 'Codex')
-  assert.deepEqual(modules.enabled(), ['today', 'tasks', 'kb', 'settings'])
+  modules.setModules('kb', 'Codex')
+  assert.deepEqual(modules.enabled(), ['today', 'tasks', 'projects', 'inbox', 'kb', 'settings']) // 基础版自动带上
   modules.toggleModules(['biz'], [], 'Codex')
   assert.ok(modules.isOn('data'))
   assert.throws(() => modules.toggleModules([], ['data'], 'Codex'), /还在被经营用着/)
   assert.throws(() => modules.toggleModules([], ['today'], 'Codex'), /一定要开着/)
+  assert.throws(() => modules.toggleModules([], ['inbox'], 'Codex'), /一定要开着/)
   assert.throws(() => modules.setModules('tasks,money', 'Codex'), /模板里没有这些模块：money/)
   modules.setModules('all', 'Codex')
   assert.equal(modules.list().all_on, true)

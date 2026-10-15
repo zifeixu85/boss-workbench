@@ -57,6 +57,7 @@ function HeroNumber({ b }: { b: Board }) {
         <div className="flex items-baseline justify-between gap-3"><dt className="text-muted-foreground">比前一天 <span className="num text-xs">{thousands(y.prev)} 元</span></dt><dd><Delta value={pctOf(y.gmv, y.prev)} /></dd></div>
         <div className="flex items-baseline justify-between gap-3"><dt className="text-muted-foreground">比上{weekday(d)} <span className="num text-xs">{thousands(y.last_week)} 元</span></dt><dd><Delta value={pctOf(y.gmv, y.last_week)} /></dd></div>
       </dl>
+      {y.coverage.note && <p className="mt-3 text-xs text-muted-foreground">{y.coverage.note}</p>}
       <ChannelSplit b={b} />
       <div className="mt-auto grid grid-cols-2 gap-x-3 gap-y-1.5 border-t border-dashed pt-3 text-xs whitespace-nowrap text-muted-foreground">
         <span>订单 <TraceNum q={{ ...q, metric: 'orders' }} className="text-foreground">{thousands(y.orders)} 单</TraceNum></span>
@@ -76,7 +77,7 @@ function Trend({ b }: { b: Board }) {
     <>
       <div className="flex flex-wrap items-baseline justify-between gap-x-3">
         <h2 className="text-[15px] font-semibold">近 15 天每天卖了多少？</h2>
-        <span className="text-xs whitespace-nowrap text-muted-foreground"><span aria-hidden className="mr-1 inline-block w-4 border-t border-dashed border-muted-foreground align-middle" />日均 <span className="num text-foreground">{yuanText(b.trend_avg)}</span><span className="hidden sm:inline"> · 点任意一天看明细</span></span>
+        <span className="text-xs whitespace-nowrap text-muted-foreground"><span aria-hidden className="mr-1 inline-block w-4 border-t border-dashed border-muted-foreground align-middle" />日均{b.trend_avg_days < 15 ? `（按有数的 ${b.trend_avg_days} 天）` : ''} <span className="num text-foreground">{yuanText(b.trend_avg)}</span><span className="hidden sm:inline"> · 点任意一天看明细</span></span>
       </div>
       <ChartContainer config={trendConfig} className="mt-2 aspect-auto h-[220px] w-full cursor-pointer md:h-[268px]">
         <AreaChart accessibilityLayer data={data} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}
@@ -88,12 +89,12 @@ function Trend({ b }: { b: Board }) {
           <XAxis dataKey="label" {...AXIS} ticks={dateTicks(data.map((x) => x.label))} interval={0} />
           <YAxis {...AXIS} width={44} ticks={axis.ticks} domain={axis.domain} tickFormatter={axis.fmt} />
           <ChartTooltip cursor={{ stroke: 'var(--border)' }} content={<UnitTip config={trendConfig} unit=" 元" labelFormatter={(_, p) => { const r = p?.[0]?.payload as { date?: string } | undefined; return r?.date ? `${shortDate(r.date)} ${weekday(r.date)}` : '' }} />} />
-          <ReferenceLine y={b.trend_avg} stroke="var(--muted-foreground)" strokeDasharray="4 4" strokeOpacity={0.6} />
+          {b.trend_avg !== null && <ReferenceLine y={b.trend_avg} stroke="var(--muted-foreground)" strokeDasharray="4 4" strokeOpacity={0.6} />}
           <Area dataKey="gmv" type="monotone" stroke="var(--color-gmv)" strokeWidth={2} fill="url(#hero-fill)" connectNulls={false}
             dot={(p) => (p.index === data.length - 1 ? <circle key={p.index} cx={p.cx} cy={p.cy} r={4} fill="var(--color-gmv)" stroke="var(--card)" strokeWidth={2} /> : <g key={p.index} />)} />
         </AreaChart>
       </ChartContainer>
-      <ChartNote>截至 {shortDate(b.date)} · {SRC}</ChartNote>
+      <ChartNote>完整有数日才进入日均；缺渠道或缺日保留缺口 · 截至 {shortDate(b.date)} · {SRC}</ChartNote>
     </>
   )
 }
@@ -101,7 +102,8 @@ function Trend({ b }: { b: Board }) {
 /** 昨天这笔钱分到 5 个渠道：一条 100% 的条，下面逐项写金额 */
 function ChannelSplit({ b }: { b: Board }) {
   const ov = useBizOverlay()
-  const rows = b.table.map((t) => ({ id: t.id, name: t.name, gmv: t.yesterday_gmv ?? 0 }))
+  if (b.yesterday.gmv === null) return <p className="my-3 text-xs text-muted-foreground">渠道数据未齐，暂不画全店占比；各渠道数字可在下方单独查看。</p>
+  const rows = b.table.filter(t => t.yesterday_gmv !== null).map((t) => ({ id: t.id, name: t.name, gmv: t.yesterday_gmv! }))
   const total = rows.reduce((a, r) => a + r.gmv, 0)
   if (!total) return null
   return (
@@ -135,7 +137,7 @@ export function TopIssues({ b, onAll }: { b: Board; onAll: () => void }) {
       <div className="flex items-start justify-between gap-3 border-b px-5 pt-4 pb-3">
         <div className="min-w-0">
           <h2 className="text-[15px] font-semibold">今天最要紧的事</h2>
-          <p className="mt-0.5 text-xs text-muted-foreground">{open.length ? `规则从昨天的数里找出 ${open.length} 件，点开看证据、原因和建议` : '退款、推广、库存、成交都在平常范围'}</p>
+          <p className="mt-0.5 text-xs text-muted-foreground">{open.length ? `规则从昨天的数里找出 ${open.length} 件，点开看证据、原因和建议` : '已有数据未触发规则；缺值部分尚不能判断'}</p>
         </div>
         <Button variant="ghost" size="sm" onClick={onAll} className="shrink-0">全部<ChevronRight /></Button>
       </div>
@@ -143,7 +145,7 @@ export function TopIssues({ b, onAll }: { b: Board; onAll: () => void }) {
         <ol className="divide-y">
           {open.slice(0, 3).map((a, i) => <IssueRow key={a.id} a={a} i={i} onOpen={() => ov.openAnomaly(a.id)} />)}
         </ol>
-      ) : <div className="p-5"><EmptyNote>没有要处理的异常。规则每天早上按“日报设置”里的阈值重算。</EmptyNote></div>}
+      ) : <div className="p-5"><EmptyNote>没有要处理的异常。规则按“日报设置”里的阈值算；有渠道没数时，那部分看不出来。</EmptyNote></div>}
       <div className="mt-auto border-t px-5 py-2.5 text-xs leading-relaxed text-muted-foreground">
         已处理的旧异常 {handled} 条{quiet ? `，另有 ${quiet} 条还没处理完、按现在的阈值不报了` : ''} · 现在的规则：{b.rules_text}
       </div>

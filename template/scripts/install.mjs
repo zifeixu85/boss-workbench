@@ -14,6 +14,8 @@ import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import os from 'node:os'
 import { autostart } from './autostart.mjs'
+import { checkShell } from './shell-check.mjs'
+import { findCodex } from './codex-check.mjs'
 
 const APP = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 // 知识库根目录和数据库位置：默认 程序/../.. 和 <知识库>/工作台/数据/workbench.db；
@@ -151,6 +153,12 @@ async function checkInstalled() {
   if (!existsSync(db)) { bad('还没有数据库', '双击“安装工作台”'); return }
   const res = run(process.execPath, ['server/cli.ts', 'todos', '--json'], { stdio: ['ignore', 'pipe', 'pipe'] })
   res.status === 0 ? ok(`数据库能正常读取（${JSON.parse(res.stdout || '[]').length} 条未完成待办）`) : bad('数据库读不出来', `详细原因在 ${LOG}`)
+  say(C.b('\n③ 检查外壳（基础版页面、导航、设置页、AI 助手）'))
+  const shell = checkShell(APP)
+  shell.length ? shell.forEach((p) => bad(p, '外壳和基础版不删不换，业务页面按 Skill 的“加减模块”挂进去')) : ok('外壳完整')
+  say(C.b('\n④ AI 助手（本机 Codex，只报告，不算问题）'))
+  const codex = await findCodex()
+  codex.ready ? ok(`本机 Codex 能用：${codex.version}`) : warn(codex.detail, codex.fix)
   say(C.dim('  开机自启（只报告，不算问题）：'))
   await autostart('status', { app: APP, root: ROOT, db: DB, port: PORT, say: (x) => say(C.dim(`    ${x}`)) })
 }

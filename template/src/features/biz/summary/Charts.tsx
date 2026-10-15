@@ -1,7 +1,7 @@
 // 汇总页的两张图：这段时间每天各渠道成交（堆叠柱）、渠道占比（环形）。渠道颜色在所有图里固定。
 import { Bar, BarChart, CartesianGrid, Pie, PieChart, XAxis, YAxis } from 'recharts'
 import { ChartContainer, ChartLegend, ChartLegendContent, ChartTooltip, type ChartConfig } from '@/components/ui/chart'
-import { AXIS, CURSOR, ChartNote, GRID_STROKE, UnitTip } from '@/components/chart-kit'
+import { AXIS, CURSOR, ChartNote, EmptyNote, GRID_STROKE, UnitTip } from '@/components/chart-kit'
 import { Panel } from '@/components/page'
 import { md, shortDate, weekday } from '@/lib/format'
 import { channelColor, dateTicks, LEGEND_CLASS, moneyAxis, p1, wan1, yuanText } from '../fmt'
@@ -17,16 +17,18 @@ function configOf(b: Board) {
 
 /** 一句结论：谁最多；时间段里有国庆时才说国庆（按数据算哪个渠道涨得最多） */
 function headline(b: Board) {
+  if (b.total.gmv === null) return b.total.coverage.note
   const top = [...b.table].sort((p, q) => (q.gmv ?? 0) - (p.gmv ?? 0))[0]
-  const parts = [`合计 ${wan1(b.total.gmv)} 万元`, top ? `${top.name}最多（${p1(top.share ?? 0)}%）` : '']
+  const parts = [`合计 ${wan1(b.total.gmv)} 万元`, top && top.share !== null ? `${top.name}最多（${p1(top.share)}%）` : '']
   if (b.range_holiday_days > 0) {
     // 国庆那几天比平常日子高了多少，挑涨得最多的渠道说
     const isHol = (d: string) => b.holidays.some((h) => d >= h.f && d <= h.t)
     const hol = b.stacked.filter((r) => isHol(r.date))
     const rest = b.stacked.filter((r) => !isHol(r.date))
     const lift = b.channels.map((c) => {
-      const avg = (xs: typeof hol) => xs.reduce((a, r) => a + Number(r[c.id] ?? 0), 0) / (xs.length || 1)
-      return { name: c.name, x: avg(rest) ? avg(hol) / avg(rest) - 1 : 0 }
+      const avg = (xs: typeof hol) => xs.length && xs.every(r => typeof r[c.id] === 'number') ? xs.reduce((a,r) => a + Number(r[c.id]),0) / xs.length : null
+      const a=avg(hol), base=avg(rest)
+      return { name: c.name, x: a !== null && base !== null && base > 0 ? a/base-1 : 0 }
     }).sort((p, q) => q.x - p.x)[0]
     if (lift && lift.x > 0.15) parts.push(`国庆那几天${lift.name}涨得最多（比平常日子高 ${Math.round(lift.x * 100)}%）`)
   }
@@ -36,7 +38,7 @@ function headline(b: Board) {
 export function StackedByChannel({ b }: { b: Board }) {
   const ov = useBizOverlay()
   const config = configOf(b)
-  const data = b.stacked.map((r) => ({ ...r, label: md(r.date) }))
+  const data = b.stacked.map((r) => ({ ...r, label: md(r.date), coverage: `已取得 ${b.channels.filter(c => r[c.id] !== null).length}/${b.channels.length} 个已登记渠道` }))
   const last = b.channels.at(-1)?.id
   const axis = moneyAxis(Math.max(...b.stacked.map((r) => b.channels.reduce((a, c) => a + Number(r[c.id] ?? 0), 0))))
   return (
@@ -47,7 +49,7 @@ export function StackedByChannel({ b }: { b: Board }) {
           <CartesianGrid vertical={false} stroke={GRID_STROKE} />
           <XAxis dataKey="label" {...AXIS} ticks={dateTicks(data.map((x) => x.label))} interval={0} />
           <YAxis {...AXIS} width={44} ticks={axis.ticks} domain={axis.domain} tickFormatter={axis.fmt} />
-          <ChartTooltip cursor={CURSOR} content={<UnitTip config={config} unit=" 元" labelFormatter={(_, p) => { const r = p?.[0]?.payload as { date?: string } | undefined; return r?.date ? `${shortDate(r.date)} ${weekday(r.date)}` : '' }} />} />
+          <ChartTooltip cursor={CURSOR} content={<UnitTip config={config} unit=" 元" labelFormatter={(_, p) => { const r = p?.[0]?.payload as { date?: string; coverage?: string } | undefined; return r?.date ? `${shortDate(r.date)} ${weekday(r.date)} · ${r.coverage ?? ''}` : '' }} />} />
           <ChartLegend itemSorter={null} content={<ChartLegendContent className={LEGEND_CLASS} />} />
           {b.channels.map((c) => (
             <Bar key={c.id} dataKey={c.id} stackId="ch" fill={`var(--color-${c.id})`} maxBarSize={b.days > 14 ? 18 : 28} stroke="var(--card)" strokeWidth={1}
@@ -55,29 +57,30 @@ export function StackedByChannel({ b }: { b: Board }) {
           ))}
         </BarChart>
       </ChartContainer>
-      <ChartNote>截至 {shortDate(b.to)} · {SOURCE} · 点柱子看那一天的明细</ChartNote>
+      <ChartNote>截至 {shortDate(b.to)} · {SOURCE} · 缺渠道的柱只含已知部分，不表示全店总额；缺值不作 0 · 点柱子看那一天的明细</ChartNote>
     </Panel>
   )
 }
 
 export function ChannelShare({ b }: { b: Board }) {
   const config = configOf(b)
-  const rows = b.table.map((t) => ({ key: t.id, name: t.name, value: t.gmv ?? 0, share: t.share, fill: `var(--color-${t.id})` }))
+  const rows = b.table.map((t) => ({ key: t.id, name: t.name, value: t.gmv, share: t.share, fill: `var(--color-${t.id})` }))
+  const complete = b.total.gmv !== null
   const q = (channel?: string) => ({ metric: 'gmv' as const, channel, from: b.from, to: b.to })
   return (
-    <Panel title="钱主要从哪来？" desc={`近 ${b.days} 天各渠道成交占比；企业茶礼另算，不在这里`} className="flex h-full flex-col" bodyClass="flex flex-1 flex-col justify-between pt-4">
+    <Panel title="钱主要从哪来？" desc={`近 ${b.days} 天各渠道成交占比；完整覆盖才计算占比`} className="flex h-full flex-col" bodyClass="flex flex-1 flex-col justify-between pt-4">
       <div className="grid items-center gap-5 sm:grid-cols-[minmax(0,170px)_minmax(0,1fr)] xl:grid-cols-1 2xl:grid-cols-[minmax(0,170px)_minmax(0,1fr)]">
         <div className="relative mx-auto aspect-square w-full max-w-[170px]">
-          <ChartContainer config={config} className="aspect-square w-full">
+          {complete ? <ChartContainer config={config} className="aspect-square w-full">
             <PieChart>
               <ChartTooltip content={<UnitTip config={config} unit=" 元" nameKey="key" hideLabel />} />
               <Pie data={rows} dataKey="value" nameKey="key" innerRadius="64%" outerRadius="100%" stroke="var(--card)" strokeWidth={2} startAngle={90} endAngle={-270} isAnimationActive={false} />
             </PieChart>
-          </ChartContainer>
-          <div className="pointer-events-none absolute inset-0 grid place-content-center text-center">
+          </ChartContainer> : <EmptyNote>渠道数据未齐，暂无占比</EmptyNote>}
+          {complete && <div className="pointer-events-none absolute inset-0 grid place-content-center text-center">
             <span className="num text-[19px] leading-none font-semibold">{wan1(b.total.gmv)}<span className="ml-0.5 text-xs font-normal text-muted-foreground">万</span></span>
             <span className="mt-1 text-[12px] text-muted-foreground">近 {b.days} 天合计</span>
-          </div>
+          </div>}
         </div>
         <ul className="grid gap-2 text-[13px]">
           {rows.map((r) => (
@@ -85,12 +88,12 @@ export function ChannelShare({ b }: { b: Board }) {
               <span aria-hidden className="size-2.5 shrink-0 rounded-[3px]" style={{ background: channelColor(r.key) }} />
               <span className="min-w-0 flex-1 truncate">{r.name}</span>
               <TraceNum q={q(r.key)}>{yuanText(r.value)}</TraceNum>
-              <span className="num w-12 text-right text-muted-foreground">{p1(r.share ?? 0)}%</span>
+              <span className="num w-12 text-right text-muted-foreground">{r.share === null ? '—' : `${p1(r.share)}%`}</span>
             </li>
           ))}
         </ul>
       </div>
-      <ChartNote>截至 {shortDate(b.to)} · {SOURCE}</ChartNote>
+      <ChartNote>{b.total.coverage.note && `${b.total.coverage.note} · `}截至 {shortDate(b.to)} · {SOURCE}</ChartNote>
     </Panel>
   )
 }

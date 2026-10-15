@@ -13,6 +13,7 @@ import { bizRoutes } from './modules/biz/routes.ts'
 import { contentRoutes } from './modules/content/routes.ts'
 import { dataRoutes } from './modules/data/routes.ts'
 import { reminderRoutes } from './reminders/routes.ts'
+import * as assistant from './assistant/service.ts'
 
 const WEB = '网页' as const
 export const routes = new Hono()
@@ -24,6 +25,12 @@ routes.get('/follow', (c) => c.json(ok(home.followUps())))
 routes.get('/changes', (c) => c.json(ok(home.recentChanges(50))))
 routes.get('/search', (c) => c.json(ok(home.search(c.req.query('q') ?? ''))))
 routes.get('/settings', (c) => c.json(ok(home.getSettings())))
+// AI 助手（2026-10-15）：每页右边的对话栏，后台调本机 Codex（assistant/runner.ts）
+routes.get('/assistant/status', async (c) => c.json(ok(await assistant.status(c.req.query('refresh') === '1'))))
+routes.get('/assistant/messages', (c) => c.json(ok(assistant.messages())))
+routes.post('/assistant/ask', async (c) => c.json(ok(await assistant.ask(await body(c) as { text?: unknown }))))
+routes.post('/assistant/stop', (c) => c.json(ok(assistant.stop())))
+routes.delete('/assistant/messages', (c) => c.json(ok(assistant.clear())))
 routes.patch('/settings', async (c) => c.json(ok(home.saveSettings(await body(c), WEB))))
 // 模块开关（shared/modules.ts）：GET 看每个模块开没开；PATCH { on: [...], off: [...] } 打开 / 收起，或 { set: [...] | 'all' } 整组设
 routes.get('/modules', (c) => c.json(ok(modules.list())))
@@ -71,6 +78,7 @@ routes.post('/ledger', async (c) => c.json(ok(money.addLedger(await body(c), WEB
 routes.get('/kb/tree', (c) => c.json(ok(kb.kbTree())))
 routes.get('/kb/file', (c) => c.json(ok(kb.readKb(c.req.query('path') ?? ''))))
 routes.get('/kb/recent', (c) => c.json(ok(kb.recentKb())))
+routes.get('/kb/profile', (c) => c.json(ok(kb.profileDocs()))) // 设置页“我的资料”：知识库里关于你的几份
 
 routes.get('/inbox', (c) => c.json(ok(home.listInbox())))
 routes.post('/inbox', async (c) => c.json(ok(home.addInbox(await body(c), WEB))))

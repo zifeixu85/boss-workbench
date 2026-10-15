@@ -127,8 +127,8 @@ function usualFields(channelIds: string[]): { field: FieldKey; why: string }[] {
   const marks = channelIds.map((_, i) => `:c${i}`).join(',')
   const p = Object.fromEntries(channelIds.map((c, i) => [`c${i}`, c]))
   const t = today()
-  const r = all<Record<string, number>>(`SELECT COUNT(*) AS days, SUM(refund_amount > 0) AS refund_amount, SUM(refund_orders > 0) AS refund_orders, SUM(ad_spend > 0) AS ad_spend,
-    SUM(ad_gmv > 0) AS ad_gmv, SUM(new_buyers > 0) AS new_buyers, SUM(old_buyers > 0) AS old_buyers, AVG(ad_spend) AS avg_ad, AVG(refund_amount) AS avg_refund
+  const r = all<Record<string, number>>(`SELECT COUNT(*) AS days, SUM(refund_amount IS NOT NULL) AS refund_amount, SUM(refund_orders IS NOT NULL) AS refund_orders, SUM(ad_spend IS NOT NULL) AS ad_spend,
+    SUM(ad_gmv IS NOT NULL) AS ad_gmv, SUM(new_buyers IS NOT NULL) AS new_buyers, SUM(old_buyers IS NOT NULL) AS old_buyers, AVG(ad_spend) AS avg_ad, AVG(refund_amount) AS avg_refund
     FROM channel_daily WHERE channel_id IN (${marks}) AND date >= date(:t, '-30 days') AND date < :t`, { ...p, t })[0]
   if (!r || !r.days) return []
   const name = channelIds.length === 1 ? CHANNELS[channelIds[0]]?.name ?? channelIds[0] : '这几个渠道'

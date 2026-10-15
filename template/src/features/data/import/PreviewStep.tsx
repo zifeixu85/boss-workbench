@@ -23,7 +23,7 @@ const COLS: { key: NumKey; label: string }[] = [
   { key: 'ad_spend', label: '推广花费（元）' }, { key: 'ad_gmv', label: '推广成交（元）' }, { key: 'new_buyers', label: '新客' }, { key: 'old_buyers', label: '老客' },
 ]
 /** 和今日页、经营页一样：金额、人数都写整数加千分位（表头写了单位） */
-const fmt = (_k: NumKey, n: number) => thousands(n)
+const fmt = (_k: NumKey, n: number | null) => n === null ? '暂无' : thousands(n)
 
 export function PreviewStep({ v, onBack, onLeave }: { v: DraftView; onBack: () => void; onLeave: () => void }) {
   const p = v.preview!
@@ -140,7 +140,7 @@ function PreviewLine({ r }: { r: PreviewRow }) {
         const changed = r.changed.includes(key) && r.before
         const kept = r.kept.includes(key)
         return (
-          <TableCell key={key} className={cn('num text-right whitespace-nowrap', kept && 'text-muted-foreground')} title={kept ? '表里没有，保留工作台里原来的' : undefined}>
+          <TableCell key={key} className={cn('num text-right whitespace-nowrap', kept && 'text-muted-foreground')} title={kept ? '沿用旧值：不是本次新报的数' : r.values[key] === null ? '缺列或空单元格，未知，不当 0' : r.field_states?.[key] === 'derived' ? '按已选口径计算' : '本次表格提供（0 也是已知值）'}>
             {changed && <span className="mr-1.5 text-xs text-muted-foreground line-through">{fmt(key, r.before![key])}</span>}
             <span className={cn(changed && 'font-medium text-foreground')}>{fmt(key, r.values[key])}</span>
           </TableCell>

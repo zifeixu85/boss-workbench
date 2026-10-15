@@ -96,13 +96,28 @@ async function checkRecommendations(dir) {
   try { rec = JSON.parse(await readFile(recPath, 'utf8')) } catch (e) { fail(`recommendations.json 不是合格的 JSON：${e.message}`) }
   const missing = ['boss', 'profile', 'modules', 'themes', 'schedule'].filter((k) => !rec[k])
   if (missing.length) fail(`recommendations.json 缺少：${missing.join('、')}。格式见 references/确认页数据格式.md`)
-  if (!rec.schedule.boot || !rec.schedule.view) fail('recommendations.json 的 schedule 里要有 boot 和 view 两个问题')
+  if (!rec.schedule.view) fail('recommendations.json 的 schedule 里要有 view（开了提醒以后几点看汇总）')
   return recPath
 }
 
 function sendJson(res, status, body) {
   res.writeHead(status, { 'Content-Type': TYPES['.json'], 'Cache-Control': 'no-store' })
   res.end(JSON.stringify(body))
+}
+
+// 第四步“使用方式”的回执要前后一致（默认手动打开、不提醒、不自启）；旧回执不在这里改
+function scheduleError(body) {
+  const s = body.schedule
+  if (body.schema !== 'boss-workbench-confirm/2' || !s) return '请在确认页第四步选使用方式'
+  if (!['manual', 'reminders'].includes(s.mode) || typeof s.notifications_enabled !== 'boolean' || typeof s.autostart_enabled !== 'boolean') return '使用方式、提醒、自启没选全'
+  if (s.prepare_at !== null || s.boot !== null) return '确认页不建 AI 定时任务，也不问开机时间'
+  if (s.mode === 'manual') {
+    if (s.notifications_enabled || s.autostart_enabled || s.view !== null || s.notify_at !== null) return '手动打开时提醒和自启都要关'
+  } else {
+    const times = { boot: null, '0830': '08:30', '0900': '09:00', '1130': '11:30' }
+    if (!s.notifications_enabled || !Object.hasOwn(times, s.view) || s.notify_at !== times[s.view]) return '提醒时间对不上'
+  }
+  return null
 }
 
 async function readBody(req, limit = 1_000_000) {
@@ -147,6 +162,8 @@ async function serve(opts) {
         const body = JSON.parse(await readBody(req))
         if (!body || body.status !== 'confirmed') return sendJson(res, 400, { error: '结果格式不对：缺少 status: confirmed' })
         if (!Array.isArray(body.modules) || typeof body.theme !== 'string') return sendJson(res, 400, { error: '结果格式不对：缺少 modules 或 theme' })
+        const scheduleProblem = scheduleError(body)
+        if (scheduleProblem) return sendJson(res, 400, { error: scheduleProblem })
         const out = { ...body, saved_at: new Date().toISOString() }
         const tmp = resultPath + '.tmp'
         await writeFile(tmp, JSON.stringify(out, null, 2) + '\n', 'utf8')

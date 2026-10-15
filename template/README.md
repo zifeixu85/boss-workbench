@@ -109,7 +109,8 @@ node server/seed/index.ts --only biz # 只重灌一个模块（biz、content、d
 
 | 模块 | 网址 | 网页 | 服务端 | 数据库升级文件 |
 |---|---|---|---|---|
-| 公共：今日、日程、待办、项目、收件箱、知识库、设置、组件规范 | `/` `/calendar` `/todos` `/projects` `/inbox` `/kb` `/settings` `/design` | `src/features/today` 等 | `server/services/`、`server/routes.ts` | `001_init.sql` |
+| 基础版（每个工作台都有，关不掉）：今日、日程、待办、项目、收件箱、知识库、设置（我的资料、配色、导航、模块、提醒、AI 助手）；组件规范给开发看 | `/` `/calendar` `/todos` `/projects` `/inbox` `/kb` `/settings` `/design` | `src/features/today` 等 | `server/services/`、`server/routes.ts` | `001_init.sql` |
+| AI 助手（每页右边的对话栏，调本机 Codex；`?embed=1` 不显示导航，给 Codex 右边的浏览器用） | ⌘J；设置页“AI 助手” | `src/features/assistant` | `server/assistant/`（`mcp.ts` 工作台工具、`runner.ts` 调 Codex）、`scripts/codex-check.mjs` | `019_ai助手.sql` |
 | 公共：提醒（规则、浏览器通知、电脑系统通知） | `/reminders`；设置页“提醒” | `src/features/reminders`、`src/lib/reminders.ts` | `server/reminders/` | `016_reminders.sql` |
 | 客户与跟进（大客户：客户列表、跟进看板、关怀与回访、新材料提取、跟进清单、应收款） | `/clients…` | `src/features/clients`、`src/features/crm` | `server/modules/crm` | `002_crm.sql`、`015_crm_*.sql` |
 | 经营（汇总 + 每个渠道一页、经营早报、异常） | `/biz`、`/channel/<渠道>` | `src/features/biz` | `server/modules/biz` | `003_biz.sql`、`012_biz_reports.sql` |
@@ -119,7 +120,9 @@ node server/seed/index.ts --only biz # 只重灌一个模块（biz、content、d
 - 菜单只有一个来源：`src/app/nav.ts`，分三层：分区（今日 / 客户 / 经营 / 内容 / 数据 / 资料；设置、组件规范从头像菜单进）→ 页面（可以分组）→ 页内 Tab，不嵌第四层。页面登记在 `src/app/router.tsx`。加模块 = `nav.ts` 加一项（写上 `section` 和 `module`）+ `router.tsx` 用 `gate('<id>', …)` 登记 + `shared/modules.ts` 登记模块 id。不用的模块用模块开关收起（`node server/cli.ts modules --off <id>`，或网页“设置 → 模块”）：菜单、手机底栏、搜索里都不出现，空了的分区自动不显示，代码和数据都留着，随时打开；不用改 `nav.ts`。外壳从 `src/app/nav-sections.ts` 的 `useNav()` 取菜单。细则见 `规范/导航与Tab.md`。
 - 数据库升级文件（`server/migrations/`）只加不改，程序打开数据库时自动执行没跑过的。
 - 改界面先读 `规范/README.md` 和另外 6 篇，对照网页里的“组件规范”页（`/design`）；加减模块按 Skill 里的 `references/加减模块.md`。
-- 检查：`npm run build`（网页）、`npm run lint`、`npm run check:server`（服务端严格类型检查）、`npm test`（提醒规则、开机自启、自动跟进待办、菜单）、`npm run doctor`。
+- 外壳不删不换：导航、顶栏、设置页、AI 助手和基础版页面一直在，业务模块往里挂。`npm run doctor` 会跑 `scripts/shell-check.mjs`，外壳被拆了就报错。
+- 今日页顶上的重点卡（最多 3 张）按设置 `home` 排：`node server/cli.ts settings-set --home projects,inbox`（卡片 id 见 `shared/home.ts`）。
+- 检查：`npm run build`（网页）、`npm run lint`、`npm run check:server`（服务端严格类型检查）、`npm test`（提醒规则、开机自启、自动跟进待办、菜单、外壳、AI 助手）、`npm run doctor`（含外壳检查和本机 Codex 检查）。
 
 ## 和示例数据（--demo）的关系
 
@@ -128,3 +131,7 @@ node server/seed/index.ts --only biz # 只重灌一个模块（biz、content、d
 - 经营模块要先有渠道：空库里没有渠道时，渠道页显示“没有这个渠道”。渠道、商品和每天的数，按 Skill 的 `references/需求文档-多平台经营.md` 和 `references/配方-数据导入与对字段.md` 接。
 
 <!-- 由 导出工作台模板.mjs 生成 -->
+
+### 缺的数不当 0（2026-10-15）
+
+退款、推广、新老客这些字段没给的存空（`NULL`），明确填的 0 才是 0（迁移 `018_daily_nullable.sql`，旧数据原样保留）。有渠道或字段没数时，合计和比率先不算，页面显示“—”并一句话说明哪里没数；导入、撤销、示例数据回收都保留空值。导出示例数据时不会带出老板自己的数据。

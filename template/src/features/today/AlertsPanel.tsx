@@ -11,12 +11,12 @@ import { GoLink } from './parts'
 
 const KIND: Record<string, string> = { 退款: '经营 · 退款', 推广: '经营 · 推广', 库存: '经营 · 库存', 导入失败: '数据源', 更新超时: '数据源' }
 
-/** 没有异常时说什么：都正常，还是根本还没有数（10-12 修：经营数据、数据源都清空时原来也写“数据都正常”） */
+/** 没触发规则不等于数据完整，也不能据此断言经营正常。 */
 function emptyText(hasBiz: boolean, sources: number) {
   if (!hasBiz && !sources) return { desc: '还没有经营数据', note: '还没有经营数据，也还没接数据源。接上以后，退款、推广、库存不对劲，或者数据没按时到，会在这里提醒。' }
   if (!hasBiz) return { desc: '还没有经营数据', note: '数据源接好了，但还没有各渠道的经营数据。导入以后，这里会按规则检查退款、推广和库存。' }
-  if (!sources) return { desc: '数据都正常', note: '各渠道的退款、推广和库存都在正常范围。还没接数据源，数据是手动导入的。' }
-  return { desc: '数据都正常', note: '各渠道的退款、推广和库存都在正常范围，数据源也都按时更新了。' }
+  if (!sources) return { desc: '没有待处理的数据提醒', note: '已有的数里没发现退款、推广、库存的异常；有渠道没数的，那部分看不出来。还没接数据源，数据是手动导入的。' }
+  return { desc: '没有待处理的数据提醒', note: '已有的数里没发现退款、推广、库存的异常，数据源也都按时更新了；有渠道没数的，那部分看不出来。' }
 }
 
 export function AlertsPanel({ alerts, hasBiz = true, sources = 1 }: { alerts: Alert[]; hasBiz?: boolean; sources?: number }) {

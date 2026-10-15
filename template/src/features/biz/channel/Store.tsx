@@ -47,7 +47,7 @@ export function StoreWeekPanel({ d }: { d: ChannelData }) {
   const we = s.weekend_avg
   const wd = s.weekday_avg
   return (
-    <Panel title="一周里哪几天人多？" desc={`周末平均进店 ${p1(we.visitors ?? 0)} 人、成交 ${yuanNum(we.gmv)} 元；工作日 ${p1(wd.visitors ?? 0)} 人、${yuanNum(wd.gmv)} 元。排班、品茶会照这个定`}>
+    <Panel title="一周里哪几天人多？" desc={`周末有数 ${we.days} 天，日均进店 ${we.visitors === null ? '暂无' : p1(we.visitors)} 人、成交 ${yuanNum(we.gmv)} 元；工作日有数 ${wd.days} 天，日均 ${wd.visitors === null ? '暂无' : p1(wd.visitors)} 人、${yuanNum(wd.gmv)} 元。缺日未计为 0`}>
       <ChartContainer config={weekConfig} className="aspect-auto h-[210px] w-full">
         <BarChart accessibilityLayer data={data} margin={{ top: 8, right: 14, left: 0, bottom: 0 }}>
           <CartesianGrid vertical={false} stroke={GRID_STROKE} />
@@ -72,7 +72,7 @@ export function MemberPanel({ d }: { d: ChannelData }) {
   if (!s) return null
   const data = s.daily.map((x) => ({ ...x, label: md(x.date) }))
   return (
-    <Panel title="会员撑起了几成生意？" desc={`近 ${d.days} 天 ${s.buyers} 位买茶的客人里，会员 ${s.members} 位；节假日游客多，会员占比会掉下来`}>
+    <Panel title="会员撑起了几成生意？" desc={`近 ${d.days} 天 ${s.buyers ?? '暂无'} 位买茶的客人里，会员 ${s.members ?? '暂无'} 位；节假日游客多，会员占比会掉下来`}>
       <div className="mb-3 flex flex-wrap items-baseline gap-x-6 gap-y-1">
         <div><span className="num font-heading text-[28px] font-semibold">{s.member_share === null ? '—' : p1(s.member_share)}</span><span className="ml-1 text-sm text-muted-foreground">% 是会员单</span></div>
         <div className="text-xs text-muted-foreground">新客 <span className="num text-foreground">{s.new_share === null ? '—' : `${p1(s.new_share)}%`}</span>（门店口径：会员单算老客，两个加起来是 100%）</div>

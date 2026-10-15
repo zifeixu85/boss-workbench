@@ -8,7 +8,7 @@ import { Link, Outlet, useLocation } from 'react-router'
 import { Bell, ChevronRight, PanelLeftClose, PanelLeftOpen } from 'lucide-react'
 import { groupModule, pageBadge, resolveNav, sectionCount, type NavGroup, type NavPage, type NavSection } from './nav'
 import { useNav } from './nav-sections'
-import { Brand, Badge, LiveDot, MobileMenuButton, MobileTabs, QuickCreate, SearchButton, SearchDialog, UserMenu, useHotkeys, useShellData } from './shell-parts'
+import { Brand, Badge, LiveDot, MobileMenuButton, MobileTabs, QuickCreate, SearchButton, SearchDialog, SettingsButton, UserMenu, useHotkeys, useShellData } from './shell-parts'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { Button } from '@/components/ui/button'
 import type { LiveState } from '@/lib/api'
@@ -166,6 +166,7 @@ export function ComplexShell({ live }: { live: LiveState }) {
           <span className="2xl:hidden"><LiveDot state={live} compact /></span>
           <Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" asChild><Link to="/todos" aria-label="今天要做"><Bell />{todayCount > 0 && <span className="num absolute -mt-4 ml-4 rounded-full bg-warn px-1 text-[12px] leading-4 text-white">{todayCount}</span>}</Link></Button></TooltipTrigger><TooltipContent>今天要做 {todayCount} 件</TooltipContent></Tooltip>
           <span className="hidden sm:inline-flex"><QuickCreate /></span><span className="sm:hidden"><QuickCreate compact /></span>
+          <span className="hidden md:inline-flex"><SettingsButton /></span>
           <span className="hidden md:inline-flex"><UserMenu settings={settings} compact /></span>
         </div>
       </header>

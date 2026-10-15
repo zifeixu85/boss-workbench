@@ -10,6 +10,7 @@ import * as money from './services/money.ts'
 import * as home from './services/today.ts'
 import * as modules from './services/modules.ts'
 import { applyPlan } from './services/apply.ts'
+import { checkHome } from '../shared/home.ts'
 import * as crm from './modules/crm/service.ts'
 import * as crmAct from './modules/crm/actions.ts' // 大客户模块（E5）：改阶段、下次跟进、答应的事、关怀
 import * as crmEx from './modules/crm/extract.ts'
@@ -61,9 +62,10 @@ const HELP = `用法：node 工作台/程序/server/cli.ts <命令> [参数] [--
   apply <清单.json> [--yes]          一张清单一次写入：不加 --yes 是预演（照样检查，什么都不留）；加 --yes 才写。中间哪步不行，整张都不写
                                      清单格式见 server/services/apply.ts 开头
   settings-set [--owner 称呼] [--business 店名或工作台名称] [--xhs 小红书账号名] [--theme jade|wood|navy|mono|night] [--nav simple|complex|top]
-               [--modules today,tasks,inbox,kb|all]
+               [--modules clients,biz|all] [--home projects,inbox,clients]
                                      改设置（搭建时按知识库写老板的称呼、店名、小红书账号名、配色、导航）
-                                     --modules 只打开这几个模块（今日、设置一定开着；打开经营或内容会自动带上数据源与导入）；all = 全部打开
+                                     --modules 只打开这几个模块（基础版：今日、待办与日程、项目、收件箱、知识库、设置一定开着；打开经营或内容会自动带上数据源与导入）；all = 全部打开
+                                     --home 今日页顶上的重点卡，按老板“最想先看到”排，最多 3 张：projects 项目、inbox 收件箱、clients 客户、sales 经营、xhs 小红书
   modules [--on 模块id,…] [--off 模块id,…]
                                      看每个模块开没开；--on 打开、--off 收起（只从导航、今日页、提醒里拿掉，代码和数据都留着）
   snapshot                           导出只读快照到 工作台/快照/
@@ -128,7 +130,7 @@ function parseCli() {
         status: { type: 'string' }, start: { type: 'string' }, end: { type: 'string' }, kind: { type: 'string' }, location: { type: 'string' },
         from: { type: 'string' }, to: { type: 'string' }, reason: { type: 'string' }, days: { type: 'string' }, message: { type: 'string' },
         label: { type: 'string' }, source: { type: 'string' }, help: { type: 'boolean', short: 'h' },
-        file: { type: 'string' }, by: { type: 'string' },
+        file: { type: 'string' }, by: { type: 'string' }, home: { type: 'string' },
         kb: { type: 'string' }, owner: { type: 'string' }, goal: { type: 'string' }, milestone: { type: 'string', multiple: true },
         project: { type: 'string' }, business: { type: 'string' }, theme: { type: 'string' }, nav: { type: 'string' }, xhs: { type: 'string' },
         time: { type: 'string' }, in: { type: 'string' }, modules: { type: 'string' }, on: { type: 'string' }, off: { type: 'string' },
@@ -335,10 +337,11 @@ function main() {
       // 搭建时把老板的称呼、店名（也是工作台名称）、小红书账号名、配色、导航写进设置（网页“设置”页同一套规则）。
       // 称呼、店名、账号名会用在网页文案、给 Codex 的提示词和小红书手机预览里；--xhs "" 清掉账号名，改用店名
       // --modules：只打开确认页里选中的模块（模块开关，见 shared/modules.ts）
-      if (![o.owner, o.business, o.xhs, o.theme, o.nav, o.modules].some((v) => v !== undefined)) throw new Error('要写改什么：--owner、--business、--xhs、--theme、--nav 或 --modules')
+      if (![o.owner, o.business, o.xhs, o.theme, o.nav, o.modules, o.home].some((v) => v !== undefined)) throw new Error('要写改什么：--owner、--business、--xhs、--theme、--nav、--modules 或 --home')
+      if (o.home !== undefined) { const h = checkHome(o.home); if (h.unknown.length) throw new Error(`首页没有这几张卡：${h.unknown.join('、')}（能用的：projects、inbox、clients、sales、xhs）`) }
       const m = o.modules !== undefined ? modules.setModules(o.modules.trim() === 'all' ? 'all' : o.modules, ACTOR) : null
-      const rest = [o.owner, o.business, o.xhs, o.theme, o.nav].some((v) => v !== undefined)
-      const r = rest ? home.saveSettings({ owner: o.owner, business: o.business, xhs_name: o.xhs, theme: o.theme, nav_mode: o.nav }, ACTOR) : home.getSettings()
+      const rest = [o.owner, o.business, o.xhs, o.theme, o.nav, o.home].some((v) => v !== undefined)
+      const r = rest ? home.saveSettings({ owner: o.owner, business: o.business, xhs_name: o.xhs, theme: o.theme, nav_mode: o.nav, home: o.home }, ACTOR) : home.getSettings()
       const mText = m ? `\n${moduleText(m)}${m.added.length ? `\n（自动带上：${m.added.join('、')}）` : ''}` : ''
       return print({ ...r, modules_detail: m }, `已改设置：称呼 ${r.owner}，店名 / 工作台 ${r.business}，小红书账号 ${r.xhs}${r.xhs_name ? '' : '（跟店名）'}，配色 ${r.theme}，导航 ${r.nav_mode}${mText}`)
     }

@@ -364,7 +364,8 @@
             "tone": "muted"
           }
         ]
-      }
+      },
+      "locked": true
     },
     {
       "id": "clients",
@@ -531,13 +532,14 @@
             "at": 1
           }
         ]
-      }
+      },
+      "locked": true
     },
     {
       "id": "inbox",
       "name": "收件箱",
       "group": "每天用",
-      "status": "optional",
+      "status": "recommended",
       "selected": true,
       "why": "随手记、转进来的聊天和文件先放这；分不清归谁的，等你点一下再归档。",
       "preview": {
@@ -557,13 +559,14 @@
             "meta": "语音转文字 · 归给谁，等你点一下"
           }
         ]
-      }
+      },
+      "locked": true
     },
     {
       "id": "kb",
       "name": "知识库",
       "group": "资料",
-      "status": "optional",
+      "status": "recommended",
       "selected": true,
       "why": "在工作台里翻你的资料；原文还在你的文件夹里，工作台只读不改。",
       "preview": {
@@ -614,7 +617,8 @@
             "样本 2 · 只比单价的新客户：单价不降，改送升级包装或印 logo。（待确认）"
           ]
         }
-      }
+      },
+      "locked": true
     },
     {
       "id": "money",
@@ -782,31 +786,8 @@
     }
   ],
   "schedule": {
-    "boot": {
-      "question": "你的电脑一般几点开着？",
-      "hint": "工作台是在你自己电脑上整理数据的，电脑开着、没合上盖子才能干活。",
-      "options": [
-        {
-          "id": "early",
-          "label": "早上 8 点前就开了"
-        },
-        {
-          "id": "nine",
-          "label": "9 点左右"
-        },
-        {
-          "id": "late",
-          "label": "10 点以后"
-        },
-        {
-          "id": "random",
-          "label": "不一定，经常合上"
-        }
-      ],
-      "default": "early"
-    },
     "view": {
-      "question": "你想几点看到今天的汇总？",
+      "question": "开了提醒以后，想几点看到今天的汇总？",
       "options": [
         {
           "id": "boot",
@@ -834,16 +815,8 @@
       "value": "左边一列，模块不多，一眼都能看到"
     },
     {
-      "label": "提醒",
-      "value": "工作台开着时浏览器弹，关了也会弹电脑通知；晚上 10 点到早上 8 点只记不弹"
-    },
-    {
       "label": "数据放哪",
       "value": "新建“工作台”文件夹；你的知识库原文一个字都不改"
-    },
-    {
-      "label": "开机自动启动",
-      "value": "电脑开机后工作台自己在后台跑，不用每次去点"
     }
   ]
 }

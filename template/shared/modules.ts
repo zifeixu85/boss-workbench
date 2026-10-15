@@ -3,11 +3,13 @@
 // 关掉只是“收起来”：代码和数据都留着，随时能打开。
 // 设置里存成一个 settings 键 modules（逗号隔开的 id）；没存过 = 全部打开（老数据库、演示模式照旧）。
 // 加一个新模块：在 MODULES 里加一项，再在 src/app/nav.ts 的菜单项上写 module。
+// 基础版（2026-10-15 A梦 定）：今日、待办与日程、项目、收件箱、知识库、设置每个工作台都有，有没有数据都在（没数据显示空状态和“新建”），
+// 所以都是 required，关不掉。客户与跟进、经营、内容这些是业务模块：老板确实有这块业务、在维护，才按他的做法加进来。
 
 export type ModuleDef = {
   id: string
   name: string
-  /** 一定打开，不能关 */
+  /** 基础版：一定打开，不能关 */
   required?: boolean
   /** 打开它时自动带上的模块 */
   needs?: string[]
@@ -15,15 +17,15 @@ export type ModuleDef = {
 
 export const MODULES: ModuleDef[] = [
   { id: 'today', name: '今日', required: true },
-  { id: 'tasks', name: '待办与日程' },
-  { id: 'projects', name: '项目' },
-  { id: 'inbox', name: '收件箱' },
+  { id: 'tasks', name: '待办与日程', required: true },
+  { id: 'projects', name: '项目', required: true },
+  { id: 'inbox', name: '收件箱', required: true },
   { id: 'reminders', name: '提醒' },
   { id: 'clients', name: '客户与跟进' },
   { id: 'biz', name: '经营', needs: ['data'] },
   { id: 'content', name: '小红书内容中心', needs: ['data'] },
   { id: 'data', name: '数据源与导入' },
-  { id: 'kb', name: '知识库' },
+  { id: 'kb', name: '知识库', required: true },
   { id: 'settings', name: '设置', required: true },
   { id: 'design', name: '组件规范' },
 ]

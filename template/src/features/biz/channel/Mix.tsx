@@ -51,7 +51,7 @@ export function TrafficPanel({ d, source }: { d: ChannelData; source: string }) 
             {rows.map((r, i) => (
               <tr key={r.source}>
                 <td className="py-1"><span className="flex items-center gap-2 whitespace-nowrap"><span aria-hidden className="size-2.5 shrink-0 rounded-[3px]" style={{ background: color, opacity: RAMP[i] ?? 0.2 }} />{r.source}</span></td>
-                <td className="num py-1 text-right">{p1(r.share ?? 0)}%</td>
+                <td className="num py-1 text-right">{r.share === null ? '—' : `${p1(r.share)}%`}</td>
                 {hasPrev && <td className="py-1 text-right text-xs"><Delta value={r.prev_share !== null && r.share !== null && r.prev_share ? Math.round((r.share - r.prev_share) * 10) / 10 : null} suffix={`${NBSP}个点`} /></td>}
               </tr>
             ))}
@@ -68,7 +68,7 @@ export function ProductsPanel({ d, source }: { d: ChannelData; source: string })
   const hot = rows.find((r) => (r.vs_prev ?? 0) >= 40)
   const hasPrev = d.has_prev && rows.some((r) => r.vs_prev !== null)
   return (
-    <Panel title="哪几个商品卖得好？" desc={rows.length ? `前 5 个占这个渠道成交的 ${Math.round(rows.reduce((a, r) => a + (r.share ?? 0), 0))}%${hot && hasPrev ? `；${hot.name}比前 ${d.days} 天多卖了 ${Math.round(hot.vs_prev ?? 0)}%` : ''}` : undefined} bodyClass="p-0">
+    <Panel title="哪几个商品卖得好？" desc={rows.length && rows.every(r => r.share !== null) ? `前 5 个占这个渠道成交的 ${Math.round(rows.reduce((a, r) => a + r.share!, 0))}%${hot && hasPrev ? `；${hot.name}比前 ${d.days} 天多卖了 ${Math.round(hot.vs_prev ?? 0)}%` : ''}` : '渠道总额没取全，先不算占比'} bodyClass="p-0">
       {rows.length ? (
         <Table containerClassName="overflow-x-auto">
           <TableHeader>
@@ -89,7 +89,7 @@ export function ProductsPanel({ d, source }: { d: ChannelData; source: string })
                 <TableCell><div className="font-medium">{r.name}</div><div className="text-[12px] text-muted-foreground">{r.category} · 零售价 {r.price} 元</div></TableCell>
                 <TableCell className="num text-right">{thousands(r.units)}</TableCell>
                 <TableCell className="num text-right">{yuanNum(r.gmv)}</TableCell>
-                <TableCell className="num text-right text-muted-foreground">{p1(r.share ?? 0)}%</TableCell>
+                <TableCell className="num text-right text-muted-foreground">{r.share === null ? '—' : `${p1(r.share)}%`}</TableCell>
                 {hasPrev && <TableCell className="text-right text-xs"><Delta value={r.vs_prev} /></TableCell>}
                 <TableCell className="pr-5"><Spark values={r.spark} height={28} color={channelColor(d.channel.id)} /></TableCell>
               </TableRow>

@@ -87,8 +87,8 @@ export type Analysis = {
   missing: { field: FieldKey; label: string; why: string; col?: string; canAck: boolean }[]
   blocking: string[]; target: 'channel_daily' | 'xhs_notes'
 }
-export type Values = Record<NumKey, number>
-export type PreviewRow = { line: number; date: string; channel_id: string; values: Values; before: Values | null; status: '新增' | '覆盖' | '一样'; changed: NumKey[]; kept: NumKey[]; warnings: string[] }
+export type Values = Record<NumKey, number | null>
+export type PreviewRow = { line: number; date: string; channel_id: string; values: Values; before: Values | null; status: '新增' | '覆盖' | '一样'; changed: NumKey[]; kept: NumKey[]; warnings: string[]; field_states: Record<NumKey, string> }
 export type Problem = { line: number; date: string | null; channel_id: string | null; kind: '跳过' | '有问题'; reason: string }
 export type Preview = {
   rows: PreviewRow[]; problems: Problem[]

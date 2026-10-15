@@ -27,7 +27,7 @@ export function SalesBrief({ sales, alerts }: { sales: SalesSummary | null; aler
         <div className="min-w-0 px-3.5 py-3 sm:px-5 sm:py-3.5">
           <div className="text-xs text-muted-foreground">订单</div>
           <div className="num mt-1 font-heading text-[20px] leading-none font-semibold sm:text-[24px]">{thousands(t.orders)}<span className="ml-1 font-sans text-sm font-normal text-muted-foreground">单</span></div>
-          <div className="mt-1.5 text-xs text-muted-foreground">客单价 <span className="num text-foreground">{t.orders ? yuan(t.gmv / t.orders) : '—'}</span></div>
+          <div className="mt-1.5 text-xs text-muted-foreground">客单价 <span className="num text-foreground">{t.orders && t.gmv !== null ? yuan(t.gmv / t.orders) : '—'}</span></div>
         </div>
         <div className="min-w-0 px-3.5 py-3 sm:px-5 sm:py-3.5">
           <div className="text-xs text-muted-foreground">退款率</div>
@@ -64,7 +64,7 @@ export function SalesBrief({ sales, alerts }: { sales: SalesSummary | null; aler
           })}
         </TableBody>
       </Table>
-      <div className="px-5 pb-4"><ChartNote>截至 {shortDate(sales.date)} · 来源：各平台导出文件、门店日报（飞书多维表格），每天早上 8 点前导完</ChartNote></div>
+      <div className="px-5 pb-4"><ChartNote>{t.coverage.note && `${t.coverage.note} · `}截至 {shortDate(sales.date)} · 来源：各平台导出文件、门店日报（飞书多维表格），每天早上 8 点前导完</ChartNote></div>
     </Panel>
   )
 }

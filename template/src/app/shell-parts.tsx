@@ -3,7 +3,7 @@
 // 菜单一律经 useNav（nav-sections.ts）取：模块开关关掉的模块不出现在搜索、底栏、“更多”、汉堡菜单里
 import { useEffect, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router'
-import { CalendarPlus, ChevronDown, Inbox, ListPlus, Menu, MessageSquarePlus, Plus, Search, UserPlus, Check } from 'lucide-react'
+import { CalendarPlus, ChevronDown, Inbox, ListPlus, Menu, MessageSquarePlus, Plus, Search, UserPlus, UserRound, Check, Settings as SettingsIcon } from 'lucide-react'
 import { api, useApi, useWrite, type LiveState } from '@/lib/api'
 import type { Overview, SearchHit, Settings } from '@/lib/types'
 import { activeTab, groupModule, mobileTabs, pageBadge, pageTrail, resolveNav, type NavItem } from './nav'
@@ -134,6 +134,17 @@ export function SearchDialog({ open, onOpenChange }: { open: boolean; onOpenChan
   )
 }
 
+/** 设置入口：一个齿轮按钮，三种导航都放在看得见的地方（不只藏在头像菜单里） */
+export function SettingsButton({ label }: { label?: boolean }) {
+  const { pathname } = useLocation()
+  const active = pathname.startsWith('/settings')
+  return (
+    <Button variant="ghost" size={label ? 'sm' : 'icon'} asChild className={cn(label && 'justify-start gap-2.5 px-2.5 text-[14.5px] font-normal', active && 'bg-sidebar-accent font-semibold')}>
+      <Link to="/settings" aria-label="设置" aria-current={active ? 'page' : undefined}><SettingsIcon className="size-[18px] opacity-85" />{label && "设置"}</Link>
+    </Button>
+  )
+}
+
 export function UserMenu({ settings, compact }: { settings?: Settings; compact?: boolean }) {
   const save = useWrite((b: Partial<Settings>) => api.patch('/settings', b), '导航样式已切换')
   const name = settings?.owner ?? '老板'
@@ -147,6 +158,8 @@ export function UserMenu({ settings, compact }: { settings?: Settings; compact?:
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-56">
+        <DropdownMenuItem asChild><Link to="/settings#profile"><UserRound />我的资料</Link></DropdownMenuItem>
+        <DropdownMenuSeparator />
         <DropdownMenuLabel>导航样式</DropdownMenuLabel>
         {([['simple', '简单：一列，按分区分段'], ['complex', '复杂：分区页签 + 左栏'], ['top', '顶部：分区下拉']] as const).map(([m, label]) => (
           <DropdownMenuItem key={m} onSelect={() => save.mutate({ nav_mode: m })}>{settings?.nav_mode === m ? <Check /> : <span className="size-4" />}{label}</DropdownMenuItem>

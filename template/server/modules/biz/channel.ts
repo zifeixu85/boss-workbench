@@ -29,7 +29,7 @@ function products(ch: string, from: string, to: string, pFrom: string, pTo: stri
   return top.map((x) => {
     const prev = get<{ g: number | null }>('SELECT SUM(gmv) AS g FROM channel_products WHERE channel_id = :c AND sku_id = :s AND date BETWEEN :f AND :t', { c: ch, s: x.sku_id, f: pFrom, t: pTo })?.g ?? null
     const units = new Map(all<{ date: string; units: number }>('SELECT date, units FROM channel_products WHERE channel_id = :c AND sku_id = :s AND date BETWEEN :f AND :t', { c: ch, s: x.sku_id, f: from, t: to }).map((r) => [r.date, r.units]))
-    return { ...x, gmv: Math.round(x.gmv), share: pctShare(x.gmv, channelGmv), vs_prev: delta('pct', x.gmv, prev), spark: days.map((d) => units.get(d) ?? 0) }
+    return { ...x, gmv: Math.round(x.gmv), share: pctShare(x.gmv, channelGmv), vs_prev: delta('pct', x.gmv, prev), spark: days.map((d) => units.get(d) ?? null) }
   })
 }
 
@@ -62,9 +62,9 @@ export function channelPage(id: string, days: number) {
   const rows = rowsBetween([pFrom, addDays(date, -21)].sort()[0], date, id)
   const inRange = rows.filter((r) => r.date >= from)
   const isStore = id === 'store'
-  const cur = metricsOf(agg(inRange), false)
+  const cur = metricsOf(agg(inRange, {from, to: date, channels: [id]}), false)
   const prevRows = rows.filter((r) => r.date >= pFrom && r.date <= pTo)
-  const prev = metricsOf(agg(prevRows), false)
+  const prev = metricsOf(agg(prevRows, {from: pFrom, to: pTo, channels: [id]}), false)
   const wh = get<{ id: string; name: string; note: string | null }>('SELECT * FROM warehouses WHERE id = :w', { w: ch.warehouse_id })
   const fresh = freshness()
   const anomalies = listAnomalies(date)
@@ -77,7 +77,7 @@ export function channelPage(id: string, days: number) {
     date, days, from, to: date, prev_from: pFrom, prev_to: pTo,
     prev_holiday_days: holidayDays({ f: pFrom, t: pTo }), range_holiday_days: holidayDays({ f: from, t: date }), has_prev: prevRows.length > 0,
     roi_line: cfg.roi_min,
-    kpis: kpis(rows, date, from, { onlineConv: false, metrics: isStore ? ['gmv', 'orders', 'visitors', 'conv_rate', 'aov', 'refund_rate'] : undefined, hints }),
+    kpis: kpis(rows, date, from, { onlineConv: false, channels: [id], metrics: isStore ? ['gmv', 'orders', 'visitors', 'conv_rate', 'aov', 'refund_rate'] : undefined, hints }),
     range: { ...cur, vs_prev_period: prevRows.length ? delta('pct', cur.gmv, prev.gmv) : null, prev_gmv: prevRows.length ? prev.gmv : null },
     /** 推广：之前两周 → 近 3 天（和异常、对比表同一个算法） */
     ads_shift: ads ? { base: ads.base, now: ads.now, base_label: `之前两周（${span(w.base)}）`, now_label: `近 3 天（${span(w.now)}）` } : null,

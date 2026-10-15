@@ -2,7 +2,7 @@
 // 顶层文件夹不写死，有什么读什么（不同老板的知识库文件夹名可能不一样）；
 // 根目录的 知识库说明.md、AGENTS.md 也能看；客户背景笔记找不到时，按客户名字在知识库里找（findClientNote）。
 // 工作台改知识库文件之前，原文件先备份到数据库旁边的 备份/知识库/（backupKbFile）。
-import { readdirSync, readFileSync, statSync, writeFileSync, mkdirSync, existsSync, copyFileSync } from 'node:fs'
+import { readdirSync, readFileSync, statSync, writeFileSync, mkdirSync, existsSync, copyFileSync, lstatSync, realpathSync } from 'node:fs'
 import { join, relative, resolve, sep, dirname, basename, isAbsolute } from 'node:path'
 import { ROOT, BACKUP_DIR } from '../db.ts'
 import { BadRequest, NotFound } from './common.ts'
@@ -22,6 +22,7 @@ function tops(): string[] {
 
 /** 文档的“更新”日期：优先读文件开头的“更新: 2026-10-25”（知识库约定，演示时和演示日期对得上）；没写才用文件修改时间 */
 function updatedOf(abs: string): string {
+  assertRealPathInsideRoot(abs)
   try {
     const head = readFileSync(abs, 'utf8').slice(0, 600)
     const m = head.startsWith('---') ? head.match(/^更新[:：]\s*(\d{4}-\d{2}-\d{2})\s*$/m) : null
@@ -31,6 +32,22 @@ function updatedOf(abs: string): string {
 }
 
 const rootFiles = () => readdirSync(ROOT, { withFileTypes: true }).filter((e) => e.isFile() && e.name.endsWith('.md') && !ROOT_SKIP.has(e.name) && !e.name.startsWith('.')).map((e) => e.name)
+
+/** 新建文件尚不存在时检查最近的已有祖先；悬空链接不能当成普通缺失路径。 */
+function assertRealPathInsideRoot(abs: string): void {
+  let existing = abs
+  try {
+    while (true) {
+      try { lstatSync(existing); break } catch (error) {
+        if ((error as NodeJS.ErrnoException).code !== 'ENOENT' || existing === ROOT) throw error
+        existing = dirname(existing)
+      }
+    }
+    const root = realpathSync(ROOT)
+    const target = realpathSync(existing)
+    if (target !== root && !target.startsWith(root + sep)) throw new Error('outside root')
+  } catch { throw new BadRequest('这个位置不允许读写') }
+}
 
 /** 只允许知识库里的 .md 文件，拒绝 ../ 越界。
  *  底座审查 #9：按规范化以后的路径段判断（“关于我/../README.md”规范化后就是根目录的 README.md，要拦住）；隐藏文件夹也不让读 */
@@ -45,6 +62,7 @@ export function kbPath(rel: string) {
   if (!abs.startsWith(ROOT + sep) || !abs.endsWith('.md') || !(inRoot || okTop) || bad) {
     throw new BadRequest('这个位置不允许读写')
   }
+  assertRealPathInsideRoot(abs)
   return abs
 }
 
@@ -61,7 +79,12 @@ function walk(dir: string): Node[] {
         return children.length ? { name: e.name, path, type: 'dir', children } : null
       }
       if (!e.name.endsWith('.md')) return null
-      return { name: e.name.replace(/\.md$/, ''), path, type: 'file', updated: updatedOf(abs) }
+      try {
+        return { name: e.name.replace(/\.md$/, ''), path, type: 'file', updated: updatedOf(abs) }
+      } catch (error) {
+        if (error instanceof BadRequest) return null
+        throw error
+      }
     })
     .filter((n): n is Node => n !== null)
     .sort((a, b) => (a.type === b.type ? a.name.localeCompare(b.name, 'zh') : a.type === 'dir' ? -1 : 1))
@@ -108,7 +131,7 @@ function allFiles(): Node[] {
 
 /** 最近更新：不算 工作台/ 里自动导出的快照；同一天的按文件修改时间排 */
 export function recentKb(limit = 8) {
-  const mtime = (p: string) => statSync(join(ROOT, p)).mtimeMs
+  const mtime = (p: string) => statSync(kbPath(p)).mtimeMs
   return allFiles().filter((f) => !f.path.startsWith('工作台/'))
     .sort((a, b) => String(b.updated).slice(0, 10).localeCompare(String(a.updated).slice(0, 10)) || mtime(b.path) - mtime(a.path))
     .slice(0, limit)
@@ -124,11 +147,11 @@ export function findClientNote(client: { id: string; name: string; kb_path?: str
   const key = client.name.replace(/（.*?）|\(.*?\)/g, '')
   const short = key.length > 4 ? key.slice(0, 2) : key // 公司名取前两个字（“衡言律师事务所”→“衡言”），人名用全名
   for (const f of files) {
-    const head = readFileSync(join(ROOT, f.path), 'utf8').slice(0, 600)
+    const head = readFileSync(kbPath(f.path), 'utf8').slice(0, 600)
     if (head.includes(`工作台ID: ${client.id}`) || head.includes(`工作台ID：${client.id}`)) return { path: f.path, expected }
   }
   const byName = files.find((f) => basename(f.path, '.md') === key)
-    ?? files.find((f) => /客户/.test(f.path) && (basename(f.path, '.md').includes(short) || readFileSync(join(ROOT, f.path), 'utf8').slice(0, 400).includes(`名称: ${key}`)))
+    ?? files.find((f) => /客户/.test(f.path) && (basename(f.path, '.md').includes(short) || readFileSync(kbPath(f.path), 'utf8').slice(0, 400).includes(`名称: ${key}`)))
   return { path: byName?.path ?? null, expected }
 }
 
@@ -141,4 +164,30 @@ export function findDoc(expected: string | null | undefined, name: string): { pa
   const key = norm(name)
   const hit = allFiles().find((f) => norm(basename(f.path, '.md')) === key) ?? allFiles().find((f) => key.length >= 4 && norm(basename(f.path, '.md')).includes(key))
   return { path: hit?.path ?? null, expected: expected ?? null }
+}
+
+/** 设置页“我的资料”（2026-10-15）：知识库里讲“你是谁、怎么跟你说话”的几份，只读。
+ *  先按标准位置找，就地建图的库按文件名找（findDoc）；没有的标出来，提示用 boss-kb 补 */
+const PROFILE_DOCS = [
+  { title: '基本情况', path: '02-关于我/基本情况.md', name: '基本情况' },
+  { title: '生意总览', path: '03-生意/生意总览.md', name: '生意总览' },
+  { title: '和 AI 协作的习惯', path: '01-AI协作/协作偏好.md', name: '协作偏好' },
+  { title: '说话方式', path: '02-关于我/说话方式.md', name: '说话方式' },
+  { title: '边界：哪些不放、哪些先问', path: '02-关于我/边界.md', name: '边界' },
+]
+/** 去掉开头的元信息和标题，取正文前几行当摘要 */
+function excerptOf(body: string, max = 140): string {
+  const text = body.replace(/^---[\s\S]*?\n---\s*\n/, '').split('\n').filter((l) => l.trim() && !/^#/.test(l.trim()) && !/^>/.test(l.trim()) && !/^\|?\s*-{3,}/.test(l.trim()))
+    .map((l) => l.trim().replace(/^[-*+]\s+|^\d+\.\s+/, '')).join('；')
+  const flat = text.replace(/\[([^\]]+)\]\([^)]*\)/g, '$1').replace(/[*_`|]/g, '').replace(/\s+/g, ' ').trim()
+  return flat.length > max ? `${flat.slice(0, max)}…` : flat
+}
+export function profileDocs() {
+  return PROFILE_DOCS.map((d) => {
+    let path: string | null = null
+    try { path = findDoc(d.path, d.name).path } catch { path = null }
+    if (!path) return { title: d.title, path: null, excerpt: '', updated: null }
+    const f = readKb(path)
+    return { title: d.title, path, excerpt: excerptOf(f.body), updated: f.updated }
+  })
 }

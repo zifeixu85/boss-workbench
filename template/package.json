@@ -14,8 +14,8 @@
     "doctor": "node scripts/install.mjs --check",
     "lint": "oxlint",
     "seed:only": "node server/seed/index.ts --only",
-    "test": "node --test \"server/reminders/*.test.ts\" \"server/modules/crm/*.test.ts\" \"shared/*.test.ts\" \"server/services/*.test.ts\" \"scripts/*.test.mjs\"",
-    "check:server": "tsc --ignoreConfig --noEmit --strict --allowImportingTsExtensions --module nodenext --moduleResolution nodenext --target es2023 --lib ES2023 --types node --skipLibCheck --erasableSyntaxOnly --verbatimModuleSyntax server/index.ts server/cli.ts server/seed/index.ts server/reminders/rules.test.ts server/reminders/tick.test.ts server/reminders/demo.test.ts server/reminders/notify.test.ts server/modules/crm/follow.test.ts shared/modules.test.ts server/services/apply.test.ts",
+    "test": "node --test \"server/reminders/*.test.ts\" \"server/modules/crm/*.test.ts\" \"shared/*.test.ts\" \"server/services/*.test.ts\" \"server/assistant/*.test.ts\" \"scripts/*.test.mjs\"",
+    "check:server": "tsc --ignoreConfig --noEmit --strict --allowImportingTsExtensions --module nodenext --moduleResolution nodenext --target es2023 --lib ES2023 --types node --skipLibCheck --erasableSyntaxOnly --verbatimModuleSyntax server/index.ts server/cli.ts server/seed/index.ts server/reminders/rules.test.ts server/reminders/tick.test.ts server/reminders/demo.test.ts server/reminders/notify.test.ts server/modules/crm/follow.test.ts shared/modules.test.ts server/services/apply.test.ts server/assistant/assistant.test.ts",
     "shots": "node scripts/截图.mjs http://127.0.0.1:4517 ../../截图"
   },
   "dependencies": {

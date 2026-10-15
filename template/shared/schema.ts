@@ -150,6 +150,10 @@ export const settingsInput = z.object({
   business: z.string().trim().max(40).optional(),
   /** 小红书账号名（手机预览、给 Codex 的提示词用）；空着就用店名 */
   xhs_name: z.string().trim().max(30).optional(),
+  /** 今日页顶上的重点卡（shared/home.ts 的 id，逗号隔开；空 = 默认） */
+  home: z.string().trim().max(80).optional(),
+  /** AI 助手开关（设置页）：'0' 关；没设过 = 开（本机 Codex 能用时） */
+  assistant_on: z.enum(['0', '1']).optional(),
   // 提醒（2026-10-12 加，见 server/reminders/）：总开关、每天看汇总的时间、免打扰时段、演示模式下弹不弹系统通知
   remind_on: z.enum(['0', '1']).optional(),
   /** 每天几点提醒看汇总（确认页第 4 步老板说的时间）；空着 = 开机 5 分钟后提醒一次 */

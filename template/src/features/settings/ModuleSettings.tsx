@@ -14,7 +14,7 @@ export function ModuleSettings({ settings }: { settings: Settings }) {
     <div className="grid gap-x-8 sm:grid-cols-2">
       {MODULES.map((m) => {
         const checked = on.includes(m.id)
-        const note = m.required ? '一定开着' : m.needs?.length ? `打开时会带上${m.needs.map(moduleName).join('、')}` : null
+        const note = m.required ? '基础版，一定开着' : m.needs?.length ? `打开时会带上${m.needs.map(moduleName).join('、')}` : null
         return (
           <label key={m.id} className="flex items-center gap-3 border-b py-3 last:border-b-0 sm:[&:nth-last-child(2)]:border-b-0">
             <div className="min-w-0 flex-1">

@@ -12,10 +12,10 @@ test('逗号、顿号、空格都能分开，去重', () => {
   assert.deepEqual(splitIds('tasks、kb, inbox  kb'), ['tasks', 'kb', 'inbox'])
 })
 
-test('今日、设置一定带上；按固定顺序排', () => {
-  const r = normalizeModules('kb,tasks')
-  assert.deepEqual(r.ids, ['today', 'tasks', 'kb', 'settings'])
-  assert.deepEqual(r.added, ['today', 'settings'])
+test('基础版（今日、待办与日程、项目、收件箱、知识库、设置）一定带上；按固定顺序排', () => {
+  const r = normalizeModules('kb,clients')
+  assert.deepEqual(r.ids, ['today', 'tasks', 'projects', 'inbox', 'clients', 'kb', 'settings'])
+  assert.deepEqual(r.added, ['today', 'tasks', 'projects', 'inbox', 'settings'])
   assert.deepEqual(r.unknown, [])
 })
 

@@ -8,6 +8,7 @@ import type { BizConfig } from './config.ts'
 import type { AnomalyItem } from './anomaly.ts'
 import { ruleWindows, span, md, type Win } from './period.ts'
 import { campaignShifts, channelAds, type CampaignShift } from './ads.ts'
+import { agg, rowsBetween, ratio, eachDate } from './metrics.ts'
 
 type Basis = { label: string; value: string }
 /** title：一句结论；tags：数字依据；ops：引用了哪几条运营记录；text：给早报和命令行用的完整说法（网页不显示） */
@@ -25,10 +26,10 @@ export type Evidence = {
 }
 export type Op = { id: string; at: string; channel_id: string | null; channel_name: string | null; who: string; kind: string; action: string }
 
-const n0 = (n: number) => Math.round(n).toLocaleString('zh-CN')
+const n0 = (n: number | null) => n === null ? '暂无' : Math.round(n).toLocaleString('zh-CN')
 const r1 = (n: number) => Math.round(n * 10) / 10
 /** 百分比：一位小数，不留末尾的 0 */
-const pc = (n: number) => `${r1(n)}%`
+const pc = (n: number | null) => n === null ? '暂无' : `${r1(n)}%`
 const f1 = (n: number | null | undefined) => (n === null || n === undefined ? '—' : n.toFixed(1))
 const f2 = (n: number | null | undefined) => (n === null || n === undefined ? '—' : n.toFixed(2))
 
@@ -41,19 +42,25 @@ const opText = (o: Op) => `${md(o.at)} ${o.at.slice(11, 16)} ${o.who}：${o.acti
 const markOf = (o: Op) => ({ date: o.at.slice(0, 10), op_id: o.id, label: `${o.at.slice(11, 16)} ${o.who}：${o.action}` })
 
 function windowSum(ch: string, w: Win) {
-  return get<{ gmv: number; refund: number; spend: number; ad_gmv: number; orders: number; visitors: number }>(`SELECT COALESCE(SUM(gmv),0) AS gmv, COALESCE(SUM(refund_amount),0) AS refund,
-    COALESCE(SUM(ad_spend),0) AS spend, COALESCE(SUM(ad_gmv),0) AS ad_gmv, COALESCE(SUM(orders),0) AS orders, COALESCE(SUM(visitors),0) AS visitors
-    FROM channel_daily WHERE channel_id = :c AND date BETWEEN :f AND :t`, { c: ch, f: w.f, t: w.t })!
+  const x = agg(rowsBetween(w.f,w.t,ch), {from:w.f, to:w.t, channels:[ch]})
+  return {gmv:x.gmv, refund:x.refund_amount, spend:x.ad_spend, ad_gmv:x.ad_gmv, orders:x.orders, visitors:x.visitors}
+
+}
+
+/** 每个日历日保留一个点；整日缺记录也要让图表断线，不能只处理现存行里的 NULL。 */
+function dailyRatioSeries(ch: string, from: string, to: string, metric: 'refund_rate' | 'roi'): Point[] {
+  const byDate = new Map(rowsBetween(from, to, ch).map((r) => [r.date, r]))
+  return eachDate(from, to).map((date) => ({ date, value: byDate.get(date)?.[metric] ?? null }))
 }
 
 // ---------- 退款 ----------
 function refundEvidence(a: AnomalyItem, date: string, cfg: BizConfig) {
   const ch = a.channel_id!
   const w = ruleWindows(date)
-  const series = all<{ date: string; value: number | null }>('SELECT date, refund_rate AS value FROM channel_daily_v WHERE channel_id = :c AND date BETWEEN :f AND :t ORDER BY date', { c: ch, f: w.base.f, t: date })
+  const series = dailyRatioSeries(ch, w.base.f, date, 'refund_rate')
   const base = windowSum(ch, w.base)
-  const rBase = base.gmv ? (base.refund / base.gmv) * 100 : 0
-  const line = Math.max(cfg.refund_min, rBase * cfg.refund_mult)
+  const rBase = ratio(base.refund, base.gmv, 100)
+  const line = rBase === null ? null : Math.max(cfg.refund_min, rBase * cfg.refund_mult)
   const rows = all<{ reason: string; sku: string | null; batch: string | null; orders: number; amount: number }>(`SELECT r.reason, s.name AS sku, r.batch, SUM(r.orders) AS orders, SUM(r.amount) AS amount
     FROM channel_refunds r LEFT JOIN skus s ON s.id = r.sku_id WHERE r.channel_id = :c AND r.date BETWEEN :f AND :t GROUP BY r.reason, r.sku_id, r.batch ORDER BY orders DESC, amount DESC`, { c: ch, f: w.now.f, t: w.now.t })
   const cause = refundCause(ch, w.now)
@@ -94,7 +101,7 @@ function refundEvidence(a: AnomalyItem, date: string, cfg: BizConfig) {
   }
   const ev: Evidence = {
     title: '每天的退款率', desc: `${BASE_TXT(w)}平均 ${pc(rBase)}；超过 ${pc(line)} 算异常（日报设置：平常的 ${cfg.refund_mult} 倍且超过 ${cfg.refund_min}%）`,
-    unit: '%', label: '退款率', base_label: null, shape: 'line', series, threshold: r1(line), threshold_label: `异常线 ${pc(line)}`, since: a.since,
+    unit: '%', label: '退款率', base_label: null, shape: 'line', series, threshold: line === null ? null : r1(line), threshold_label: `异常线 ${pc(line)}`, since: a.since,
     marks: ops.filter((o) => o.kind === '发货').map(markOf), bands: [],
     table: rows.length ? { title: `${NOW_TXT(w)}的退款`, columns: ['原因', '商品', '批次', '单数', '金额（元）'], rows: rows.map((r) => [r.reason, r.sku ?? '—', r.batch ?? '—', r.orders, Math.round(r.amount)]) } : null,
     note: '退款率 = 当天退款金额 ÷ 当天成交额。来源：平台后台导出的售后表',
@@ -123,7 +130,7 @@ export function roiReasons(ch: string, chName: string, date: string) {
   const shifts = campaignShifts(ch, date)
   const top = shifts[0]
   const out: Reason[] = []
-  if (top && top.now.per_day > top.base.per_day * 1.3) {
+  if (top && top.now.per_day !== null && top.base.per_day !== null && top.now.per_day > top.base.per_day * 1.3) {
     const more = top.now.per_day - top.base.per_day
     out.push({
       title: `「${top.campaign}」${top.bid_change ? `出价从 ${f2(top.bid_change.from)} 调到 ${f2(top.bid_change.to)} 以后，` : ''}每天多花约 ${n0(Math.round(more / 10) * 10)} 元，带来的成交没跟上`,
@@ -141,8 +148,8 @@ export function roiReasons(ch: string, chName: string, date: string) {
   const sN = trafficShare(ch, w.now)
   const wB = windowSum(ch, w.base)
   const wN = windowSum(ch, w.now)
-  const cB = wB.visitors ? (wB.orders / wB.visitors) * 100 : null
-  const cN = wN.visitors ? (wN.orders / wN.visitors) * 100 : null
+  const cB = ratio(wB.orders, wB.visitors, 100)
+  const cN = ratio(wN.orders, wN.visitors, 100)
   if (sB !== null && sN !== null && sN > sB + 3 && cB !== null && cN !== null) {
     out.push({
       title: `买来的访客多了，${chName}的转化率反而低了`,
@@ -157,7 +164,7 @@ export function roiReasons(ch: string, chName: string, date: string) {
 function roiEvidence(a: AnomalyItem, date: string, cfg: BizConfig) {
   const ch = a.channel_id!
   const w = ruleWindows(date)
-  const series = all<{ date: string; value: number | null }>('SELECT date, roi AS value FROM channel_daily_v WHERE channel_id = :c AND date BETWEEN :f AND :t ORDER BY date', { c: ch, f: w.base.f, t: date })
+  const series = dailyRatioSeries(ch, w.base.f, date, 'roi')
   const since = a.since ?? w.now.f
   const ops = opsFor(ch, addDays(since, -7), date, ['出价', '价格', '活动'])
   const bidOps = ops.filter((o) => o.kind === '出价')
@@ -265,8 +272,12 @@ function stockEvidence(a: AnomalyItem, date: string, cfg: BizConfig) {
 function gmvEvidence(a: AnomalyItem, date: string) {
   const ch = a.channel_id!
   const end = a.active ? date : a.first_seen ?? date
-  const series = all<{ date: string; value: number; base: number | null }>(`SELECT d.date, d.gmv AS value, w.gmv AS base FROM channel_daily d LEFT JOIN channel_daily w ON w.channel_id = d.channel_id AND w.date = date(d.date, '-7 days')
-    WHERE d.channel_id = :c AND d.date BETWEEN :f AND :t ORDER BY d.date`, { c: ch, f: addDays(end, -13), t: end })
+  const from = addDays(end, -13)
+  const byDate = new Map(rowsBetween(addDays(from, -7), end, ch).map((r) => [r.date, r]))
+  // 当天缺记录不应抹掉上周同日真实存在的基准值，两条线各自保留缺口。
+  const series = eachDate(from, end).map((date) => ({ date,
+    value: byDate.get(date)?.gmv ?? null, base: byDate.get(addDays(date, -7))?.gmv ?? null,
+  }))
   const ops = opsFor(ch, addDays(end, -10), end)
   const reasons: Reason[] = ops.length ? [{ title: `同一段时间记了 ${ops.length} 条运营动作，对着时间线看`, tags: [], source: '运营记录', ops: ops.map((o) => o.id), text: ops.map(opText).join('；') }] : []
   const ev: Evidence = {

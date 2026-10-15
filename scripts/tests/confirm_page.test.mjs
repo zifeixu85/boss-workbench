@@ -16,10 +16,12 @@ const EXAMPLE = JSON.parse(read(join(UI, 'example', 'recommendations.json')))
 const copy = (x) => JSON.parse(JSON.stringify(x))
 
 function fakeElement(id) {
+  const handlers = {}
   return {
+    handlers,
     id, hidden: false, innerHTML: '', textContent: '', value: '', disabled: false, style: {}, dataset: {},
     classList: { add() {}, remove() {}, toggle() {}, contains: () => false },
-    addEventListener() {}, focus() {}, querySelector: () => null, querySelectorAll: () => [],
+    addEventListener(type, fn) { handlers[type] = fn }, focus() {}, querySelector: () => null, querySelectorAll: () => [],
   }
 }
 
@@ -27,6 +29,7 @@ function fakeElement(id) {
 async function openPage(rec, search = '') {
   const els = new Map()
   const timers = []
+  const posted = []
   const document = {
     getElementById: (id) => { if (!els.has(id)) els.set(id, fakeElement(id)); return els.get(id) },
     querySelectorAll: () => [], querySelector: () => null,
@@ -34,7 +37,7 @@ async function openPage(rec, search = '') {
   const ctx = {
     document, console, URLSearchParams, navigator: {},
     location: { protocol: 'http:', search },
-    fetch: () => Promise.resolve({ ok: true, json: () => Promise.resolve(copy(rec)) }),
+    fetch: (url, opts) => { if (opts?.method === 'POST') posted.push(JSON.parse(opts.body)); return Promise.resolve({ ok: true, json: () => Promise.resolve(copy(rec)) }) },
     setInterval: (fn) => { timers.push(fn); return timers.length }, clearInterval() {},
     setTimeout: () => 0, clearTimeout() {}, scrollTo() {},
   }
@@ -44,7 +47,13 @@ async function openPage(rec, search = '') {
   vm.runInContext(read(join(PAGE, 'app.js')), ctx, { filename: 'app.js' })
   for (let i = 0; i < 5; i++) await new Promise((r) => setImmediate(r)) // 等 fetch → init
   timers.forEach((fn) => fn()) // 地址栏带 ?step= 时，等推荐读完再跳到那一步
-  return { el: (id) => document.getElementById(id), ctx }
+  const el = (id) => document.getElementById(id)
+  const click = async (id, dataset = {}) => {
+    const target = { dataset, closest: (sel) => sel.startsWith('[data-') ? target : null }
+    el(id).handlers.click({ target })
+    for (let i = 0; i < 5; i++) await new Promise((r) => setImmediate(r))
+  }
+  return { el, ctx, click, posted }
 }
 
 /** 空白起步写的 recommendations.json：没有 kb、没有 wants，复述只有两块 */
@@ -66,7 +75,10 @@ test('有知识库：第一步那句开场白不动（还是“从你的知识�
   assert.match(html, /<div class="wants" id="wantsBox">/)
   const { el } = await openPage(EXAMPLE)
   assert.equal(el('lead0').textContent, '', '有知识库时不改这句')
-  assert.match(el('readSide').innerHTML, /我读了什么/)
+  assert.match(el('readSide').innerHTML, /资料概览/)
+  assert.match(el('readSide').innerHTML, /个文件/)
+  assert.doesNotMatch(el('readSide').innerHTML, /分钟/)
+  assert.doesNotMatch(el('readSide').innerHTML, /我读了什么|分钟/)
   assert.equal(el('wantsBox').hidden, false)
   assert.match(el('wants').innerHTML, /data-want="follow"/)
 })
@@ -98,12 +110,65 @@ test('要接数据的模块标“稍后接数据”，不按课程节奏写“�
   assert.match(el('modDetail').innerHTML, /稍后接数据/)
 })
 
-test('电脑开机时间不固定时，建议里指向“上线手机版”，不提没讲过的飞书助理', async () => {
+test('旧推荐的时间和自动开关不能授权：新确认默认手动，无需回答时间', async () => {
   const r = copy(EXAMPLE)
-  r.schedule.boot.default = 'random'
-  const { el } = await openPage(r)
-  assert.match(el('plan').innerHTML, /上线手机版/)
-  assert.ok(!/飞书助理|明天/.test(el('plan').innerHTML))
+  r.schedule.boot = { question: '你的电脑一般几点开着？', options: [{ id: 'random', label: '不一定' }], default: 'random' } // 旧推荐里有这一问
+  r.schedule.mode = 'reminders'
+  r.schedule.autostart_enabled = true
+  r.auto.push({ label: '提醒', value: '浏览器和系统通知都开' }, { label: '开机自动启动', value: '自动启动' })
+  const { el, click, posted } = await openPage(r)
+  assert.equal(el('qView').hidden, true)
+  assert.equal(el('qAutostart').hidden, true)
+  assert.ok(!/系统通知都开|自动启动/.test(el('auto').innerHTML))
+  for (let i = 0; i < 4; i++) await click('next')
+  assert.equal(posted.length, 1)
+  assert.equal(posted[0].schema, 'boss-workbench-confirm/2')
+  assert.deepEqual(posted[0].schedule, { mode: 'manual', notifications_enabled: false, autostart_enabled: false, boot: null, view: null, prepare_at: null, notify_at: null, plan: '手动打开、不提醒、不自启' })
+  assert.deepEqual(posted[0].modules.map(m => m.id), r.modules.filter(m => m.selected || m.locked).map(m => m.id))
+  assert.equal(posted[0].theme, r.themes.find(t => t.recommended).id)
+  assert.match(el('doneOpen').textContent, /不需要允许通知/)
+})
+
+test('实际选择开启提醒保留自启关闭，并保留模块、配色和补充', async () => {
+  const { el, click, posted } = await openPage(EXAMPLE)
+  el('extra').value = '周末先不导入数据'
+  await click('modList', { toggle: 'clients' })   // 业务模块能取消
+  await click('modList', { toggle: 'projects' })  // 基础版点了也不取消
+  await click('themes', { theme: 'wood' })
+  for (let i = 0; i < 3; i++) await click('next')
+  await click('qMode', { mode: 'reminders' })
+  await click('qView', { view: '0900' })
+  assert.equal(el('qView').hidden, false)
+  assert.equal(el('qAutostart').hidden, false)
+  assert.match(el('plan').innerHTML, /工作台服务正在运行/)
+  assert.ok(!/开机后会自动补|每天.*整理好/.test(el('plan').innerHTML))
+  await click('next')
+  assert.equal(posted[0].schedule.notifications_enabled, true)
+  assert.equal(posted[0].schedule.autostart_enabled, false)
+  assert.equal(posted[0].schedule.notify_at, '09:00')
+  assert.equal(posted[0].schedule.prepare_at, null)
+  assert.equal(posted[0].theme, 'wood')
+  assert.equal(posted[0].extra, '周末先不导入数据')
+  assert.ok(!posted[0].modules.some(m => m.id === 'clients'))
+  assert.ok(posted[0].modules.some(m => m.id === 'projects'), '基础版（项目）一定在')
+})
+
+test('只有单独点击才开自启；改回手动后再次开启提醒不会恢复旧自启', async () => {
+  const { click, posted } = await openPage(EXAMPLE, '?step=3')
+  await click('qMode', { mode: 'reminders' })
+  await click('qAutostart', { autostart: 'on' })
+  await click('next')
+  assert.equal(posted[0].schedule.autostart_enabled, true)
+  const second = await openPage(EXAMPLE, '?step=3')
+  await second.click('qMode', { mode: 'reminders' })
+  await second.click('qAutostart', { autostart: 'on' })
+  await second.click('qMode', { mode: 'manual' })
+  await second.click('qMode', { mode: 'reminders' })
+  await second.click('qView', { view: 'boot' })
+  await second.click('next')
+  assert.equal(second.posted[0].schedule.autostart_enabled, false)
+  assert.equal(second.posted[0].schedule.notify_at, null)
+  assert.equal(second.posted[0].schedule.notifications_enabled, true, '空时间是服务启动后提醒，不能作为关闭')
 })
 
 test('内容模块预览：创作对话那两句是通用的，不带示例店的茶', () => {

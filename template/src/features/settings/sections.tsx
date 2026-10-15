@@ -37,9 +37,9 @@ export function BasicInfoForm({ settings }: { settings: Settings }) {
       <FormField label="店名 / 工作台名称" error={errors.business} hint="显示在左上角；给 Codex 的提示词里当店名用">
         <Input aria-label="店名 / 工作台名称" value={business} maxLength={LIMITS.business} aria-invalid={!!errors.business} onChange={(e) => { setBusiness(e.target.value); setErrors((x) => ({ ...x, business: '' })) }} placeholder="张记花店" />
       </FormField>
-      <FormField label="小红书账号名" error={errors.xhs_name} hint={`小红书手机预览、选题和写稿时用；空着就用店名（现在是“${settings.xhs}”）`}>
+      {(!settings.modules || settings.modules.includes('content')) && <FormField label="小红书账号名" error={errors.xhs_name} hint={`小红书手机预览、选题和写稿时用；空着就用店名（现在是“${settings.xhs}”）`}>
         <Input aria-label="小红书账号名" value={xhs} maxLength={LIMITS.xhs} aria-invalid={!!errors.xhs_name} onChange={(e) => { setXhs(e.target.value); setErrors((x) => ({ ...x, xhs_name: '' })) }} placeholder={settings.business} />
-      </FormField>
+      </FormField>}
       <div className="flex justify-end sm:col-span-2">
         <Button type="submit" disabled={!dirty || save.isPending}>{save.isPending ? '保存中…' : '保存'}</Button>
       </div>
@@ -49,7 +49,7 @@ export function BasicInfoForm({ settings }: { settings: Settings }) {
 
 const PLACES: { icon: LucideIcon; title: string; path: string; desc: string }[] = [
   { icon: Database, title: '业务记录', path: '工作台/数据/workbench.db', desc: '客户、跟进、待办、日程、回款这些天天在变的记录，存在一个 SQLite 数据库文件里。' },
-  { icon: BookOpen, title: '知识', path: '知识库说明.md 和各个文件夹', desc: '长期有用的内容，都是 Markdown 文件，用 Obsidian 或任何文本编辑器都能打开。先看“知识库说明”这张地图。' },
+  { icon: BookOpen, title: '知识', path: 'AGENTS.md 和各个文件夹', desc: '长期有用的内容，都是 Markdown 文件，用 Obsidian 或任何文本编辑器都能打开。AGENTS.md 是这张地图，AI 每次先读它。' },
   { icon: Archive, title: '备份', path: '工作台/数据/备份/', desc: '数据库旁边：改功能前的数据库备份（命令 backup），工作台改知识库文件前存的原文件（知识库/）。程序和数据库放在知识库外时，备份也在外面。' },
   { icon: Camera, title: '快照', path: '工作台/快照/', desc: '工作台自动导出的现状（今日概况、客户现状），给 Codex 和别的对话读。不要在这里改。' },
   { icon: Terminal, title: 'Codex 怎么写入', path: 'node 工作台/程序/server/cli.ts …', desc: '和网页走同一套规则，不直接改数据库。每次改动都记在“最近改动”里，操作人写 Codex。' },

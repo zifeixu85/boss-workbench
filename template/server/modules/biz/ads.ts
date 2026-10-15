@@ -2,11 +2,12 @@
 // “出价”是平台里设置的值（运营记录、channel_ads.bid）；“每次点击实际花费”= 花费 ÷ 点击，一定比出价低，两个不混着说。
 import { all, get } from '../../db.ts'
 import { ruleWindows, type Win } from './period.ts'
+import { agg, metricsOf, rowsBetween, eachDate } from './metrics.ts'
 
 const r1 = (n: number) => Math.round(n * 10) / 10
 const r2 = (n: number) => Math.round(n * 100) / 100
 
-export type AdWindow = { days: number; spend: number; gmv: number; clicks: number; per_day: number; roi: number | null; cpc: number | null; bid: number | null }
+export type AdWindow = { days: number; spend: number | null; gmv: number | null; clicks: number | null; per_day: number | null; expected_days: number; roi: number | null; cpc: number | null; bid: number | null }
 export type BidChange = { at: string; who: string; action: string; from: number; to: number }
 export type CampaignShift = { campaign: string; base: AdWindow; now: AdWindow; bid_change: BidChange | null }
 
@@ -14,11 +15,15 @@ function win(ch: string, campaign: string | null, w: Win): AdWindow {
   const r = get<{ spend: number | null; gmv: number | null; clicks: number | null; days: number }>(`SELECT SUM(spend) AS spend, SUM(gmv) AS gmv, SUM(clicks) AS clicks, COUNT(DISTINCT date) AS days
     FROM channel_ads WHERE channel_id = :c AND (:k IS NULL OR campaign = :k) AND date BETWEEN :f AND :t`, { c: ch, k: campaign, f: w.f, t: w.t })
   const bid = campaign ? get<{ bid: number | null }>('SELECT bid FROM channel_ads WHERE channel_id = :c AND campaign = :k AND date <= :t ORDER BY date DESC LIMIT 1', { c: ch, k: campaign, t: w.t })?.bid ?? null : null
-  const spend = r?.spend ?? 0
   const days = r?.days ?? 0
+  const expected_days = eachDate(w.f,w.t).length
+  const complete = days === expected_days && days > 0
+  const spend = complete ? r?.spend ?? null : null
+  const gmv = complete ? r?.gmv ?? null : null
+  const clicks = complete ? r?.clicks ?? null : null
   return {
-    days, spend: Math.round(spend), gmv: Math.round(r?.gmv ?? 0), clicks: r?.clicks ?? 0, per_day: days ? Math.round(spend / days) : 0,
-    roi: spend > 0 ? r1((r?.gmv ?? 0) / spend) : null, cpc: r?.clicks ? r2(spend / r.clicks) : null, bid,
+    days, expected_days, spend: spend === null ? null : Math.round(spend), gmv: gmv === null ? null : Math.round(gmv), clicks, per_day: spend === null ? null : Math.round(spend / expected_days),
+    roi: spend !== null && spend > 0 && gmv !== null ? r1(gmv / spend) : null, cpc: spend !== null && clicks !== null && clicks > 0 ? r2(spend / clicks) : null, bid,
   }
 }
 
@@ -39,17 +44,18 @@ export function campaignShifts(ch: string, date: string): CampaignShift[] {
   return names.map((campaign) => {
     const op = ops.filter((o) => o.action.includes(`「${campaign}」`)).at(-1) ?? null
     return { campaign, base: win(ch, campaign, w.base), now: win(ch, campaign, w.now), bid_change: op }
-  }).sort((a, b) => (b.now.per_day - b.base.per_day) - (a.now.per_day - a.base.per_day))
+  }).sort((a, b) => (b.now.per_day !== null && b.base.per_day !== null ? b.now.per_day - b.base.per_day : -Infinity) - (a.now.per_day !== null && a.base.per_day !== null ? a.now.per_day - a.base.per_day : -Infinity))
 }
 
 /** 整个渠道的推广（所有计划加起来）：之前两周 vs 近 3 天。ROI 用 channel_daily 的推广成交，和指标卡、对比表一致 */
 export function channelAds(ch: string, date: string) {
   const w = ruleWindows(date)
-  const sum = (x: Win) => get<{ spend: number | null; ad_gmv: number | null; days: number }>('SELECT SUM(ad_spend) AS spend, SUM(ad_gmv) AS ad_gmv, COUNT(*) AS days FROM channel_daily WHERE channel_id = :c AND date BETWEEN :f AND :t', { c: ch, f: x.f, t: x.t })
   const shape = (x: Win) => {
-    const r = sum(x)
-    const spend = r?.spend ?? 0
-    return { spend: Math.round(spend), ad_gmv: Math.round(r?.ad_gmv ?? 0), per_day: r?.days ? Math.round(spend / r.days) : 0, roi: spend > 0 ? r1((r?.ad_gmv ?? 0) / spend) : null }
+    const a = agg(rowsBetween(x.f, x.t, ch), {from:x.f, to:x.t, channels:[ch]})
+    const m = metricsOf(a, false)
+    const days = eachDate(x.f, x.t).length
+    return { spend:m.ad_spend, ad_gmv:m.ad_gmv, per_day:m.ad_spend === null ? null : Math.round(m.ad_spend / days), roi:m.roi,
+      days, known_days:a.coverage.known.ad_spend, coverage:a.coverage }
   }
   return { base: shape(w.base), now: shape(w.now), windows: w }
 }

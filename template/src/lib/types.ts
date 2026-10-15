@@ -43,7 +43,9 @@ export type Theme = 'jade' | 'wood' | 'navy' | 'mono' | 'night'
 /** owner 称呼、business 工作台名称（也当店名）；shop、xhs 是服务端按设置算好的店名和小红书账号名（没设置时是“我的店”“我的账号”），xhs_name 是设置里存的原值 */
 export type Settings = { nav_mode: NavMode; theme: Theme; mobile_nav: 'tabs' | 'drawer'; owner: string; business: string; shop: string; xhs: string; xhs_name: string; today?: string; demo?: boolean; reminders?: RemindSettings
   /** 打开着的模块 id（shared/modules.ts）；老服务没有这个字段 = 全部打开 */
-  modules?: string[] }
+  modules?: string[]
+  /** 今日页重点卡的设置原值（逗号隔开；空 = 默认） */
+  home?: string }
 
 /** 提醒的设置（server/reminders/settings.ts）；改的时候 PATCH /settings 用 remind_on、notify_at、quiet_start、quiet_end、remind_demo_system */
 export type RemindSettings = { on: boolean; notify_at: string; quiet_start: string; quiet_end: string; demo_system: boolean }
@@ -81,6 +83,12 @@ export type Overview = {
   /** 提醒页没读的条数（菜单角标）、数据源有几个（数据异常面板的空状态用）。10-12 加 */
   reminders_unread?: number
   source_count?: number
+  /** 今日页顶上的重点卡（shared/home.ts），按老板定的顺序；基础版的两张卡的数据。2026-10-15 加 */
+  home?: ('sales' | 'clients' | 'xhs' | 'projects' | 'inbox')[]
+  projects_brief?: { id: string; name: string; stage: string; due: string | null; next_step: string | null; waiting_on: string | null; next_milestone: { date: string; title: string } | null; risks: number }[]
+  projects_active?: number
+  inbox_brief?: InboxItem[]
+  inbox_open?: number
 }
 
 /** 经营：某一天各渠道的成绩单（server/modules/biz/service.ts 的 summary()） */
@@ -91,7 +99,7 @@ export type SalesChannel = {
 }
 export type SalesSummary = {
   date: string; channels: SalesChannel[]
-  total: { gmv: number; orders: number; refund_amount: number; ad_spend: number; ad_gmv: number; vs_prev: number | null; vs_last_week: number | null; refund_rate: number | null; roi: number | null }
+  total: { gmv: number | null; orders: number | null; refund_amount: number | null; ad_spend: number | null; ad_gmv: number | null; coverage: {note: string}; vs_prev: number | null; vs_last_week: number | null; refund_rate: number | null; roi: number | null }
 }
 /** 数据异常提醒：经营规则算出来的 + 数据源出问题的 */
 export type Alert = { id: string; level: '高' | '中'; module: 'biz' | 'data'; kind: string; channel_id: string | null; title: string; detail: string; cause: string | null; since: string | null; link: string }

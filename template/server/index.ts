@@ -10,6 +10,7 @@ import { open, dataVersion, APP_DIR, ROOT, DB_PATH } from './db.ts'
 import { routes } from './routes.ts'
 import { demoDate } from './clock.ts'
 import { startReminders, type PushPayload } from './reminders/service.ts'
+import { markInterrupted } from './assistant/service.ts'
 
 const PORT = Number(process.env.PORT || 4517) // 默认 4517；被占用时启动加 PORT=4527 这样换一个
 const HOST = '127.0.0.1'
@@ -18,6 +19,7 @@ const LOCAL = /^(127\.0\.0\.1|localhost|\[::1\])(:\d+)?$/
 const isLocal = (hostPort: string) => LOCAL.test(hostPort)
 
 open()
+markInterrupted() // AI 助手：上次没答完的标成中断
 const app = new Hono()
 
 // 防 DNS 重绑定和跨站写入：只认本机地址；写操作必须同源、JSON

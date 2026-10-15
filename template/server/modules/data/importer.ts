@@ -227,7 +227,7 @@ export function commitTable(table: Table, analysis: Analysis, opts: { fileName: 
     const batchId = writeBatch({
       origin: '自己的', source_id: chans.length === 1 ? sourceOfChannel(chans[0].id) : null, rule_id: rule?.id ?? null,
       channel_id: chans.length === 1 ? chans[0].id : null, label, file_name: opts.fileName, date_from: preview.date_from, date_to: preview.date_to, created_by: by,
-    }, preview.rows.map((r) => ({ date: r.date, channel_id: r.channel_id, values: r.values })))
+    }, preview.rows.map((r) => ({ date: r.date, channel_id: r.channel_id, values: r.values, field_states: r.field_states })))
     const summary = { 新增: preview.counts.new, 覆盖: preview.counts.update, 一样: preview.counts.same, 有问题: preview.counts.bad, 跳过: preview.counts.skipped, 规则: rule }
     const problems = preview.problems.filter((p) => p.kind === '有问题').slice(0, 30).map((p) => ({ 行: p.line, 原因: p.reason }))
     const skipped = preview.problems.filter((p) => p.kind === '跳过').slice(0, 10).map((p) => ({ 行: p.line, 原因: p.reason }))

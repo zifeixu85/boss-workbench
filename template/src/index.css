@@ -195,3 +195,9 @@
     transition-duration: 0.01ms !important;
   }
 }
+
+/* AI 助手对话栏开着时，右下角的提示（sonner）让开：宽屏挪到对话栏左边，窄屏挪到输入框上面 */
+body[data-assistant="open"] [data-sonner-toaster][data-x-position="right"] { bottom: 128px !important; }
+@media (min-width: 1280px) {
+  body[data-assistant="open"] [data-sonner-toaster][data-x-position="right"] { right: 416px !important; bottom: 24px !important; }
+}

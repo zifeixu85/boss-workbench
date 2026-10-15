@@ -20,7 +20,7 @@ export function RefundsPanel({ d, source }: { d: ChannelData; source: string }) 
   const amount = rows.reduce((a, r) => a + r.amount, 0)
   const top = rows[0]
   return (
-    <Panel title="为什么退款？" desc={total ? <>近 {d.days} 天退了 {total} 单、{yuanText(amount)}，退款率 <TraceNum q={{ metric: 'refund_rate', channel: d.channel.id, from: d.from, to: d.to }}>{fmtMetric('refund_rate', d.range.refund_rate)}</TraceNum>；最多的是“{top.reason}”</> : `近 ${d.days} 天没有退款`} className="flex flex-col" bodyClass="flex flex-1 flex-col">
+    <Panel title="为什么退款？" desc={total ? <>近 {d.days} 天退了 {total} 单、{yuanText(amount)}，退款率 <TraceNum q={{ metric: 'refund_rate', channel: d.channel.id, from: d.from, to: d.to }}>{fmtMetric('refund_rate', d.range.refund_rate)}</TraceNum>；最多的是“{top.reason}”</> : d.range.refund_amount === 0 ? `近 ${d.days} 天没有退款` : '还没导入售后表，看不出退款原因'} className="flex flex-col" bodyClass="flex flex-1 flex-col">
       {rows.length ? (
         <ChartContainer config={refundConfig} className="aspect-auto w-full" style={{ height: Math.max(120, rows.length * 34) }}>
           <BarChart accessibilityLayer data={rows} layout="vertical" margin={{ top: 0, right: 112, left: 0, bottom: 0 }}>
@@ -32,14 +32,14 @@ export function RefundsPanel({ d, source }: { d: ChannelData; source: string }) 
             </Bar>
           </BarChart>
         </ChartContainer>
-      ) : <EmptyNote>这段时间一单退款都没有。</EmptyNote>}
+      ) : <EmptyNote>{d.range.refund_amount === 0 ? '这段时间一单退款都没有。' : '还没导入售后表。'}</EmptyNote>}
       {d.refunds.batches.map((b) => (
         <div key={b.batch + b.reason} className="mt-3 flex gap-2.5 rounded-lg border border-danger/30 bg-danger-soft/40 px-3 py-2.5 text-[13px]">
           <PackageX className="mt-0.5 size-4 shrink-0 text-danger" aria-hidden />
           <span>“{b.reason}”里有 <b className="num">{b.orders}</b> 单是 {b.batch.replace(' 发货', '')} 发货的<b>{b.sku ?? '同一款'}</b>，退了 <span className="num">{yuanText(b.amount)}</span>。</span>
         </div>
       ))}
-      <ChartNote>退款按退款发生的那天算 · 截至 {shortDate(d.to)} · 来源：{source}（售后表）</ChartNote>
+      <ChartNote>{d.range.coverage.note && `${d.range.coverage.note} · `}退款按退款发生的那天算 · 截至 {shortDate(d.to)} · 来源：{source}（售后表）</ChartNote>
     </Panel>
   )
 }
@@ -51,13 +51,15 @@ export function AdsPanel({ d, source, compact }: { d: ChannelData; source: strin
   const roiConfig = { roi: { label: '推广 ROI', color: NEUTRAL } } satisfies ChartConfig
   const tool = PLATFORM_TOOL[d.channel.id] ?? '推广'
   const below = data.filter((x) => x.roi !== null && x.roi < roiLine).length
+  const knownRoi = data.filter(x => x.roi !== null).length
+  const roiText = knownRoi === 0 ? '暂无可计算的 ROI' : `已知 ${knownRoi}/${d.days} 天，${below ? `${below} 天低于 ${roiLine}` : `这些天均不低于 ${roiLine}`}；其余天不作达标判断`
   const q = (metric: 'ad_spend' | 'roi') => ({ metric, channel: d.channel.id, from: d.from, to: d.to })
   const sAxis = moneyAxis(Math.max(...data.map((x) => x.ad_spend ?? 0)))
   const rAxis = numAxis(Math.max(4, ...data.map((x) => x.roi ?? 0)))
   const ticks = dateTicks(data.map((x) => x.label))
   const s = d.ads_shift
   return (
-    <Panel title="推广花得值不值？" desc={<>{tool}近 {d.days} 天花了 <TraceNum q={q('ad_spend')}>{yuanText(d.range.ad_spend)}</TraceNum>，带来 {yuanText(d.range.ad_gmv)} 成交，ROI <TraceNum q={q('roi')}>{roi1(d.range.roi)}</TraceNum>{below ? `；有 ${below} 天低于 ${roiLine}` : `；每天都在 ${roiLine} 以上`}</>}>
+    <Panel title="推广花得值不值？" desc={<>{tool}近 {d.days} 天花了 <TraceNum q={q('ad_spend')}>{yuanText(d.range.ad_spend)}</TraceNum>，带来 {yuanText(d.range.ad_gmv)} 成交，ROI <TraceNum q={q('roi')}>{roi1(d.range.roi)}</TraceNum>{`；${roiText}`}</>}>
       {s && (
         <div className="mb-4 grid grid-cols-2 gap-3 rounded-lg bg-surface-2/60 px-3 py-2.5 text-[12.5px]">
           {[[s.base_label, s.base], [s.now_label, s.now]].map(([label, x]) => {
@@ -65,7 +67,7 @@ export function AdsPanel({ d, source, compact }: { d: ChannelData; source: strin
             return (
               <div key={label as string} className="min-w-0">
                 <div className="text-[12px] text-muted-foreground">{label as string}</div>
-                <div className="num mt-0.5 whitespace-nowrap">每天 {yuanNum(w.per_day)} 元 · ROI <b className={cn(w.roi !== null && w.roi < roiLine && 'text-danger')}>{roi1(w.roi)}</b></div>
+                <div className="num mt-0.5 whitespace-nowrap">每天 {yuanNum(w.per_day)} 元{w.known_days < w.days ? `（${w.known_days} 天有数）` : ''} · ROI <b className={cn(w.roi !== null && w.roi < roiLine && 'text-danger')}>{roi1(w.roi)}</b></div>
               </div>
             )
           })}
@@ -111,7 +113,7 @@ export function AdsPanel({ d, source, compact }: { d: ChannelData; source: strin
           </table>
         </div>
       )}
-      <ChartNote>ROI 是平台自己算的推广成交 ÷ 推广花费，只和自己的平常比 · 截至 {shortDate(d.to)} · 来源：{source}（{tool}后台）</ChartNote>
+      <ChartNote>{d.range.coverage.note && `${d.range.coverage.note} · `}ROI 是平台自己算的推广成交 ÷ 推广花费，只和自己的平常比 · 截至 {shortDate(d.to)} · 来源：{source}（{tool}后台）</ChartNote>
     </Panel>
   )
 }
@@ -160,7 +162,7 @@ export function CampaignTable({ d }: { d: ChannelData }) {
             return (
               <TableRow key={c.campaign} className={cn(c.bid_changed && 'bg-danger-soft/30 hover:bg-danger-soft/40')}>
                 <TableCell className="pl-5">
-                  <div className="font-medium whitespace-nowrap">{c.campaign}</div>
+                  <div className="font-medium whitespace-nowrap">{c.campaign}</div>{c.known_days < c.expected_days && <div className="text-xs text-muted-foreground">{c.known_days} 天有数</div>}
                   {c.bid_changed && <div className="text-[12px] font-medium whitespace-nowrap text-danger">{md(c.bid_changed.at)} {c.bid_changed.at.slice(11, 16)} {c.bid_changed.who}改出价</div>}
                 </TableCell>
                 <TableCell className={cn(R, 'num')}>{c.bid_changed ? <span className="font-semibold text-danger">{c.bid_changed.from.toFixed(2)} → {c.bid_changed.to.toFixed(2)}</span> : (c.bid?.toFixed(2) ?? '—')}</TableCell>

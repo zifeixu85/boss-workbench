@@ -22,16 +22,18 @@ export function campaigns(ch: string, from: string, to: string) {
     const gmv = mine.reduce((a, r) => a + r.gmv, 0)
     const clicks = mine.reduce((a, r) => a + r.clicks, 0)
     const s = shifts.get(name) ?? null
+    const known_days = new Set(mine.map(x=>x.date)).size
+    const complete = known_days === days.length
     return {
-      campaign: name, spend: Math.round(spend), gmv: Math.round(gmv), clicks, roi: spend ? r2(gmv / spend) : null, cpc: clicks ? r2(spend / clicks) : null,
-      daily_spend: days.length ? Math.round(spend / days.length) : null,
+      campaign: name, spend: complete ? Math.round(spend) : null, gmv: complete ? Math.round(gmv) : null, clicks: complete ? clicks : null, roi: complete && spend ? r2(gmv / spend) : null, cpc: complete && clicks ? r2(spend / clicks) : null, known_days, expected_days: days.length,
+      daily_spend: complete && days.length ? Math.round(spend / days.length) : null,
       bid: mine.at(-1)?.bid ?? null,
       bid_changed: s?.bid_change ? { at: s.bid_change.at, who: s.bid_change.who, action: s.bid_change.action, from: s.bid_change.from, to: s.bid_change.to } : null,
       /** 之前两周 → 近 3 天（每天花费、ROI、每次点击实际花费） */
       shift: s ? { base: s.base, now: s.now } : null,
       spark: days.map((d) => { const x = mine.find((r) => r.date === d); return x && x.spend ? r2(x.gmv / x.spend) : null }),
     }
-  }).sort((a, b) => b.spend - a.spend)
+  }).sort((a, b) => (b.spend ?? -1) - (a.spend ?? -1))
 }
 
 /** 售后明细（逐单）+ 按发货批次汇总；批次发了多少件，从运营记录的“发出 … 件”里读。
@@ -82,7 +84,7 @@ const WEEK = ['周一', '周二', '周三', '周四', '周五', '周六', '周�
 export function storeWeek(from: string, to: string) {
   // 按星期几平均要样本够：固定看近 30 天；会员占比跟着页面选的时间段
   const weekFrom = addDays(to, -29)
-  const all30 = all<{ date: string; gmv: number; orders: number; visitors: number; new_buyers: number; old_buyers: number }>(
+  const all30 = all<{ date: string; gmv: number; orders: number; visitors: number; new_buyers: number | null; old_buyers: number | null }>(
     "SELECT date, gmv, orders, visitors, new_buyers, old_buyers FROM channel_daily WHERE channel_id = 'store' AND date BETWEEN :f AND :t ORDER BY date", { f: [weekFrom, from].sort()[0], t: to })
   const rows = all30.filter((r) => r.date >= from)
   const weekRows = all30.filter((r) => r.date >= weekFrom)
@@ -96,18 +98,19 @@ export function storeWeek(from: string, to: string) {
   })
   const daily = eachDate(from, to).map((d) => {
     const x = rows.find((r) => r.date === d)
-    const b = x ? x.new_buyers + x.old_buyers : 0
-    return { date: d, holiday: isHoliday(d), orders: x?.orders ?? null, members: x ? x.old_buyers : null, share: b ? r1((x!.old_buyers / b) * 100) : null }
+    const b = x && x.new_buyers !== null && x.old_buyers !== null ? x.new_buyers + x.old_buyers : null
+    return { date: d, holiday: isHoliday(d), orders: x?.orders ?? null, members: x ? x.old_buyers : null, share: b ? r1((x!.old_buyers! / b) * 100) : null }
   })
-  const tot = rows.reduce((a, x) => ({ m: a.m + x.old_buyers, b: a.b + x.new_buyers + x.old_buyers }), { m: 0, b: 0 })
+  const complete = rows.length === eachDate(from,to).length && rows.every(x => x.old_buyers !== null && x.new_buyers !== null)
+  const tot = complete ? rows.reduce((a,x) => ({m:a.m+x.old_buyers!, b:a.b+x.new_buyers!+x.old_buyers!}),{m:0,b:0}) : {m:null,b:null}
   const weekend = normal.filter((r) => dow(r.date) >= 5)
   const weekdays = normal.filter((r) => dow(r.date) < 5)
   return {
     week_from: weekFrom, by_day: byDay,
     holiday: holiday.length ? { days: holiday.length, visitors: avg(holiday.map((x) => x.visitors)), gmv: avg(holiday.map((x) => x.gmv)) } : null,
-    weekday_avg: { visitors: avg(weekdays.map((x) => x.visitors)), gmv: avg(weekdays.map((x) => x.gmv)) },
-    weekend_avg: { visitors: avg(weekend.map((x) => x.visitors)), gmv: avg(weekend.map((x) => x.gmv)) },
-    daily, member_share: tot.b ? r1((tot.m / tot.b) * 100) : null, new_share: tot.b ? r1(((tot.b - tot.m) / tot.b) * 100) : null,
+    weekday_avg: { days: weekdays.length, visitors: avg(weekdays.map((x) => x.visitors)), gmv: avg(weekdays.map((x) => x.gmv)) },
+    weekend_avg: { days: weekend.length, visitors: avg(weekend.map((x) => x.visitors)), gmv: avg(weekend.map((x) => x.gmv)) },
+    daily, member_share: tot.b ? r1((tot.m! / tot.b) * 100) : null, new_share: tot.b ? r1(((tot.b - tot.m!) / tot.b) * 100) : null,
     members: tot.m, buyers: tot.b,
   }
 }

@@ -5,10 +5,11 @@ import { today, addDays, daysBetween, round1 } from '../../services/common.ts'
 import { getConfig, type BizConfig } from './config.ts'
 import { ruleWindows, span, type Win } from './period.ts'
 import { bidChanges, campaignShifts } from './ads.ts'
+import { agg, metricsOf, ratio, delta, rowsBetween } from './metrics.ts'
 
 export type DailyRow = {
-  date: string; channel_id: string; gmv: number; orders: number; visitors: number; refund_amount: number; refund_orders: number
-  ad_spend: number; ad_gmv: number; new_buyers: number; old_buyers: number
+  date: string; channel_id: string; gmv: number; orders: number; visitors: number; refund_amount: number | null; refund_orders: number | null
+  ad_spend: number | null; ad_gmv: number | null; new_buyers: number | null; old_buyers: number | null
   conv_rate: number | null; aov: number | null; refund_rate: number | null; roi: number | null; new_share: number | null
 }
 type Range = { channel?: string; from?: string; to?: string }
@@ -52,12 +53,14 @@ export function summary(date = latestDate()) {
       vs_prev: x && p ? pct(x.gmv, p.gmv) : null, vs_last_week: x && w ? pct(x.gmv, w.gmv) : null,
     }
   })
-  const sum = (m: Map<string, DailyRow>, k: keyof DailyRow) => [...m.values()].reduce((a, r) => a + Number(r[k] ?? 0), 0)
-  const total = {
-    gmv: sum(cur, 'gmv'), orders: sum(cur, 'orders'), refund_amount: sum(cur, 'refund_amount'), ad_spend: sum(cur, 'ad_spend'), ad_gmv: sum(cur, 'ad_gmv'),
-    vs_prev: pct(sum(cur, 'gmv'), sum(prev, 'gmv')), vs_last_week: pct(sum(cur, 'gmv'), sum(lastWeek, 'gmv')),
-  }
-  return { date, channels: list, total: { ...total, refund_rate: total.gmv ? round1((total.refund_amount / total.gmv) * 100) : null, roi: total.ad_spend ? round1(total.ad_gmv / total.ad_spend) : null } }
+  const ids = channels().map(c => c.id)
+  const metric = (m: Map<string, DailyRow>, d: string) => metricsOf(agg([...m.values()], {from:d, to:d, channels:ids}))
+  const total = metric(cur, date)
+  return { date, channels: list, total: { ...total,
+    vs_prev: delta('pct', total.gmv, metric(prev, addDays(date,-1)).gmv),
+    vs_last_week: delta('pct', total.gmv, metric(lastWeek, addDays(date,-7)).gmv),
+  } }
+
 }
 
 export function traffic(r: Range = {}) {
@@ -112,7 +115,7 @@ export type Alert = {
 export const SHORT = { 退款: '退款率偏高', 推广: '推广 ROI 掉了一半', 推广低: '推广 ROI 偏低', 库存: '有货快卖断了', 成交: '成交比上周少' } as const
 
 const md = (d: string) => `${Number(d.slice(5, 7))}/${Number(d.slice(8, 10))}`
-const n0 = (n: number) => Math.round(n).toLocaleString('zh-CN')
+const n0 = (n: number | null) => n === null ? '暂无' : Math.round(n).toLocaleString('zh-CN')
 /** 百分比：一位小数，不留末尾的 0（11.3、6） */
 export const p1 = (n: number) => String(Math.round(n * 10) / 10)
 
@@ -141,29 +144,31 @@ export function anomalies(date = latestDate(), cfg: BizConfig = getConfig(), opt
   const nowT = `近 3 天（${span(last3)}）`
   const baseT = `之前两周（${span(base14)}）`
   for (const ch of channels()) {
-    const agg = (w: Win) => get<{ gmv: number; refund: number; spend: number; ad_gmv: number; n: number }>(`SELECT SUM(gmv) AS gmv, SUM(refund_amount) AS refund, SUM(ad_spend) AS spend, SUM(ad_gmv) AS ad_gmv, SUM(refund_orders) AS n
-      FROM channel_daily WHERE channel_id = :c AND date BETWEEN :f AND :t`, { c: ch.id, ...w })!
-    const a = agg(last3)
-    const b = agg(base14)
+    const window = (w: Win) => {
+      const x = agg(rowsBetween(w.f, w.t, ch.id), {from:w.f, to:w.t, channels:[ch.id]})
+      return {gmv:x.gmv, refund:x.refund_amount, spend:x.ad_spend, ad_gmv:x.ad_gmv, n:x.refund_orders}
+    }
+    const a = window(last3)
+    const b = window(base14)
     // 1. 退款率：是平常的几倍，而且超过下限（单量小的渠道退一单就会跳，两条要同时满足）
-    const rNow = a.gmv ? (a.refund / a.gmv) * 100 : 0
-    const rBase = b.gmv ? (b.refund / b.gmv) * 100 : 0
-    if (rNow >= cfg.refund_min && rNow >= rBase * cfg.refund_mult && a.refund >= 300) {
+    const rNow = ratio(a.refund, a.gmv, 100)
+    const rBase = ratio(b.refund, b.gmv, 100)
+    if (rNow !== null && rBase !== null && a.refund !== null && rNow >= cfg.refund_min && rNow >= rBase * cfg.refund_mult && a.refund >= 300) {
       const since = get<{ d: string }>('SELECT MIN(date) AS d FROM channel_daily_v WHERE channel_id = :c AND date BETWEEN :f AND :t AND refund_rate >= :lim', { c: ch.id, ...last3, lim: cfg.refund_min })?.d ?? last3.f
       const top = refundCause(ch.id, last3)
       out.push({
         id: `refund_${ch.id}`, level: '高', module: 'biz', kind: '退款', channel_id: ch.id, since, link: `/channel/${ch.id}?anomaly=refund_${ch.id}`, short: SHORT.退款,
         title: `${ch.name}退款率 ${md(since)} 起升到 ${p1(rNow)}%`,
-        detail: `${nowT}退了 ${a.n} 单、${n0(a.refund)} 元；${baseT}平均 ${p1(rBase)}%`,
+        detail: `${nowT}退款单数 ${a.n ?? '暂无'}、${n0(a.refund)} 元；${baseT}平均 ${p1(rBase)}%`,
         cause: top?.text ?? null,
       })
     }
     // 2. 推广 ROI：低于参考线，或者比之前两周掉了一大截（只要近 3 天花了 500 元以上）
-    const roiNow = a.spend ? a.ad_gmv / a.spend : null
-    const roiBase = b.spend ? b.ad_gmv / b.spend : null
+    const roiNow = ratio(a.ad_gmv, a.spend, 1, 2)
+    const roiBase = ratio(b.ad_gmv, b.spend, 1, 2)
     const low = roiNow !== null && roiNow < cfg.roi_min
     const dropped = roiNow !== null && roiBase !== null && roiNow <= roiBase * (1 - cfg.roi_drop / 100)
-    if (roiNow !== null && (low || dropped) && a.spend >= 500) {
+    if (roiNow !== null && a.spend !== null && a.ad_gmv !== null && (low || dropped) && a.spend >= 500) {
       const op = bidChanges(ch.id, date, addDays(date, -7)).at(-1) ?? null
       const since = op?.at.slice(0, 10) ?? get<{ d: string }>('SELECT MIN(date) AS d FROM channel_daily_v WHERE channel_id = :c AND date BETWEEN :f AND :t AND roi < :lim', { c: ch.id, f: addDays(date, -7), t: date, lim: Math.min(cfg.roi_min, (roiBase ?? cfg.roi_min) * 0.7) })?.d ?? last3.f
       const shift = campaignShifts(ch.id, date)[0]
@@ -173,7 +178,7 @@ export function anomalies(date = latestDate(), cfg: BizConfig = getConfig(), opt
         short: roiBase !== null && roiNow <= roiBase * 0.55 ? SHORT.推广 : SHORT.推广低,
         title: fell ? `${ch.name}推广 ROI ${md(since)} 起从 ${roiBase!.toFixed(1)} 掉到 ${roiNow.toFixed(1)}` : `${ch.name}推广 ROI 只有 ${roiNow.toFixed(1)}，低于 ${cfg.roi_min}`,
         detail: `${nowT}推广花了 ${n0(a.spend)} 元，带来 ${n0(a.ad_gmv)} 元成交，ROI ${roiNow.toFixed(1)}；${baseT}是 ${roiBase === null ? '—' : roiBase.toFixed(1)}`,
-        cause: shift && shift.now.per_day > shift.base.per_day * 1.3
+        cause: shift && shift.now.per_day !== null && shift.base.per_day !== null && shift.now.per_day > shift.base.per_day * 1.3
           ? `「${shift.campaign}」${shift.bid_change ? `${md(shift.bid_change.at)} ${shift.bid_change.at.slice(11, 16)} ${shift.bid_change.who}把出价从 ${shift.bid_change.from.toFixed(2)} 调到 ${shift.bid_change.to.toFixed(2)}；` : ''}近 3 天这个计划每天花 ${n0(shift.now.per_day)} 元（之前两周每天 ${n0(shift.base.per_day)} 元），ROI ${shift.base.roi?.toFixed(1) ?? '—'} → ${shift.now.roi?.toFixed(1) ?? '—'}`
           : null,
       })
@@ -224,7 +229,9 @@ function handledIds() {
 /** 渠道在某段时间的汇总（经营汇总页的“这段时间”可以直接用） */
 export function totals(r: Range = {}) {
   const { c, f, t } = range(r)
-  return all(`SELECT channel_id, SUM(gmv) AS gmv, SUM(orders) AS orders, SUM(visitors) AS visitors, SUM(refund_amount) AS refund_amount,
-    SUM(ad_spend) AS ad_spend, SUM(ad_gmv) AS ad_gmv FROM channel_daily WHERE (:c IS NULL OR channel_id = :c) AND date BETWEEN :f AND :t GROUP BY channel_id`, { c, f, t })
-    .map((x) => ({ ...x, days: daysBetween(f, t) + 1 }))
+  const xs = rowsBetween(f, t, c ?? undefined)
+  return channels().filter(ch => !c || ch.id === c).map(ch => ({channel_id: ch.id,
+    ...metricsOf(agg(xs.filter(x => x.channel_id === ch.id), {from:f, to:t, channels:[ch.id]}), ch.id !== 'store'),
+    days: daysBetween(f,t) + 1,
+  }))
 }

@@ -48,16 +48,16 @@ export function ChannelTable({ b }: { b: Board }) {
                   <Link to={withDays(`/channel/${r.id}`, b.days)} className="font-medium whitespace-nowrap hover:text-primary hover:underline">{r.name}</Link>
                   <div className="text-[12px] whitespace-nowrap text-muted-foreground">{f.length ? <span className="font-medium text-danger">{f.map((x) => x.short ?? x.kind).join('、')}</span> : r.owner}</div>
                 </TableCell>
-                <TableCell className={R}><TraceNum q={q('gmv', r.id)}>{wan1(r.gmv)}</TraceNum></TableCell>
+                <TableCell className={R} title={r.coverage.note || undefined}><TraceNum q={q('gmv', r.id)}>{wan1(r.gmv)}</TraceNum></TableCell>
                 <TableCell className={cn(R, 'num text-muted-foreground')}>{r.share === null ? '—' : `${p1(r.share)}%`}</TableCell>
                 {b.has_prev && <TableCell className={cn(R, 'text-xs')}><Delta value={r.vs_prev_period} /></TableCell>}
-                <TableCell className={cn(R, 'num text-muted-foreground')}>{yuanNum(r.daily_gmv)}</TableCell>
+                <TableCell className={cn(R, 'num text-muted-foreground')}>{yuanNum(r.daily_gmv)}{r.daily_gmv_days < b.days && <div className="text-[12px]">按有数的 {r.daily_gmv_days} 天算</div>}</TableCell>
                 <TableCell className={R}><TraceNum q={q('orders', r.id)}>{thousands(r.orders)}</TraceNum></TableCell>
                 <TableCell className={R}><TraceNum q={q('visitors', r.id)}>{thousands(r.visitors)}</TraceNum></TableCell>
                 <TableCell className={R}><TraceNum q={q('conv_rate', r.id)}>{pct(r.conv_rate)}</TraceNum></TableCell>
                 <TableCell className={R}><TraceNum q={q('aov', r.id)}>{r.aov === null ? '—' : Math.round(r.aov)}</TraceNum></TableCell>
                 <TableCell className={cn(R, bad('退款') && 'font-semibold text-danger')}><TraceNum q={q('refund_rate', r.id)}>{pct(r.refund_rate)}</TraceNum></TableCell>
-                <TableCell className={R}>{r.ad_spend ? <TraceNum q={q('ad_spend', r.id)}>{yuanNum(r.ad_spend)}</TraceNum> : <span className="text-muted-foreground">—</span>}</TableCell>
+                <TableCell className={R}>{r.ad_spend !== null ? <TraceNum q={q('ad_spend', r.id)}>{yuanNum(r.ad_spend)}</TraceNum> : <span className="text-muted-foreground">—</span>}</TableCell>
                 <TableCell className={R}>{r.roi === null ? <span className="text-muted-foreground">—</span> : <TraceNum q={q('roi', r.id)}>{roi1(r.roi)}</TraceNum>}</TableCell>
                 <TableCell className={cn(R, 'pr-5')}>{r.roi_last3 === null ? <span className="text-muted-foreground">—</span>
                   : <TraceNum q={{ metric: 'roi', channel: r.id, from: b.stacked.at(-3)?.date ?? b.to, to: b.to }} className={cn(low3 && 'font-semibold text-danger')}>{roi1(r.roi_last3)}</TraceNum>}</TableCell>
@@ -69,9 +69,9 @@ export function ChannelTable({ b }: { b: Board }) {
           <TableRow className="hover:bg-transparent">
             <TableCell className="pl-5 font-medium">合计</TableCell>
             <TableCell className={cn(R, 'font-medium')}><TraceNum q={q('gmv')}>{wan1(t.gmv)}</TraceNum></TableCell>
-            <TableCell className={cn(R, 'num text-muted-foreground')}>100%</TableCell>
+            <TableCell className={cn(R, 'num text-muted-foreground')}>{t.gmv !== null && t.gmv > 0 ? '100%' : '—'}</TableCell>
             {b.has_prev && <TableCell className={cn(R, 'text-xs')}><Delta value={t.vs_prev_period} /></TableCell>}
-            <TableCell className={cn(R, 'num text-muted-foreground')}>{yuanNum(t.gmv === null ? null : Math.round(t.gmv / b.days))}</TableCell>
+            <TableCell className={cn(R, 'num text-muted-foreground')}>{yuanNum(t.daily_gmv)}{t.daily_gmv_days < b.days && <div className="text-[12px]">按有数的 {t.daily_gmv_days} 天算</div>}</TableCell>
             <TableCell className={R}><TraceNum q={q('orders')}>{thousands(t.orders)}</TraceNum></TableCell>
             <TableCell className={R}><TraceNum q={q('visitors')}>{thousands(t.visitors)}</TraceNum></TableCell>
             <TableCell className={R}><TraceNum q={q('conv_rate')}>{pct(t.conv_rate)}</TraceNum><div className="text-[12px] font-normal text-muted-foreground">只算线上</div></TableCell>
@@ -85,7 +85,7 @@ export function ChannelTable({ b }: { b: Board }) {
       </Table>
       <div className="px-5 pb-4">
         <ChartNote>
-          截至 {shortDate(b.to)} · 门店没有推广，推广几列写“—” · 转化率线上平台是“下单的访客占几成”，门店是“进店的人里几成买了”，不放一起比 · 带下划线的数字点开能看到是哪几天、哪次导入的
+          {t.coverage.note && `${t.coverage.note} · `}截至 {shortDate(b.to)} · “—”是没有数，0 才是真的 0 · 转化率线上平台是“下单的访客占几成”，门店是“进店的人里几成买了”，不放一起比 · 带下划线的数字点开能看到是哪几天、哪次导入的
           {!b.has_prev && ' · 9 月 27 日以前没有数据，选近 7 天或 14 天能和上一段比'}
           {b.prev_holiday_days > 0 && ` · 上一段（${shortDate(b.prev_from)}—${shortDate(b.prev_to)}）含国庆 ${b.prev_holiday_days} 天，偏高，“比上一段”会显得少`}
         </ChartNote>

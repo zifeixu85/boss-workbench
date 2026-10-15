@@ -1,4 +1,4 @@
-/* 搭建确认页：四步（核对 → 放什么 → 配色 → 时间与确认），确认后把结果交回 Codex。 */
+/* 搭建确认页：四步（核对 → 放什么 → 配色 → 使用方式与确认），确认后把结果交回 Codex。 */
 (function () {
   'use strict';
   var esc = window.Previews.esc;
@@ -8,7 +8,7 @@
   var NEXT_LABEL = ['都对，下一步', '下一步：挑配色', '下一步', '确认，开始搭建'];
 
   var rec = null;
-  var state = { step: 0, fixes: {}, wants: {}, mods: {}, active: null, theme: null, boot: null, view: null };
+  var state = { step: 0, fixes: {}, wants: {}, mods: {}, active: null, theme: null, boot: null, view: null, mode: 'manual', autostart: false };
 
   /* ---------- 读取推荐 ---------- */
   function load() {
@@ -25,8 +25,9 @@
     state.active = firstRec ? firstRec.id : null;
     var t = (rec.themes || []).filter(function (x) { return x.recommended; })[0] || (rec.themes || [])[0];
     state.theme = t ? t.id : null;
-    state.boot = rec.schedule && rec.schedule.boot.default;
+    // 推荐中的时间、auto 文案和旧结果都不构成自动运行授权；新一轮从手动开始。
     state.view = rec.schedule && rec.schedule.view.default;
+    if (!Object.prototype.hasOwnProperty.call(VIEW, state.view)) state.view = '0830';
     $('logo').textContent = (rec.boss.call || '工').slice(0, 1);
     $('loading').hidden = true;
     $('footbar').hidden = false;
@@ -71,7 +72,7 @@
     if (state.step === 0) s = '改了 <b>' + Object.keys(state.fixes).length + '</b> 处';
     if (state.step === 1) s = '放进 <b>' + selectedMods().length + '</b> 个模块';
     if (state.step === 2) s = '配色：<b>' + esc(themeObj().name) + '</b>';
-    if (state.step === 3) { var p = plan(); s = p.notify ? '每天 <b>' + esc(p.notify) + '</b> 提醒你看' : '开机后自动整理'; }
+    if (state.step === 3) { var p = plan(); s = esc(p.title) + (state.mode === 'manual' ? '' : ' · ' + (state.autostart ? '开机自启' : '不自启')); }
     $('footSum').innerHTML = s;
   }
 
@@ -123,9 +124,9 @@
       return;
     }
     var kb = rec.kb;
-    $('readSide').innerHTML = '<h2>我读了什么</h2><div class="big">' + esc(kb.files || '—') + '<small>个文件 · 约 ' + esc(kb.minutes || 1) + ' 分钟</small></div>' +
+    $('readSide').innerHTML = '<h2>资料概览</h2><div class="big">' + esc(kb.files || '—') + '<small>个文件</small></div>' +
       (kb.layers ? '<ul>' + kb.layers.map(function (l) { return '<li><span>' + esc(l.name) + '</span><span>' + esc(l.count) + '</span></li>'; }).join('') + '</ul>' : '') +
-      '<p class="quiet">先读 <code>' + esc(kb.entry || 'AGENTS.md') + '</code> 里的地图，再按需要读对应的文件。</p>' +
+      '<p class="quiet">从 <code>' + esc(kb.entry || 'AGENTS.md') + '</code> 读起；每条复述的出处写在左边。</p>' +
       '<div class="safe">你的资料原文不改：工作台的程序和数据另放在“工作台”文件夹，入口 AGENTS.md 里只加一小段“工作台在哪”（先问过你）。</div>';
   }
 
@@ -197,7 +198,7 @@
     var ribbon = m.status === 'later' ? '<div class="ribbon">这个模块要接数据，下面是接上以后的样子；先把框架搭好，稍后接上。' + (m.needs ? '要用到：' + esc(m.needs) + '。' : '') + '</div>' :
       m.status === 'lacking' ? '<div class="ribbon lack">现在资料不够，搭出来会是空的。' + (m.needs ? '需要：' + esc(m.needs) + '。' : '') + '</div>' : '';
     $('modDetail').innerHTML = '<div class="md-head"><h2>' + esc(m.name) + '</h2><span class="tag ' + st[0] + '">' + st[1] + '</span>' +
-      (m.locked ? '<span class="quiet toggle">首页一定会有</span>' : '<button type="button" class="btn ' + (on ? '' : 'pri') + ' toggle" data-toggle="' + esc(m.id) + '">' + (on ? '不放这个' : '放进工作台') + '</button>') + '</div>' +
+      (m.locked ? '<span class="quiet toggle">基础版自带</span>' : '<button type="button" class="btn ' + (on ? '' : 'pri') + ' toggle" data-toggle="' + esc(m.id) + '">' + (on ? '不放这个' : '放进工作台') + '</button>') + '</div>' +
       '<p class="md-why">' + esc(m.why) + '</p>' +
       (m.uses && m.uses.length ? '<div class="md-uses">' + m.uses.map(function (u) { return '<span>用到你的 ' + esc(u) + '</span>'; }).join('') + '</div>' : '') + ribbon +
       window.Previews.render(m, selectedMods().concat(on ? [] : [m]), themeObj(), { boss: rec.boss.call });
@@ -258,19 +259,17 @@
     state.theme = b.dataset.theme; renderThemes(); updateSum(); refocus('#themes ' + attr('data-theme', state.theme));
   });
 
-  /* ---------- 第四步：时间与确认 ---------- */
-  var BOOT = { early: 7 * 60 + 50, nine: 9 * 60, late: 10 * 60, random: null };
-  var VIEW = { boot: null, '0830': 8 * 60 + 30, '0900': 9 * 60, '1130': 11 * 60 + 30 };
-  function hm(min) { var h = Math.floor(min / 60), m = min % 60; return h + ':' + (m < 10 ? '0' : '') + m; }
-
+  /* ---------- 第四步：使用方式与确认 ---------- */
+  var VIEW = { boot: null, '0830': '08:30', '0900': '09:00', '1130': '11:30' };
   function plan() {
-    var boot = BOOT[state.boot], view = VIEW[state.view];
-    var tail = '电脑要开着、不合盖；哪天那会儿电脑没开，开机后会自动补上。';
-    if (boot == null) return { prepare: null, notify: null, title: '每次开机后自动整理', text: '电脑合上时没法整理。每次打开电脑，5 分钟内把落下的补上，整理好就提醒你。想在手机上看，可以用“上线手机版”。' };
-    if (view == null) return { prepare: hm(boot + 5), notify: hm(boot + 10), title: '一开电脑就整理好', text: '大约 ' + hm(boot + 10) + '（开机后 10 分钟内）整理好昨天的数据和今天要做的事，整理好就提醒你看。' + tail };
-    if (view - 15 >= boot) return { prepare: hm(view - 15), notify: hm(view), title: '每天 ' + hm(view) + ' 提醒你看', text: hm(view - 15) + ' 开始整理昨天的数据和今天要做的事，' + hm(view) + ' 弹通知叫你来看。' + tail };
-    return { prepare: hm(boot + 5), notify: hm(boot + 10), title: '大约 ' + hm(boot + 10) + ' 提醒你看', text: '你的电脑 ' + hm(boot) + ' 左右才开，' + hm(view) + ' 来不及整理。开机后 10 分钟内整理好，整理好就提醒你。' + tail };
+    if (state.mode === 'manual') return { prepare: null, notify: null, title: '手动打开、不提醒、不自启', text: '需要时手动启动并打开工作台；提醒总开关关闭，不创建开机自启或 AI 定时任务。以后想开提醒，可以再改。' };
+    var notify = VIEW[state.view];
+    var runtime = state.autostart ? '已选择开机自启：登录后启动工作台服务。' : '不设开机自启：需要你手动启动工作台服务。';
+    return { prepare: null, notify: notify, title: notify ? '每天 ' + notify + ' 提醒你看' : '服务启动 5 分钟后提醒你看', text: runtime + '只有电脑开着、未睡眠且工作台服务正在运行才会提醒；关闭网页后可能使用电脑系统通知。不会自动生成 AI 定时任务。' };
   }
+
+  // 旧推荐的 auto 可能写着“都开”，只展示导航和数据位置，不沿用提醒/自启建议。
+  function displayAuto() { return (rec.auto || []).filter(function (a) { return a.label === '导航' || a.label === '数据位置' || a.label === '数据放哪'; }); }
 
   function radioChips(q, key) {
     return '<h2>' + esc(q.question) + '</h2>' + (q.hint ? '<p class="hint">' + esc(q.hint) + '</p>' : '') +
@@ -280,24 +279,37 @@
   }
 
   function renderFinal() {
-    var s = rec.schedule;
-    $('qBoot').innerHTML = radioChips(s.boot, 'boot');
-    $('qView').innerHTML = radioChips(s.view, 'view');
+    $('qMode').innerHTML = radioChips({ question: '平时怎么用？', options: [
+      { id: 'manual', label: '手动打开、不提醒、不自启' },
+      { id: 'reminders', label: '开启提醒' }
+    ] }, 'mode');
+    $('qView').hidden = state.mode === 'manual';
+    $('qAutostart').hidden = state.mode === 'manual';
+    $('qView').innerHTML = radioChips({ question: '什么时候提醒看汇总？', options: [
+      { id: 'boot', label: '服务启动 5 分钟后' }, { id: '0830', label: '8:30' },
+      { id: '0900', label: '9:00' }, { id: '1130', label: '11:30' }
+    ] }, 'view');
+    $('qAutostart').innerHTML = '<h2>要让工作台随开机自动启动吗？</h2><p class="hint">开启提醒不等于开机自启。默认由你手动启动服务。</p><div class="chips" role="radiogroup">' +
+      '<button type="button" class="chip" role="radio" aria-checked="' + !state.autostart + '" data-autostart="off">不自启，我手动启动</button>' +
+      '<button type="button" class="chip" role="radio" aria-checked="' + state.autostart + '" data-autostart="on">开机自动启动</button></div>';
     var p = plan();
-    $('plan').innerHTML = '<span>我们的建议</span><b>' + esc(p.title) + '</b><p>' + esc(p.text) + '</p>';
-    $('auto').innerHTML = (rec.auto || []).map(function (a) { return '<li><span><b>' + esc(a.label) + '</b>：' + esc(a.value) + '</span></li>'; }).join('');
+    $('plan').innerHTML = '<span>按你的选择</span><b>' + esc(p.title) + '</b><p>' + esc(p.text) + '</p>';
+    $('auto').innerHTML = displayAuto().map(function (a) { return '<li><span><b>' + esc(a.label) + '</b>：' + esc(a.value) + '</span></li>'; }).join('');
+    $('doneOpen').textContent = state.mode === 'manual' ? '搭好后按说明手动启动并打开；不需要允许通知。' : '搭好后按说明打开工作台；需要浏览器通知时，点“开启提醒”并允许。';
     var t = themeObj();
     $('summary').innerHTML = selectedMods().map(function (m) { return '<span>' + esc(m.name) + '</span>'; }).join('') +
       (state.custom ? '<span>另外想要：' + esc(state.custom) + '</span>' : '') +
       '<span class="sw"><i style="background:' + esc(t.palette.primary) + '"></i>配色：' + esc(t.name) + '</span>';
   }
-  $('qBoot').addEventListener('click', function (e) { var b = e.target.closest('[data-boot]'); if (b) { state.boot = b.dataset.boot; renderFinal(); updateSum(); refocus('#qBoot ' + attr('data-boot', state.boot)); } });
+  $('qMode').addEventListener('click', function (e) { var b = e.target.closest('[data-mode]'); if (b) { state.mode = b.dataset.mode; if (state.mode === 'manual') state.autostart = false; renderFinal(); updateSum(); refocus('#qMode ' + attr('data-mode', state.mode)); } });
+  $('qAutostart').addEventListener('click', function (e) { var b = e.target.closest('[data-autostart]'); if (b && state.mode === 'reminders') { state.autostart = b.dataset.autostart === 'on'; renderFinal(); updateSum(); refocus('#qAutostart ' + attr('data-autostart', b.dataset.autostart)); } });
   $('qView').addEventListener('click', function (e) { var b = e.target.closest('[data-view]'); if (b) { state.view = b.dataset.view; renderFinal(); updateSum(); refocus('#qView ' + attr('data-view', state.view)); } });
 
   /* ---------- 确认 ---------- */
   function result() {
     var p = plan();
     return {
+      schema: 'boss-workbench-confirm/2',
       status: 'confirmed',
       confirmed_at: new Date().toISOString(),
       boss: rec.boss,
@@ -310,8 +322,8 @@
       modules: selectedMods().map(function (m) { return { id: m.id, name: m.name, status: m.status }; }),
       custom_request: (state.custom || '').trim(),
       theme: state.theme,
-      schedule: { boot: state.boot, view: state.view, prepare_at: p.prepare, notify_at: p.notify, plan: p.title },
-      auto: rec.auto
+      schedule: { mode: state.mode, notifications_enabled: state.mode === 'reminders', autostart_enabled: state.autostart, boot: null, view: state.mode === 'manual' ? null : state.view, prepare_at: p.prepare, notify_at: p.notify, plan: p.title },
+      auto: displayAuto()
     };
   }
 

@@ -1,4 +1,4 @@
-// 今日：老板早上最想看的三件事（各平台昨天卖得怎么样、今天该跟进的大客户、小红书今天发什么），
+// 今日：顶上是老板“最想先看到”的重点卡（最多 3 张，按设置 home 排：经营、大客户、小红书、项目、收件箱，见 shared/home.ts），
 // 然后是数据异常、日程、待办、该联系的人、钱、卡在哪。数据都从 /api/overview 一次取回。
 import { CalendarPlus, MessageSquarePlus, Sparkles } from 'lucide-react'
 import { api, useApi, useWrite } from '@/lib/api'
@@ -17,6 +17,7 @@ import { XhsToday } from './XhsToday'
 import { AlertsPanel } from './AlertsPanel'
 import { ScheduleAndTodos, SideColumn } from './DayColumns'
 import { NotifyBanner } from './NotifyBanner'
+import { InboxBrief, ProjectsBrief } from './BaseBriefs'
 
 /** 模块开没开：今日页只放打开着的模块（模块开关，见 shared/modules.ts；老服务没给 modules = 全部） */
 const hasModule = (o: Overview, id: string) => !o.modules || o.modules.includes(id)
@@ -28,7 +29,7 @@ function digest(o: Overview) {
   const parts: string[] = []
   if (o.sales) {
     const d = o.sales.total.vs_prev
-    parts.push(`昨天 ${o.sales.channels.length} 个渠道卖了 ${yuan(o.sales.total.gmv)}${d === null ? '' : `，比前天${d >= 0 ? '多' : '少'} ${Math.abs(d)}%`}`)
+    parts.push(o.sales.total.gmv === null ? `昨天有渠道没数，合计先不算` : `昨天 ${o.sales.channels.length} 个渠道卖了 ${yuan(o.sales.total.gmv)}${d === null ? '' : `，比前天${d >= 0 ? '多' : '少'} ${Math.abs(d)}%`}`)
   }
   const biz = o.alerts.filter((a) => a.module === 'biz').length
   const data = o.alerts.length - biz
@@ -36,6 +37,12 @@ function digest(o: Overview) {
   if (o.key_clients.length) parts.push(`${o.key_clients.slice(0, 3).map((c) => c.name).join('、')}等着跟进`)
   const post = o.xhs?.posts[0]
   if (post) parts.push(`小红书 ${post.time ?? '今天'} 发《${post.title}》`)
+  // 基础版（没开经营、客户、内容时）：说项目的下一个关键日子和收件箱
+  if (!parts.length) {
+    const next = (o.projects_brief ?? []).filter((p) => p.next_milestone).sort((a, b) => a.next_milestone!.date.localeCompare(b.next_milestone!.date))[0]
+    if (o.projects_active) parts.push(`${o.projects_active} 个项目在推进${next ? `，最近的关键日子是${next.name}的“${next.next_milestone!.title}”（${next.next_milestone!.date.slice(5)}）` : ''}`)
+    if (o.inbox_open) parts.push(`收件箱有 ${o.inbox_open} 份等你看`)
+  }
   return parts.length ? parts.join('；') + '。' : '今天还没有要特别留意的事。'
 }
 
@@ -47,7 +54,15 @@ export default function TodayPage() {
   if (error && !o) return <PageBody className="pt-7"><Failed message={error.message} onRetry={() => refetch()} /></PageBody>
   const has = (id: string) => !!o && hasModule(o, id)
   if (!o) return <PageBody className="grid gap-4 pt-7"><Skeleton className="h-24" /><div className="grid gap-4 xl:grid-cols-3"><Skeleton className="h-80" /><Skeleton className="h-80" /><Skeleton className="h-80" /></div><Skeleton className="h-60" /></PageBody>
-  const topCount = ['biz', 'clients', 'content'].filter(has).length
+  // 顶上的重点卡：服务端按老板定的顺序给（shared/home.ts）；老服务没给就按以前的三件事
+  const focus = o.home ?? (['sales', 'clients', 'xhs'] as const).filter((id) => has({ sales: 'biz', clients: 'clients', xhs: 'content' }[id]))
+  const card = (id: (typeof focus)[number]) => ({
+    sales: <div key="sales" className="min-w-0 lg:col-span-2 xl:col-span-1"><SalesBrief sales={o.sales} alerts={o.alerts} /></div>,
+    clients: <KeyClients key="clients" items={o.key_clients} />,
+    xhs: <XhsToday key="xhs" plan={o.xhs} />,
+    projects: <ProjectsBrief key="projects" o={o} />,
+    inbox: <InboxBrief key="inbox" o={o} />,
+  })[id]
   return (
     <>
       <PageHeader eyebrow={fullDate(o.date)} title={`${greet()}，${s?.owner ?? '老板'}`} desc={digest(o)}
@@ -60,7 +75,8 @@ export default function TodayPage() {
           </Alert>
         )}
 
-        <NotifyBanner />
+        {/* 手动打开、没开提醒的（默认）不问浏览器通知权限 */}
+        {s?.reminders?.on && <NotifyBanner />}
 
         {o.headline && (
           <section className="relative overflow-hidden rounded-xl border border-primary/20 bg-[linear-gradient(120deg,var(--accent),var(--card)_70%)] px-5 py-4 shadow-paper">
@@ -75,19 +91,10 @@ export default function TodayPage() {
           </section>
         )}
 
-        {/* 三件事：经营、大客户、小红书，只放打开着的；三个都开着时经营那张更宽 */}
-        {topCount === 3 && (
-          <div className="grid gap-5 lg:grid-cols-2 xl:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)_minmax(0,1fr)]">
-            <div className="min-w-0 lg:col-span-2 xl:col-span-1"><SalesBrief sales={o.sales} alerts={o.alerts} /></div>
-            <KeyClients items={o.key_clients} />
-            <XhsToday plan={o.xhs} />
-          </div>
-        )}
-        {topCount > 0 && topCount < 3 && (
-          <div className={topCount === 2 ? 'grid gap-5 lg:grid-cols-2' : 'grid gap-5'}>
-            {has('biz') && <div className="min-w-0"><SalesBrief sales={o.sales} alerts={o.alerts} /></div>}
-            {has('clients') && <KeyClients items={o.key_clients} />}
-            {has('content') && <XhsToday plan={o.xhs} />}
+        {/* 重点卡：老板“最想先看到”的，最多 3 张；三张且第一张是经营时经营那张更宽 */}
+        {focus.length > 0 && (
+          <div className={focus.length === 3 ? `grid gap-5 lg:grid-cols-2 ${focus[0] === 'sales' ? 'xl:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)_minmax(0,1fr)]' : 'xl:grid-cols-3'}` : focus.length === 2 ? 'grid gap-5 lg:grid-cols-2' : 'grid gap-5'}>
+            {focus.map(card)}
           </div>
         )}
 

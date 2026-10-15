@@ -72,8 +72,8 @@ export function runsFor(channelIds: string[], from: string, to: string): ImportR
     const marks = ids.map((_, i) => `:s${i}`).join(', ')
     const p = Object.fromEntries(ids.map((id, i) => [`s${i}`, id]))
     return all<ImportRun>(`SELECT r.id, r.source_id, s.name AS source_name, r.started_at, r.finished_at, r.status, r.file_name, r.data_date, r.rows_total, r.rows_ok, r.rows_failed, r.actor, r.message
-      FROM import_runs r JOIN data_sources s ON s.id = r.source_id
-      WHERE r.source_id IN (${marks}) AND r.data_date BETWEEN :f AND :t ORDER BY r.data_date DESC, r.started_at DESC`, { ...p, f: from, t: to })
+      FROM import_runs r JOIN data_sources s ON s.id = r.source_id LEFT JOIN data_batches b ON b.id = r.batch_id
+      WHERE r.source_id IN (${marks}) AND r.data_date >= :f AND COALESCE(r.date_from,r.data_date) <= :t AND (b.id IS NULL OR b.status = '有效') ORDER BY r.data_date DESC, r.started_at DESC`, { ...p, f: from, t: to })
   } catch {
     return []
   }

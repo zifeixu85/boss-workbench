@@ -13,8 +13,10 @@ import { BizError } from '../errors'
 import { useBizOverlay, type TraceQuery } from '../state'
 import type { Metric, Trace } from '../types'
 
+const INPUT_STATE: Record<string,string> = {provided:'本次表格提供（0 为已知值）',derived:'按口径计算',empty:'空单元格，未知',absent:'缺列，未知',kept_empty:'空单元格，沿用旧值',kept_absent:'缺列，沿用旧值'}
+const RAW_LABEL: Record<string,string> = {gmv:'成交额',orders:'订单数',visitors:'访客数',refund_amount:'退款金额',refund_orders:'退款单数',ad_spend:'推广花费',ad_gmv:'推广成交额',new_buyers:'新客数',old_buyers:'老客数'}
 const MONEY = ['gmv', 'refund_amount', 'ad_spend', 'ad_gmv']
-const partFmt = (key: string, v: number | undefined) => (v === undefined ? '—' : MONEY.includes(key) ? Math.round(v).toLocaleString('zh-CN') : thousands(v))
+const partFmt = (key: string, v: number | null | undefined) => (v == null ? '—' : MONEY.includes(key) ? Math.round(v).toLocaleString('zh-CN') : thousands(v))
 /** 表格里一格：比率按指标的写法，金额人数写千分位 */
 const cell = (metric: string, v: number) => (metric === 'roi' ? roi1(v) : metric === 'conv_rate' || metric === 'refund_rate' ? pct(v) : Math.round(v).toLocaleString('zh-CN'))
 /** 标题：和指标卡的大数字一样（25,559 元） */
@@ -53,6 +55,7 @@ export function TraceSheet({ q, onClose }: { q: TraceQuery; onClose: () => void 
               <div className="text-[13.5px] leading-relaxed">
                 <div className="font-medium">{t.label} = {t.formula}</div>
                 {t.ratio && <div className="num mt-1 text-muted-foreground">{t.parts.map((p) => `${p.label} ${partFmt(p.key, t.total.parts[p.key])}`).join(' ÷ ')} = {fmtMetric(t.metric, t.total.value)}</div>}
+                {t.total.coverage.note && <div className="mt-1 text-xs text-muted-foreground">{t.total.coverage.note}</div>}
                 <div className="mt-1 text-xs text-muted-foreground">{t.note}。口径见知识库“数据口径”</div>
               </div>
             </div>
@@ -74,7 +77,7 @@ export function TraceSheet({ q, onClose }: { q: TraceQuery; onClose: () => void 
                         <TableCell className="pl-3"><button type="button" className="whitespace-nowrap hover:text-primary hover:underline" onClick={() => ov.openTrace({ ...q, channel: c.id })}>{c.name}</button></TableCell>
                         {t.ratio && t.parts.map((p) => <TableCell key={p.key} className="num text-right">{partFmt(p.key, c.parts[p.key])}</TableCell>)}
                         <TableCell className="num text-right font-medium whitespace-nowrap">{fmtMetric(t.metric, c.value)}</TableCell>
-                        <TableCell className="pr-3 text-xs text-muted-foreground">{c.source_name ?? '—'}{c.late && <span className="ml-1 text-warn">（没按时到）</span>}</TableCell>
+                        <TableCell className="pr-3 text-xs text-muted-foreground">{c.source_name ?? '—'}{c.coverage.note && <div>{c.coverage.note}</div>}{c.late && <span className="ml-1 text-warn">（没按时到）</span>}</TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
@@ -97,7 +100,7 @@ export function TraceSheet({ q, onClose }: { q: TraceQuery; onClose: () => void 
                 <TableBody>
                   {t.daily.map((d) => (
                     <TableRow key={d.date}>
-                      <TableCell className="num pl-3 whitespace-nowrap">{md(d.date)} <span className="text-xs text-muted-foreground">{weekday(d.date)}</span></TableCell>
+                      <TableCell className="num pl-3 whitespace-nowrap" title={[d.coverage.note, ...d.provenance.map(p => `${p.channel_id}: ${p.field_states ? Object.entries(p.field_states).filter(([k]) => t.parts.some(part => part.key === k)).map(([k,v])=>`${RAW_LABEL[k] ?? k}：${INPUT_STATE[v] ?? v}`).join('；') : '历史状态未记录'}；${p.note}`)].join('\n')}>{md(d.date)} <span className="text-xs text-muted-foreground">{weekday(d.date)}</span></TableCell>
                       {!single && t.parts.map((p) => <TableCell key={p.key} className="num text-right">{partFmt(p.key, d.parts[p.key])}</TableCell>)}
                       {multi && d.cells.map((v, i) => <TableCell key={i} className="num text-right text-muted-foreground">{v === null ? '暂无' : cell(t.metric, v)}</TableCell>)}
                       <TableCell className="num pr-3 text-right font-medium whitespace-nowrap">{d.value === null ? '暂无' : cell(t.metric, d.value)}</TableCell>
@@ -114,7 +117,7 @@ export function TraceSheet({ q, onClose }: { q: TraceQuery; onClose: () => void 
                 )}
               </Table>
             </div>
-            <p className="mt-1.5 text-xs text-muted-foreground">{t.ratio ? '比率不拿每天的比率求平均，而是先把原始数加起来再相除。' : ''}“暂无”是那天没有数，不是 0。{MONEY.includes(t.metric) ? '金额单位：元。' : ''}</p>
+            <p className="mt-1.5 text-xs text-muted-foreground">{t.ratio ? '比率不拿每天的比率求平均，而是先把原始数加起来再相除。' : ''}“暂无”包括未取得数、字段未知或分母为 0；不是数值 0。鼠标停在日期上可看输入状态，沿用旧值不是本次新报。{MONEY.includes(t.metric) ? '金额单位：元。' : ''}</p>
           </SheetSection>
 
           <SheetSection title={`来自哪几次导入（${t.runs.length} 次）`}>

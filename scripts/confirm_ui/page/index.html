@@ -16,7 +16,7 @@
       <li data-step="0"><i>1</i><span>核对我读到的你</span></li>
       <li data-step="1"><i>2</i><span>工作台放什么</span></li>
       <li data-step="2"><i>3</i><span>挑配色</span></li>
-      <li data-step="3"><i>4</i><span>时间与确认</span></li>
+      <li data-step="3"><i>4</i><span>使用方式与确认</span></li>
     </ol>
   </div>
   <div class="progress"><span id="progress"></span></div>
@@ -57,18 +57,19 @@
     <div class="themes" id="themes" role="radiogroup" aria-label="配色"></div>
   </section>
 
-  <!-- 第四步：时间与确认 -->
+  <!-- 第四步：使用方式与确认 -->
   <section class="step" data-step="3" aria-labelledby="h3" hidden>
-    <h1 id="h3">最后两个问题</h1>
+    <h1 id="h3">最后，选好使用方式</h1>
     <div class="final-layout">
       <div class="final-main">
-        <div class="q" id="qBoot"></div>
+        <div class="q" id="qMode"></div>
         <div class="q" id="qView"></div>
+        <div class="q" id="qAutostart"></div>
         <div class="plan" id="plan"></div>
         <div class="send-fail" id="sendFail" role="alert" hidden></div>
       </div>
       <aside class="final-side">
-        <h2>这些我们帮你定好了</h2>
+        <h2>导航与资料位置</h2>
         <ul class="auto" id="auto"></ul>
         <h2>你选的</h2>
         <div class="summary" id="summary"></div>
@@ -83,8 +84,8 @@
       <h1 id="h4">好了，回到 Codex 吧</h1>
       <p class="lead" id="doneLead"></p>
       <ol class="next-steps">
-        <li>Codex 按你的选择搭工作台，大约 10—15 分钟，过程中会告诉你做到哪了。</li>
-        <li>搭好后自动在浏览器打开，第一次打开时点“允许通知”。</li>
+        <li>Codex 按你的选择搭工作台，过程中会告诉你做到哪了。</li>
+        <li id="doneOpen"></li>
         <li>哪里不满意，直接在 Codex 里说一句就能改。</li>
       </ol>
       <p class="quiet">这个页面可以关了。</p>

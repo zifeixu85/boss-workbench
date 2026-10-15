@@ -9,7 +9,9 @@ export type Kpi = {
   vs_prev: number | null; vs_last_week: number | null; delta_kind: 'pct' | 'pt' | 'abs'; spark: (number | null)[]; hint: string | null
 }
 
-export type Metrics = Record<Metric, number | null> & { new_share: number | null; ad_gmv: number | null; refund_amount: number | null }
+export type Coverage = { expected_rows: number; present_rows: number; missing_rows: number; known: Record<string, number>; complete_fields: string[]; channel_ids: string[]; missing_channel_ids: string[]; note: string }
+
+export type Metrics = Record<Metric, number | null> & { new_share: number | null; ad_gmv: number | null; refund_amount: number | null; coverage: Coverage }
 
 export type ChannelFresh = {
   channel_id: string; channel_name: string; source_id: string; source_name: string | null; schedule: string | null; owner: string | null
@@ -55,7 +57,7 @@ export type BizConfig = {
 
 export type TableRow = Metrics & {
   id: string; name: string; kind: string; owner: string; share: number | null; daily_gmv: number | null; vs_prev_period: number | null; yesterday_gmv: number | null
-  roi_last3: number | null
+  roi_last3: number | null; daily_gmv_days: number
 }
 
 export type KpiFlag = { id: string; channel_name: string }
@@ -64,10 +66,10 @@ export type Board = {
   range_holiday_days: number; prev_holiday_days: number; holidays: { f: string; t: string }[]
   yesterday: Metrics & { prev: number | null; last_week: number | null }
   kpis: Kpi[]; kpi_flags: Record<string, KpiFlag[]>; last3_label: string
-  trend: { date: string; gmv: number | null; orders: number | null }[]; trend_avg: number
+  trend: { date: string; gmv: number | null; orders: number | null }[]; trend_avg: number | null; trend_avg_days: number
   channels: { id: string; name: string }[]
   stacked: ({ date: string } & Record<string, number | null | string>)[]
-  total: Metrics & { vs_prev_period: number | null; prev_gmv: number | null }
+  total: Metrics & { daily_gmv: number | null; daily_gmv_days: number; vs_prev_period: number | null; prev_gmv: number | null }
   table: TableRow[]
   anomalies: AnomalyList; report: Report | null; freshness: Freshness; config: BizConfig; rules_text: string
 }
@@ -77,9 +79,9 @@ export type ImportRun = {
   file_name: string | null; data_date: string | null; rows_total: number | null; rows_ok: number | null; rows_failed: number | null; actor: string; message: string | null
 }
 
-export type AdWindow = { days: number; spend: number; gmv: number; clicks: number; per_day: number; roi: number | null; cpc: number | null; bid: number | null }
+export type AdWindow = { days: number; spend: number | null; gmv: number | null; clicks: number | null; per_day: number | null; expected_days: number; roi: number | null; cpc: number | null; bid: number | null }
 export type Campaign = {
-  campaign: string; spend: number; gmv: number; clicks: number; roi: number | null; cpc: number | null; daily_spend: number | null
+  campaign: string; spend: number | null; gmv: number | null; clicks: number | null; known_days: number; expected_days: number; roi: number | null; cpc: number | null; daily_spend: number | null
   bid: number | null; bid_changed: { at: string; who: string; action: string; from: number; to: number } | null
   shift: { base: AdWindow; now: AdWindow } | null; spark: (number | null)[]
 }
@@ -96,7 +98,7 @@ export type ChannelDay = {
   refund_rate: number | null; refund_amount: number | null; ad_spend: number | null; ad_gmv: number | null; roi: number | null; new_share: number | null
 }
 
-type AdsSum = { spend: number; ad_gmv: number; per_day: number; roi: number | null }
+type AdsSum = { spend: number | null; ad_gmv: number | null; per_day: number | null; roi: number | null; days: number; known_days: number; coverage: Coverage }
 export type ChannelData = {
   channel: { id: string; name: string; kind: string; owner: string; warehouse_id: string; warehouse_name: string | null; warehouse_note: string | null }
   date: string; days: Days; from: string; to: string; prev_from: string; prev_to: string
@@ -106,7 +108,7 @@ export type ChannelData = {
   ads_shift: { base: AdsSum; now: AdsSum; base_label: string; now_label: string } | null
   daily: ChannelDay[]
   traffic: { source: string; visitors: number; share: number | null; prev_share: number | null }[]
-  products: { sku_id: string; name: string; category: string; price: number; units: number; gmv: number; share: number | null; vs_prev: number | null; spark: number[] }[]
+  products: { sku_id: string; name: string; category: string; price: number; units: number; gmv: number; share: number | null; vs_prev: number | null; spark: (number | null)[] }[]
   refunds: { reasons: { reason: string; orders: number; amount: number; prev_orders: number }[]; batches: { reason: string; sku: string | null; batch: string; orders: number; amount: number }[] }
   campaigns: Campaign[]
   inventory: { rows: InventoryRow[]; shared_with: string[] }
@@ -123,9 +125,9 @@ export type ChannelData = {
     store: {
       week_from: string; by_day: { label: string; days: number; visitors: number | null; gmv: number | null }[]
       holiday: { days: number; visitors: number | null; gmv: number | null } | null
-      weekday_avg: { visitors: number | null; gmv: number | null }; weekend_avg: { visitors: number | null; gmv: number | null }
+      weekday_avg: { days: number; visitors: number | null; gmv: number | null }; weekend_avg: { days: number; visitors: number | null; gmv: number | null }
       daily: { date: string; holiday: boolean; orders: number | null; members: number | null; share: number | null }[]
-      member_share: number | null; new_share: number | null; members: number; buyers: number
+      member_share: number | null; new_share: number | null; members: number | null; buyers: number | null
     } | null
     notice: {
       project: { id: string; name: string; kb_path: string | null }; event_id: string; from: string; to: string; days: number; reopen: string
@@ -137,9 +139,9 @@ export type ChannelData = {
 export type Trace = {
   metric: Metric; label: string; unit: string; formula: string; note: string; from: string; to: string; days: number; ratio: boolean
   parts: { key: string; label: string }[]
-  channels: { id: string; name: string; value: number | null; parts: Record<string, number>; source_name: string | null; schedule: string | null; last_ok_at: string | null; late: boolean }[]
+  channels: { id: string; name: string; value: number | null; parts: Record<string, number | null>; coverage: Coverage; source_name: string | null; schedule: string | null; last_ok_at: string | null; late: boolean }[]
   excluded: string | null
-  daily: { date: string; value: number | null; parts: Record<string, number>; cells: (number | null)[] }[]
-  total: { value: number | null; parts: Record<string, number> }
+  daily: { date: string; value: number | null; parts: Record<string, number | null>; coverage: Coverage; provenance: { channel_id: string; batch_id: string | null; field_states: Record<string, string> | null; note: string }[]; cells: (number | null)[] }[]
+  total: { value: number | null; parts: Record<string, number | null>; coverage: Coverage }
   runs: ImportRun[]
 }

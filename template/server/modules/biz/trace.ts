@@ -1,5 +1,6 @@
 // 数字的来源：任何一个经营数字点进去，都能看到它是哪几天、哪几个渠道的哪些原始数加出来的，以及是哪几次导入带进来的。归属：经营模块。
 // 算法和指标卡一致（metrics.ts：先加总再相除）；口径说明摘自知识库 10-渠道与经营/数据口径.md。
+import { all } from '../../db.ts'
 import { BadRequest, addDays, today } from '../../services/common.ts'
 import { channels, latestDate, type DailyRow } from './service.ts'
 import { METRICS, METRIC_LABEL, type Metric } from './config.ts'
@@ -15,10 +16,10 @@ const RECIPE: Record<Metric, { parts: Part[]; formula: string; note: string }> =
   gmv: { parts: ['gmv'], formula: '每天每个渠道的成交额加起来', note: '当天付款的订单金额，不扣退款。企业茶礼和渠道供货不在里面；门店的包间费（288 元一次）不是卖货，也不算' },
   orders: { parts: ['orders'], formula: '每天每个渠道的订单数加起来', note: '天猫导的是“支付子订单数”，一单买两样算两单' },
   visitors: { parts: ['visitors'], formula: '每天每个渠道的访客数加起来', note: '一天里一个人只算一次；门店是宋姐记的进店人数' },
-  conv_rate: { parts: ['orders', 'visitors'], formula: '订单数 ÷ 访客数（先各自加总再相除）', note: '全店只算 4 个线上平台；门店的转化率是进店的人里几成买了，单独看' },
+  conv_rate: { parts: ['orders', 'visitors'], formula: '订单数 ÷ 访客数（先各自加总再相除）', note: '全店按已登记的线上渠道计算；门店的转化率是进店的人里几成买了，单独看' },
   aov: { parts: ['gmv', 'orders'], formula: '成交额 ÷ 订单数', note: '天猫按子订单算，客单价会偏低一点' },
   refund_rate: { parts: ['refund_amount', 'gmv'], formula: '退款金额 ÷ 成交额', note: '当天退的钱可能是前几天的单，单日会跳；连着看 3 天再下结论' },
-  ad_spend: { parts: ['ad_spend'], formula: '每天每个渠道的推广花费加起来', note: '抖店千川、天猫万相台、小红书店聚光、视频号加热；门店没有推广' },
+  ad_spend: { parts: ['ad_spend'], formula: '每天每个渠道的推广花费加起来', note: '按所选渠道提供的推广字段计算；未报不视为 0，确实没有推广时应明确填 0' },
   roi: { parts: ['ad_gmv', 'ad_spend'], formula: '推广成交额 ÷ 推广花费', note: '推广成交额是平台自己算的，各家算法不一样，只和自己的平常比' },
 }
 
@@ -39,8 +40,16 @@ export function trace(q: { metric?: string; channel?: string; from?: string; to?
   const picked = chs.filter((c) => (q.channel ? c.id === q.channel : onlineOnly ? c.id !== 'store' : true))
   const ids = new Set(picked.map((c) => c.id))
   const rows = rowsBetween(from, to).filter((x) => ids.has(x.channel_id))
-  const m = (xs: DailyRow[]) => metricsOf(agg(xs), false)[metric]
-  const parts = (xs: DailyRow[]) => Object.fromEntries(r.parts.map((p) => [p, Math.round(xs.reduce((a, x) => a + Number(x[p] ?? 0), 0) * 100) / 100])) as Record<Part, number>
+  const scope = {from, to, channels:[...ids]}
+  const aggregate = (xs: DailyRow[], f = from, t = to, channels = [...ids]) => agg(xs, {from:f, to:t, channels})
+  const m = (xs: DailyRow[], f = from, t = to, channels = [...ids]) => metricsOf(aggregate(xs,f,t,channels), false)[metric]
+  const parts = (xs: DailyRow[], f = from, t = to, channels = [...ids]) => {
+    const a = aggregate(xs,f,t,channels)
+    return Object.fromEntries(r.parts.map(p => [p, a[p] === null ? null : Math.round(a[p]! * 100) / 100])) as Record<Part, number | null>
+  }
+  const coverage = (xs: DailyRow[], f = from, t = to, channels = [...ids]) => aggregate(xs,f,t,channels).coverage
+  const provenance = all<{row_key:string; batch_id:string; field_states_json:string|null}>(`SELECT r.row_key,r.batch_id,r.field_states_json FROM data_batch_rows r JOIN data_batches b ON b.id=r.batch_id WHERE r.tbl='channel_daily' AND b.status='有效' AND substr(r.row_key,1,10) BETWEEN :f AND :t ORDER BY b.rowid DESC`, {f:scope.from,t:scope.to})
+  const sourceFor = (d:string,c:string) => { const x=provenance.find(x=>x.row_key===`${d}|${c}`); return {channel_id:c,batch_id:x?.batch_id??null,field_states:x?.field_states_json ? JSON.parse(x.field_states_json) : null,note:x?.field_states_json ? '沿用旧值的字段不是本次新报；本次为空或缺列时未覆盖旧值' : '历史记录未保存字段输入状态；数值 0 不推断为缺失'} }
   const fresh = freshness()
   return {
     metric, label: METRIC_LABEL[metric], unit: UNIT[metric], formula: r.formula, note: r.note, from, to, days: eachDate(from, to).length,
@@ -50,14 +59,14 @@ export function trace(q: { metric?: string; channel?: string; from?: string; to?
     channels: picked.map((c) => {
       const f = fresh.channels.find((x) => x.channel_id === c.id)
       const mine = rows.filter((x) => x.channel_id === c.id)
-      return { id: c.id, name: c.name, value: mine.length ? m(mine) : null, parts: parts(mine), source_name: f?.source_name ?? null, schedule: f?.schedule ?? null, last_ok_at: f?.last_ok_at ?? null, late: f?.late ?? false }
+      return { id: c.id, name: c.name, value: m(mine,from,to,[c.id]), parts: parts(mine,from,to,[c.id]), coverage: coverage(mine,from,to,[c.id]), source_name: f?.source_name ?? null, schedule: f?.schedule ?? null, last_ok_at: f?.last_ok_at ?? null, late: f?.late ?? false }
     }),
     excluded: onlineOnly ? '门店（转化率口径不同，单独看）' : null,
     daily: eachDate(from, to).map((d) => {
       const xs = rows.filter((x) => x.date === d)
-      return { date: d, value: xs.length ? m(xs) : null, parts: parts(xs), cells: picked.map((c) => { const x = xs.find((y) => y.channel_id === c.id); return x ? Number(x[metric] ?? 0) : null }) }
+      return { date: d, value: m(xs,d,d), parts: parts(xs,d,d), coverage: coverage(xs,d,d), provenance: picked.map(c=>sourceFor(d,c.id)), cells: picked.map((c) => { const x = xs.find((y) => y.channel_id === c.id); return x ? x[metric] : null }) }
     }).reverse(),
-    total: { value: rows.length ? m(rows) : null, parts: parts(rows) },
+    total: { value: m(rows), parts: parts(rows), coverage: coverage(rows) },
     runs: runsFor([...ids], from, to),
   }
 }

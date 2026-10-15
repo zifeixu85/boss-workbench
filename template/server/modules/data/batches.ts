@@ -4,7 +4,7 @@
 import { all, get, run, tx, uid, logChange } from '../../db.ts'
 import { BadRequest, NotFound } from '../../services/common.ts'
 import { CHANNELS, NUMERIC } from './fields.ts'
-import type { DailyValues } from './preview.ts'
+import type { DailyValues, FieldState } from './preview.ts'
 import { isPresetBatch, provenance } from './origin.ts'
 import { md, span, stamp } from './time.ts'
 
@@ -33,14 +33,14 @@ const keyParams = (tbl: Tbl, k: string) => Object.fromEntries(Object.entries(spl
 export function currentOf(tbl: Tbl, key: string): Vals | null {
   const r = get<Vals>(`SELECT * FROM ${tbl} WHERE ${where(tbl)}`, keyParams(tbl, key))
   if (!r) return null
-  return Object.fromEntries(TABLES[tbl].cols.map((c) => [c, typeof r[c] === 'string' ? r[c] : Number(r[c])]))
+  return Object.fromEntries(TABLES[tbl].cols.map((c) => [c, r[c] === null ? null : typeof r[c] === 'string' ? r[c] : Number(r[c])]))
 }
 
 function upsertRow(tbl: Tbl, key: string, v: Vals) {
   const { keys, cols } = TABLES[tbl]
   const all = [...keys, ...cols]
   run(`INSERT INTO ${tbl} (${all.join(', ')}) VALUES (${all.map((c) => `:${c}`).join(', ')})
-    ON CONFLICT(${keys.join(', ')}) DO UPDATE SET ${cols.map((c) => `${c} = excluded.${c}`).join(', ')}`, { ...splitKey(tbl, key), ...Object.fromEntries(cols.map((c) => [c, v[c] ?? 0])) })
+    ON CONFLICT(${keys.join(', ')}) DO UPDATE SET ${cols.map((c) => `${c} = excluded.${c}`).join(', ')}`, { ...splitKey(tbl, key), ...Object.fromEntries(cols.map((c) => [c, tbl === 'channel_daily' ? v[c] ?? null : v[c] ?? 0])) })
 }
 const deleteRow = (tbl: Tbl, key: string) => run(`DELETE FROM ${tbl} WHERE ${where(tbl)}`, keyParams(tbl, key))
 
@@ -53,7 +53,7 @@ function ownerOf(tbl: Tbl, key: string): string | null {
 export type NewBatch = Pick<Batch, 'origin' | 'source_id' | 'rule_id' | 'channel_id' | 'label' | 'file_name' | 'date_from' | 'date_to' | 'created_by'> & { created_at?: string; note?: string | null; target?: string; id?: string }
 
 /** 新建一批并写入（调用方负责包在事务里）。rows 里每行说清写哪张表、主键、值。返回批次 ID */
-export function writeRows(meta: NewBatch, rows: { tbl: Tbl; key: string; values: Vals }[]): string {
+export function writeRows(meta: NewBatch, rows: { tbl: Tbl; key: string; values: Vals; field_states?: Record<string, FieldState> }[]): string {
   const id = meta.id ?? uid('batch')
   run(`INSERT INTO data_batches (id, origin, source_id, rule_id, channel_id, label, file_name, target, date_from, date_to, rows, status, created_at, created_by, note)
     VALUES (:id, :origin, :source_id, :rule_id, :channel_id, :label, :file_name, :target, :date_from, :date_to, :rows, '有效', :at, :by, :note)`, {
@@ -63,8 +63,8 @@ export function writeRows(meta: NewBatch, rows: { tbl: Tbl; key: string; values:
   })
   for (const r of rows) {
     const prev = currentOf(r.tbl, r.key)
-    run(`INSERT INTO data_batch_rows (batch_id, tbl, row_key, before_json, before_batch, after_json) VALUES (:b, :t, :k, :before, :owner, :after)`, {
-      b: id, t: r.tbl, k: r.key, before: prev ? JSON.stringify(prev) : null, owner: prev ? ownerOf(r.tbl, r.key) : null, after: JSON.stringify(r.values),
+    run(`INSERT INTO data_batch_rows (batch_id, tbl, row_key, before_json, before_batch, after_json, field_states_json) VALUES (:b, :t, :k, :before, :owner, :after, :states)`, {
+      b: id, t: r.tbl, k: r.key, before: prev ? JSON.stringify(prev) : null, owner: prev ? ownerOf(r.tbl, r.key) : null, after: JSON.stringify(r.values), states: r.field_states ? JSON.stringify(r.field_states) : null,
     })
     upsertRow(r.tbl, r.key, r.values)
   }
@@ -72,8 +72,8 @@ export function writeRows(meta: NewBatch, rows: { tbl: Tbl; key: string; values:
 }
 
 /** 经营每天的数写一批（导入页、立即同步、命令行都走这里） */
-export function writeBatch(meta: NewBatch, rows: { date: string; channel_id: string; values: DailyValues }[]): string {
-  return writeRows(meta, rows.map((r) => ({ tbl: 'channel_daily' as const, key: `${r.date}|${r.channel_id}`, values: r.values })))
+export function writeBatch(meta: NewBatch, rows: { date: string; channel_id: string; values: DailyValues; field_states?: Record<string, FieldState> }[]): string {
+  return writeRows(meta, rows.map((r) => ({ tbl: 'channel_daily' as const, key: `${r.date}|${r.channel_id}`, values: r.values, field_states: r.field_states })))
 }
 
 /** 数据源的“数据截至”跟着经营表走：导入、撤销、清示例之后都重算 */
@@ -126,12 +126,35 @@ export function listBatches(origin?: string) {
     .map((b) => ({ ...b, preset: isPresetBatch(b.id), provenance: provenance(b.origin, b.file_name) }))
 }
 
-/** 撤销一次导入：这一批写进去的行，还归这一批的，恢复成写之前的样子（原来没有的删掉）；后来又被别的导入改过的不动 */
+type BeforeRow = { tbl: Tbl; row_key: string; before_json: string | null; before_batch: string | null }
+/** 非顺序撤销时跳过已经失效的覆盖层，避免复活已撤销的数。旧的无批次快照仍原样保留。 */
+function undoValue(id: string, row: BeforeRow): string | null {
+  let prior = row
+  const seen = new Set([id])
+  while (prior.before_batch) {
+    const previous = prior.before_batch
+    if (seen.has(previous)) throw new BadRequest('撤销记录存在循环，尚未修改任何数据')
+    seen.add(previous)
+    const batch = get<{ status: string }>('SELECT status FROM data_batches WHERE id = :id', { id: previous })
+    if (!batch) throw new BadRequest('撤销所需的历史批次缺失，尚未修改任何数据')
+    if (batch.status === '有效') return prior.before_json
+    const next = get<BeforeRow>('SELECT tbl, row_key, before_json, before_batch FROM data_batch_rows WHERE batch_id = :b AND tbl = :t AND row_key = :k', { b: previous, t: row.tbl, k: row.row_key })
+    if (!next) throw new BadRequest('撤销所需的历史快照缺失，尚未修改任何数据')
+    prior = next
+  }
+  if (prior.before_json !== null) return prior.before_json
+  // 原来是空的，但中途恢复过更早的示例批次：退回目前仍有效的旧批次。
+  return get<{ a: string }>(`SELECT r.after_json AS a FROM data_batch_rows r JOIN data_batches b ON b.id = r.batch_id
+    WHERE r.tbl = :t AND r.row_key = :k AND b.status = '有效' AND b.rowid < (SELECT rowid FROM data_batches WHERE id = :id)
+    ORDER BY b.rowid DESC LIMIT 1`, { t: row.tbl, k: row.row_key, id })?.a ?? null
+}
+
+/** 撤销一次导入：仍归这一批的行恢复到有效的前值；后来被其他导入覆盖的行不动。 */
 export function undoBatch(id: string, actor: string) {
   const b = getBatch(id)
   if (isPresetBatch(id)) throw new BadRequest('这一批是预置的示例数据，用导入记录页的“清掉示例数据”来去掉')
   if (b.status !== '有效') throw new BadRequest(`这一批${b.status}了`)
-  const rows = all<{ tbl: Tbl; row_key: string; before_json: string | null }>('SELECT tbl, row_key, before_json FROM data_batch_rows WHERE batch_id = :b', { b: id })
+  const rows = all<BeforeRow>('SELECT tbl, row_key, before_json, before_batch FROM data_batch_rows WHERE batch_id = :b', { b: id })
   let restored = 0, removed = 0, kept = 0
   const at = stamp()
   const chans: string[] = []
@@ -139,10 +162,7 @@ export function undoBatch(id: string, actor: string) {
     for (const r of rows) {
       if (!(r.tbl in TABLES)) continue
       if (ownerOf(r.tbl, r.row_key) !== id) { if (!SIDE.includes(r.tbl)) kept++; continue }
-      // 写之前是空的、但更早还有一批有效的数（例如中间恢复过示例数据）：退回到那一批
-      const earlier = r.before_json ? null : get<{ a: string }>(`SELECT r.after_json AS a FROM data_batch_rows r JOIN data_batches b ON b.id = r.batch_id
-        WHERE r.tbl = :t AND r.row_key = :k AND b.status = '有效' AND b.id <> :id ORDER BY b.rowid DESC LIMIT 1`, { t: r.tbl, k: r.row_key, id })?.a
-      const back = r.before_json ?? earlier ?? null
+      const back = undoValue(id, r)
       const counts = !SIDE.includes(r.tbl)
       if (back) { upsertRow(r.tbl, r.row_key, JSON.parse(back)); if (counts) restored++ }
       else { deleteRow(r.tbl, r.row_key); if (counts) removed++ }

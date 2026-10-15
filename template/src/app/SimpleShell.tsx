@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { Link, Outlet, useLocation } from 'react-router'
 import { resolveNav } from './nav'
 import { useNav } from './nav-sections'
-import { Brand, Badge, LiveDot, MobileMenuButton, MobileTabs, QuickCreate, SearchButton, SearchDialog, UserMenu, useHotkeys, useShellData } from './shell-parts'
+import { Brand, Badge, LiveDot, MobileMenuButton, MobileTabs, QuickCreate, SearchButton, SearchDialog, SettingsButton, UserMenu, useHotkeys, useShellData } from './shell-parts'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import type { LiveState } from '@/lib/api'
 import { cn } from '@/lib/utils'
@@ -57,6 +57,8 @@ export function SimpleShell({ live }: { live: LiveState }) {
         </nav>
         <div className="mt-auto flex flex-col gap-3 px-1 pt-4 lg:px-1.5">
           <LiveDot state={live} compact={false} />
+          <div className="hidden lg:block"><SettingsButton label /></div>
+          <div className="lg:hidden"><SettingsButton /></div>
           <div className="hidden lg:block"><UserMenu settings={settings} /></div>
           <div className="lg:hidden"><UserMenu settings={settings} compact /></div>
         </div>
