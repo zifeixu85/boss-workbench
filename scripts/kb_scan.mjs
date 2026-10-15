@@ -246,7 +246,7 @@ function warnSameName(link, same, picked, from, ctx) {
 // ───── 建库档案、入口 ─────
 /** 建库档案：格式、结构、示例；“目录对应”表（层 | 实际位置）；“启用的模块”表 */
 async function readArchive(root) {
-  const out = { exists: false, format: null, structure: '标准', sample: false, editor: 'plain', layerMap: {}, readonly: [], noread: [], enabled: [], planned: [] }
+  const out = { exists: false, format: null, structure: '标准', sample: false, editor: 'plain', layerMap: {}, readonly: [], noread: [], enabled: [], planned: [], workbenchDraft: '' }
   let text
   try { text = await readFile(join(root, '01-AI协作', '建库档案.md'), 'utf8') } catch { return out } // 旧格式或还没建库档案
   const meta = frontmatter(text)
@@ -258,7 +258,21 @@ async function readArchive(root) {
   out.editor = /^["'“]?obsidian(?![A-Za-z0-9])/i.test((pick(meta, '编辑器', 'editor') || '').trim()) ? 'obsidian' : 'plain'
   readFolderMap(text, out)
   readModules(text, out)
+  out.workbenchDraft = sectionText(text, '工作台结构草案')
   return out
+}
+
+/** 某个 ## 标题下面的正文（到下一个同级或更高的标题为止），最多 3000 字；没有就是空串 */
+function sectionText(text, heading) {
+  const ls = lines(text)
+  const i = ls.findIndex((l) => new RegExp(`^##\\s*${heading}`).test(l.trim()))
+  if (i < 0) return ''
+  const body = []
+  for (let j = i + 1; j < ls.length; j++) {
+    if (/^#{1,2}\s/.test(ls[j].trim())) break
+    body.push(ls[j])
+  }
+  return body.join('\n').trim().slice(0, 3000)
 }
 
 /** 目录对应：层写“原有·只读”“原有·不读”的是老板原有、不对应任何层的文件夹，分开存 */
@@ -653,7 +667,52 @@ async function notKnowledgeBase(root) {
   else if (agents) reason = '有 AGENTS.md，但里面没有“老板知识库”的维护标记，也没找到建库档案（01-AI协作/建库档案.md）和旧版的 知识库说明.md：不是老板知识库。'
   else reason = '这里不是老板知识库：没找到建库档案（01-AI协作/建库档案.md）、AGENTS.md 里“老板知识库”的维护标记，也没有旧版的 知识库说明.md。'
   if (vault) reason += '这是一个 Obsidian 库，还没用 boss-kb 建库或接入。'
-  return { kb: false, root, reason, empty, obsidian_vault: vault, workbench_exists: workbench, ...cloudInfo(root) }
+  const existing = empty ? null : await existingSummary(root)
+  if (existing?.suggest === '梳理') reason += '里面已经有老板自己的资料：先用 boss-kb 梳理已有资料（不搬不改，只写地图），再搭工作台。'
+  return { kb: false, root, reason, empty, obsidian_vault: vault, existing, workbench_exists: workbench, ...cloudInfo(root) }
+}
+
+/** 名字像私人的文件夹：梳理时标“建议先别看”，老板没回答就按不读（和 boss-kb 梳理第 1 步一致） */
+const PRIVATE_HINT = /日记|私人|个人|家庭|家人|孩子|健康|体检|病历|财务|账本|工资|税|银行|账号|密码|证件/
+/**
+ * 已有资料的目录概况（2026-10-15）：顶层每个文件夹里有几份 .md、几份 .csv，最近一次修改是哪天。
+ * 只看目录和修改时间，不打开正文、不列文件名；名字像私人的标 private_hint。≥ 3 份 .md 时建议先梳理。
+ */
+async function existingSummary(root, limit = 5000) {
+  const top = (await readdir(root, { withFileTypes: true }).catch(() => [])).filter((e) => !e.name.startsWith('.') && !SYSTEM_FILES.has(e.name) && !SKIP_DIRS.has(e.name))
+  const folders = []
+  let seen = 0
+  const count = async (dir, acc) => {
+    let entries
+    try { entries = await readdir(dir, { withFileTypes: true }) } catch { return }
+    for (const e of entries) {
+      if (seen >= limit || e.name.startsWith('.')) continue
+      const p = join(dir, e.name)
+      if (e.isDirectory()) { if (!SKIP_DIRS.has(e.name)) await count(p, acc) }
+      else if (e.isFile()) {
+        seen++
+        const low = e.name.toLowerCase()
+        if (low.endsWith('.md')) acc.md++
+        else if (low.endsWith('.csv')) acc.csv++
+        else acc.other++
+        const m = await stat(p).then((s) => s.mtimeMs).catch(() => 0)
+        if (m > acc.mtime) acc.mtime = m
+      }
+    }
+  }
+  const rootAcc = { md: 0, csv: 0, other: 0, mtime: 0 }
+  for (const e of top) {
+    if (e.isDirectory()) {
+      const acc = { md: 0, csv: 0, other: 0, mtime: 0 }
+      await count(join(root, e.name), acc)
+      folders.push({ name: e.name, md: acc.md, csv: acc.csv, other: acc.other, updated: acc.mtime ? new Date(acc.mtime).toISOString().slice(0, 10) : null, private_hint: PRIVATE_HINT.test(e.name) })
+    } else if (e.isFile()) {
+      const low = e.name.toLowerCase()
+      if (low.endsWith('.md')) rootAcc.md++; else if (low.endsWith('.csv')) rootAcc.csv++; else rootAcc.other++
+    }
+  }
+  const md = folders.reduce((a, f) => a + f.md, rootAcc.md)
+  return { md_files: md, csv_files: folders.reduce((a, f) => a + f.csv, rootAcc.csv), root_files: { md: rootAcc.md, csv: rootAcc.csv, other: rootAcc.other }, folders, truncated: seen >= limit, suggest: md >= 3 ? '梳理' : '空白起步' }
 }
 
 // ───── 主流程 ─────
@@ -665,7 +724,7 @@ function emptyResult(root) {
     works: { index: null, rows: 0, cards: 0 }, inbox: [], findings: [], unconfirmed: 0, privacy: {},
     unrecognized_files: [], skipped: { readonly_files: 0, raw_files: 0, template_files: 0, noread_folders: 0 },
     profile_files: {}, owner_aliases: [], structure: '标准', layer_map: {}, readonly_folders: [], noread_folders: [],
-    enabled_modules: [], planned_modules: [], workbench_exists: false, cloud_synced: false, cloud_maybe: false, cloud_note: '',
+    enabled_modules: [], planned_modules: [], workbench_draft: '', workbench_exists: false, cloud_synced: false, cloud_maybe: false, cloud_note: '',
   }
 }
 
@@ -688,7 +747,7 @@ export async function scanKnowledgeBase(rootArg, { max = 3000 } = {}) {
     || (entry.name ? '未标注' : null)
   const isV2 = result.format === FORMAT_V2
   Object.assign(result, { entry: entry.name, entry_excerpt: entry.excerpt, legacy_map: legacyFile && !isV2, legacy_ignored: legacyFile && isV2, sample: archive.sample, editor: archive.editor })
-  Object.assign(result, { structure: archive.structure, layer_map: archive.layerMap, readonly_folders: archive.readonly, noread_folders: archive.noread, enabled_modules: archive.enabled, planned_modules: archive.planned })
+  Object.assign(result, { structure: archive.structure, layer_map: archive.layerMap, readonly_folders: archive.readonly, noread_folders: archive.noread, enabled_modules: archive.enabled, planned_modules: archive.planned, workbench_draft: archive.workbenchDraft })
   result.skipped.noread_folders = archive.noread.length
 
   // 2. 再走文件：“不读”的文件夹整个不进

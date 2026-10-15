@@ -13,7 +13,8 @@ description: 老板工作台：在本机搭一个个人工作台网页，把今�
 |---|---|---|
 | “帮我搭工作台”，当前文件夹是知识库（有 `AGENTS.md` 的 `<!-- 老板知识库 v` 标记，或旧版 `知识库说明.md`） | 按知识库搭：下面“搭工作台”1—5 步 | 本文件 |
 | 读到 `kb: false`，但 `workbench_exists: true` | 工作台已经搭过：按“已经搭过”处理（下面第 1 步最后一条），别再问建库还是空白版 | 本文件 |
-| “帮我搭工作台”，但读不到知识库（kb_scan 输出 `kb: false`），或老板说“还没有知识库” | 先问建库还是先搭空白版；选空白版就搭通用工作台 | [references/空白起步.md](references/空白起步.md) |
+| “帮我搭工作台”，读不到知识库（`kb: false`），但文件夹里已经有老板自己的资料（`existing.suggest` 是“梳理”：Obsidian 库、按客户分的文件夹、Notion 或飞书导出） | 先梳理再搭：跟老板说“你已经有自己的一套了，我先帮你梳理一下，不搬不改，再按你的结构搭”，用 boss-kb 的“梳理已有资料”（三步）写好地图和工作台结构草案，再回来按知识库搭 | boss-kb 的 `references/梳理已有资料.md` |
+| “帮我搭工作台”，读不到知识库且没什么资料（`empty` 或 `existing.suggest` 是“空白起步”），或老板说“还没有知识库” | 先问建库还是先搭空白版；选空白版就搭基础版 | [references/空白起步.md](references/空白起步.md) |
 | “工作台接上我的知识库” | 空白版接上新建好的知识库：对照、导入、写入口 | [references/空白起步.md](references/空白起步.md) 的“以后接上知识库” |
 | “工作台加个××模块”“我想管好大客户”“把某个页面改成……”“导入这份导出表” | 加模块、改功能：立项对焦 → 需求文档 → 选起点 → 样张 → 开发 → 验收 → 记录；小改动直接改 | [references/加减模块.md](references/加减模块.md)、[references/立项对焦.md](references/立项对焦.md) |
 | “这个模块用不上了”“把经营打开” | 模块开关：`modules --off/--on`，不改代码、不删数据 | [references/加减模块.md](references/加减模块.md) 的“打开、收起模块” |
@@ -48,6 +49,7 @@ description: 老板工作台：在本机搭一个个人工作台网页，把今�
 ### 2. 写复述和推荐（`recommendations.json`）
 - 工作目录：`<知识库根目录>/工作台/搭建确认/`。
 - 复述只写跟搭工作台有关的六块：你是谁做什么、你每天最在意的、这几周在推的事、你在跟的人、资料里已有能直接用的、会用到但还没有的。类型画像、老板最关心直接取自建库档案。规则见 [references/复述规则.md](references/复述规则.md)。老板资料里没有的数据（收入构成、成本）不硬写。
+- 建库档案里有“工作台结构草案”（`kb_scan` 的 `workbench_draft`，梳理已有资料时老板确认过的）：照它推荐——它说加的业务模块标推荐，客户阶段、从哪读用它写的老板自己的说法，首页先放的写进 `wants`；它说不加的不推荐。
 - “我注意到的”：收件箱里没整理的新材料、前后对不上的地方、缺的资料，最多 3 条。
 - 模块从 [references/模块目录.md](references/模块目录.md) 里挑，按老板的类型、在意的事和资料情况标“推荐 / 可选 / 资料不够 / 稍后接数据”，每个都写一句为什么，并用老板自己的数据填预览。
 - 配色给 5 套（和模板一致；布局一样，只是颜色不同），按行业标一个推荐。对老板一律说“配色”，不说“风格”。
@@ -92,7 +94,7 @@ node "<本 Skill 文件夹>/scripts/confirm_ui/server.mjs" "<工作目录>" --wa
 
 | 位置 | 用途 |
 |---|---|
-| `scripts/kb_scan.mjs` | 读知识库地图和元信息，输出清单（JSON），只读；不是知识库时输出 `kb: false` |
+| `scripts/kb_scan.mjs` | 读知识库地图和元信息，输出清单（JSON），只读；带出建库档案里的“工作台结构草案”（`workbench_draft`）；不是知识库时输出 `kb: false`，有老板自己的资料时加 `existing`（只有顶层文件夹名和份数，建议先梳理） |
 | `scripts/confirm_ui/` | 本地确认页：`server.mjs` 零依赖；`page/` 页面；`example/` 示例推荐（ABC茶社） |
 | `scripts/deploy/` | 上线手机版：`preflight`（装机检查）、`export_snapshot`（打码快照）、`build_page`（只读网页）、`check_dist`（上传前自检）、`qrcode`、`record`（云上文件夹和记录） |
 | [references/复述规则.md](references/复述规则.md) | 复述写什么、不写什么 |
@@ -104,8 +106,9 @@ node "<本 Skill 文件夹>/scripts/confirm_ui/server.mjs" "<工作目录>" --wa
 | [references/加减模块.md](references/加减模块.md) | 加模块、改功能的七步；打开、收起模块；案例索引 |
 | [references/立项对焦.md](references/立项对焦.md)、[references/模块需求文档模板.md](references/模块需求文档模板.md) | 和老板对焦的七问；需求文档怎么写 |
 | [references/进内容.md](references/进内容.md) | 进内容六步、7 类写进工作台的哪里、`apply` 一次写入、收件箱带判断 |
-| `references/需求文档-*.md`、`references/配方-*.md`、[references/数据来源.md](references/数据来源.md) | 三份案例需求文档（客户跟进、多平台经营、小红书内容中心）；小红书写作规则、数据导入与对字段；数据从哪来 |
+| `references/需求文档-*.md`、`references/配方-*.md`、[references/数据来源.md](references/数据来源.md) | 六份案例需求文档（客户跟进、多平台经营、小红书内容中心、门店订单与取件、报价到回款、项目交付与验收）；小红书写作规则、数据导入与对字段；数据从哪来 |
 | [references/上线手机版.md](references/上线手机版.md) | 上线、更新、撤下只读手机版的步骤和规矩 |
+| [references/行业样板.md](references/行业样板.md) | 五种老板（电商、自媒体、门店、B2B、专业服务，虚构）的工作台：首页重点卡、导航、基础版之外加什么、借哪份需求文档 |
 | [references/AI助手.md](references/AI助手.md) | 工作台接入 Codex：在 Codex 里说 + 右边开着工作台；每页右边的 AI 助手；搭建时查本机 Codex、跟老板怎么说 |
 | `references/CloudBase接入与开通.md`、`上线前检查清单.md`、`只读版怎么做.md`、`上线-常见问题.md` | 上线用的参考：接入和开通、逐条检查、打码和口令锁、常见问题 |
 | `template/` | 工作台模板（React + shadcn + SQLite）单独发布，放进本文件夹后才能搭；没有就停下，告诉老板“工作台模板还没装好” |

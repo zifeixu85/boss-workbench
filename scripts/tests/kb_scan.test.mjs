@@ -567,6 +567,36 @@ test('空文件夹、不是知识库的文件夹：退出 0，输出 kb: false �
   assert.equal((await scanKnowledgeBase(real)).kb, true)
 })
 
+test('不是知识库但有老板自己的资料：只列顶层文件夹和份数，建议先梳理；不列文件名，私人的标出来', async (t) => {
+  const dir = kb(t, {
+    '客户资料/在谈/甲公司.md': '# 甲公司\n电话 13812345678\n',
+    '客户资料/成交/乙公司.md': '# 乙\n',
+    '项目/新店开业.md': '# 新店\n',
+    '日记/2026-10-01.md': '今天很累\n',
+    'Notion导出/客户.csv': '名称,阶段\n甲公司,在谈\n',
+  })
+  const r = await scanKnowledgeBase(dir)
+  assert.equal(r.kb, false)
+  assert.equal(r.existing.suggest, '梳理')
+  assert.equal(r.existing.md_files, 4)
+  assert.equal(r.existing.csv_files, 1)
+  assert.deepEqual(r.existing.folders.map((f) => f.name).sort(), ['Notion导出', '客户资料', '日记', '项目'].sort())
+  assert.equal(r.existing.folders.find((f) => f.name === '日记').private_hint, true)
+  assert.match(r.reason, /梳理已有资料/)
+  const text = JSON.stringify(r)
+  for (const w of ['甲公司', '乙公司', '新店开业', '2026-10-01', '13812345678', '今天很累']) assert.ok(!text.includes(w), `不该出现：${w}`)
+  const few = kb(t, { '随手记.md': '# x\n' })
+  assert.equal((await scanKnowledgeBase(few)).existing.suggest, '空白起步')
+})
+
+test('建库档案里的“工作台结构草案”原样带出来（梳理已有资料时写的），没写是空串', async (t) => {
+  const draft = '- 首页先放：项目推进到哪、收件箱\n- 客户跟进：阶段用“意向 / 报价 / 成交 / 售后”'
+  const withDraft = kb(t, { 'AGENTS.md': AGENTS, '01-AI协作/建库档案.md': archive() + `\n## 工作台结构草案\n\n${draft}\n\n## 下次补访\n\n- 无\n` })
+  assert.equal((await scanKnowledgeBase(withDraft)).workbench_draft, draft)
+  const plain = kb(t, { 'AGENTS.md': AGENTS, '01-AI协作/建库档案.md': archive() })
+  assert.equal((await scanKnowledgeBase(plain)).workbench_draft, '')
+})
+
 test('注释和提示里不再提 boss-kb-access（已并进 boss-kb）', () => {
   assert.ok(!readFileSync(SCRIPT, 'utf8').includes('boss-kb-access'))
 })
