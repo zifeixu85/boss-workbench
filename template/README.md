@@ -42,7 +42,7 @@ node server/cli.ts today             # 今天的情况
 搭建时先写设置，再从知识库导入（和网页走同一套规则，都记进“最近改动”；不要直接写数据库）。下面的名字都是举例：
 
 ```bash
-node server/cli.ts settings-set --owner 张总 --business 张记花店 --xhs 张记花事 --theme jade --nav simple   # 称呼、店名、小红书账号名、配色、导航
+node server/cli.ts settings-set --owner 张总 --business 张记花店 --xhs 张记花事 --theme jade --nav simple   # 称呼、店名、小红书账号名、配色、导航（simple 简单 / complex 复杂：侧栏三级 / dual 双层 / top 顶部）
 node server/cli.ts client-add 星禾科技 --label "科技公司 · 年节礼品" --stage 待复购 --next 2026-11-20 --kb 04-客户/企业客户/星禾科技.md
 node server/cli.ts client-set 星禾科技 --note "喜欢素雅包装；送礼对象是员工；去年 120 份"
 node server/cli.ts project-add "新店开业" --stage 进行中 --due 2026-12-15 --owner "店长小王" --kb 06-项目/新店开业.md \

@@ -94,7 +94,7 @@ export function AssistantDock() {
         <Sparkles className="size-4 text-primary" />
         <div className="min-w-0 flex-1">
           <div className="text-sm font-semibold">AI 助手</div>
-          <div className="truncate text-xs text-muted-foreground">{status ? (usable ? `本机 Codex · 能读写工作台和知识库` : status.on ? '还用不了' : '已在设置里关掉') : '检查中…'}</div>
+          <div className="truncate text-xs text-muted-foreground">{status ? (usable ? `本机 Codex · 读写工作台、查知识库` : status.on ? '还用不了' : '已在设置里关掉') : '检查中…'}</div>
         </div>
         {!!msgs?.length && <Button size="icon-sm" variant="ghost" aria-label="新对话" title="新对话" onClick={restart}><RotateCcw /></Button>}
         <Button size="icon-sm" variant="ghost" aria-label="收起 AI 助手" onClick={() => setOpen(false)}><X /></Button>

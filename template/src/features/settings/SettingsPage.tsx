@@ -16,7 +16,7 @@ export default function SettingsPage() {
   const { data, error } = useApi<Settings>('/settings')
   return (
     <>
-      <PageHeader eyebrow="系统" title="设置" desc="你的资料、风格、导航、什么时候提醒你，以及数据都放在哪里。" />
+      <PageHeader className="max-w-5xl" eyebrow="系统" title="设置" desc="你的资料、风格、导航、什么时候提醒你，以及数据都放在哪里。" />
       <PageBody className="grid max-w-5xl gap-5">
         {error && <p className="rounded-lg bg-danger-soft px-4 py-3 text-sm text-danger">设置没取到：{error.message}。确认本地服务开着，再刷新一下页面。</p>}
         {data?.demo && (

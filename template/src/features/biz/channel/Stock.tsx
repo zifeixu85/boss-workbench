@@ -13,7 +13,7 @@ const BAR: Record<string, string> = { 告急: 'bg-danger', '7 天内': 'bg-warn'
 
 /** 可售天数的小条：30 天为满格，颜色跟着状态走 */
 function DaysBar({ days, level }: { days: number | null; level: string }) {
-  if (days === null) return <span className="text-xs whitespace-nowrap text-muted-foreground">还没开卖</span>
+  if (days === null) return <span className="text-xs whitespace-nowrap text-muted-foreground">{level}</span>
   const pct = Math.min(100, (days / 30) * 100)
   return (
     <span className="flex items-center gap-2 whitespace-nowrap">
@@ -30,7 +30,7 @@ export function InventoryPanel({ d, limit = 6 }: { d: ChannelData; limit?: numbe
   const wh = d.channel.warehouse_name ?? '仓库'
   const shared = d.inventory.shared_with.length ? ` · 和${d.inventory.shared_with.join('、')}共用` : ''
   return (
-    <Panel title="哪个货快断了？" desc={`${wh}${shared}；只列${d.channel.name}这段时间卖过的，${tight.length ? `${tight.length} 款一周内会卖完` : '都够卖一周以上'}`} bodyClass="p-0">
+    <Panel title="哪个货快断了？" desc={`${wh}${shared}；只列${d.channel.name}这段时间卖过的，${tight.length ? `${tight.length} 款一周内会卖完` : all.some(x => x.days_left === null) ? '部分商品暂不能估算可售天数' : all.length ? '都够卖一周以上' : '暂无库存数据'}`} bodyClass="p-0">
       {rows.length ? (
         <Table containerClassName="overflow-x-auto">
           <TableHeader>
@@ -49,7 +49,7 @@ export function InventoryPanel({ d, limit = 6 }: { d: ChannelData; limit?: numbe
                 <TableCell className="pl-5 font-medium whitespace-nowrap">{x.sku_name}</TableCell>
                 <TableCell className="num text-right">{thousands(x.stock)}</TableCell>
                 <TableCell className="num text-right text-muted-foreground">{x.in_transit ? thousands(x.in_transit) : '—'}</TableCell>
-                <TableCell className="num text-right">{x.avg_daily ? x.avg_daily.toFixed(1) : '—'}</TableCell>
+                <TableCell className="num text-right">{x.avg_daily === null ? '未知' : x.avg_daily.toFixed(1)}</TableCell>
                 <TableCell><DaysBar days={x.days_left} level={x.level} /></TableCell>
                 <TableCell className="pr-5 text-right"><BizBadge value={x.level} /></TableCell>
               </TableRow>
@@ -57,7 +57,7 @@ export function InventoryPanel({ d, limit = 6 }: { d: ChannelData; limit?: numbe
           </TableBody>
         </Table>
       ) : <div className="p-5"><EmptyNote>这个仓库还没有库存数据。</EmptyNote></div>}
-      <div className="px-5 pb-4"><ChartNote>可售天数 = 库存 ÷ 近 7 天每天卖的件数（{wh}发货的渠道一起算）· 少于 7 天标黄，不到 3 天又没有在途的标红 · 库存表每天 07:00 同步 · {all.length > limit ? `只列最紧的 ${limit} 款，共 ${all.length} 款` : `共 ${all.length} 款`}</ChartNote></div>
+      <div className="px-5 pb-4"><ChartNote>可售天数 = 库存 ÷ 近 7 天每天卖的件数（{wh}发货的渠道一起算）· 少于 7 天标黄，不到日报设置的天数又没有在途的标红 · 缺渠道或日期不按零销量算 · {all.length > limit ? `只列最紧的 ${limit} 款，共 ${all.length} 款` : `共 ${all.length} 款`}</ChartNote></div>
     </Panel>
   )
 }

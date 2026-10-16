@@ -143,7 +143,7 @@ export const inboxInput = z.object({
 
 export const THEMES = ['jade', 'wood', 'navy', 'mono', 'night'] as const
 export const settingsInput = z.object({
-  nav_mode: z.enum(['simple', 'complex', 'top']).optional(),
+  nav_mode: z.enum(['simple', 'complex', 'dual', 'top']).optional(),
   theme: z.enum(THEMES).optional(),
   mobile_nav: z.enum(['tabs', 'drawer']).optional(),
   owner: z.string().trim().max(20).optional(),

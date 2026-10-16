@@ -1,8 +1,9 @@
+import { readKbBufferFile as readFileSync, canReadKbPath } from '../../services/kb.ts'
 // 小红书笔记数据（线索 4 的后半段）：字段对照确认完以后，按新对照把专业号导出的“笔记数据”表重新导进内容模块的两张表——
 // xhs_note_stats（每篇笔记截至某天的累计，自然 / 投流分开）和 xhs_note_daily（发布后第 1—30 天每天的累计）；
 // 同一次导出的“粉丝数据”表（表头没变，跟着笔记数据一起没导进来）补进 xhs_followers_daily，今日页小红书卡片的“数据截至”跟着走。
 // 写之前记下原来的样子（data_batches / data_batch_rows），能整批撤销；彩排后 import-reset 也靠它复原。归属：数据源与导入模块。
-import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
+import { existsSync, readdirSync, statSync } from 'node:fs'
 import { join, relative } from 'node:path'
 import { all, get, run, tx, uid, ROOT, logChange } from '../../db.ts'
 import { BadRequest, daysBetween } from '../../services/common.ts'
@@ -33,8 +34,8 @@ const isFollowers = (f: string) => /粉丝/.test(f)
 /** 导入文件夹里最新的一份笔记数据表（“粉丝数据”那份不算），和它有没有按现在的对照导进去过 */
 export function notesFile(): { rel: string; name: string; data_date: string | null; imported_at: string | null } | null {
   const dir = get<{ d: string | null }>('SELECT inbox_dir AS d FROM data_sources WHERE id = :s', { s: NOTES_SOURCE })?.d
-  if (!dir || !existsSync(join(ROOT, dir))) return null
-  const files = readdirSync(join(ROOT, dir)).filter((f) => /\.(csv|txt|tsv)$/i.test(f) && !isFollowers(f) && statSync(join(ROOT, dir, f)).isFile()).sort()
+  if (!dir || !existsSync(join(ROOT, dir)) || !canReadKbPath(join(ROOT, dir))) return null
+  const files = readdirSync(join(ROOT, dir)).filter((f) => /\.(csv|txt|tsv)$/i.test(f) && !isFollowers(f) && canReadKbPath(join(ROOT, dir, f)) && statSync(join(ROOT, dir, f)).isFile()).sort()
   const name = files.at(-1)
   if (!name) return null
   const rel = relative(ROOT, join(ROOT, dir, name))
@@ -54,7 +55,7 @@ export function notesState() {
 /** 同一天的粉丝数据表（日期、粉丝总数、新增关注、取消关注；表头没改版）：只取工作台里还没有、或数不一样的那几天 */
 function followerRows(notesRel: string, dataDate: string): { tbl: Tbl; key: string; values: Record<string, number> }[] {
   const p = join(ROOT, notesRel.replace(/[^/]+$/, ''), `粉丝数据_${dataDate.replaceAll('-', '')}.csv`)
-  if (!existsSync(p)) return []
+  if (!existsSync(p) || !canReadKbPath(p)) return []
   const t = readTable(decode(readFileSync(p)))
   const col = (re: RegExp) => t.headers.findIndex((h) => re.test(h.trim()))
   const [iD, iF, iG, iL] = [col(/^日期$/), col(/粉丝总数|粉丝数/), col(/新增|涨粉/), col(/取消|取关|掉粉/)]

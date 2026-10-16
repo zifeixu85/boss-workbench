@@ -69,6 +69,7 @@ export function buildPrompt(input: { text: string; page?: PageContext; history: 
   return [
     `你是「${input.business}」工作台里的 AI 助手，跑在${input.owner}自己电脑上的 Codex 里。今天是 ${input.today}。用中文回答：先给结论，短句，必要时用列表，不客套。`,
     `工作台打开着的模块：${input.modules.join('、')}。用 workbench 工具读写工作台（先 workbench_help 看命令），用 kb_ 工具读知识库（先 kb_read AGENTS.md 看地图；关于${input.owner}和生意的背景都在里面）。`,
+    '这是工作台网页内的问答，不是 Codex App 的新聊天。不做 App 对话命名、项目登记或其他管理操作，也不报告这些无关操作缺少工具。',
     '规矩：',
     `- 普通的事直接写：记一笔跟进、加日程、改待办状态、往收件箱放材料、给项目加里程碑。写完用一两句说清改了什么、在哪能看到。`,
     `- 待办要问清谁做、哪天前；几条一起的，先列给${input.owner}看，他点头再用 workbench_apply 一次写（先预演 yes=false）。`,

@@ -1,5 +1,6 @@
+import { readKbTextFile as readFileSync, canReadKbPath } from '../../services/kb.ts'
 // 内容中心的“今天”页和创作页要的汇总：今天发哪篇、本周排期、今日选题、数据提醒、开写的起点、AI 手上有什么。归属：小红书内容模块。
-import { existsSync, readdirSync, readFileSync } from 'node:fs'
+import { existsSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { all, get, nowIso, ROOT } from '../../db.ts'
 import { today, addDays, isoWeek } from '../../services/common.ts'
@@ -78,7 +79,7 @@ export function starts() {
 /** 零售商品清单里的 12 款（一款茶开始写时选）；还没上线的标出来 */
 export function productList() {
   const rel = '03-生意/产品与服务/零售商品清单.md'
-  const md = existsSync(join(ROOT, rel)) ? readFileSync(join(ROOT, rel), 'utf8') : ''
+  const md = existsSync(join(ROOT, rel)) && canReadKbPath(join(ROOT, rel)) ? readFileSync(join(ROOT, rel), 'utf8') : ''
   const out: { name: string; kind: string; spec: string; price: string; status: string; note: string; secret: boolean }[] = []
   for (const line of md.split('\n')) {
     const c = line.split('|').map((s) => s.trim())
@@ -90,8 +91,8 @@ export function productList() {
 
 /** “AI 手上有什么”：这次 Codex 能读到的资料（都能点开读原文） */
 export function aiKit() {
-  const has = (p: string) => existsSync(join(ROOT, p))
-  const list = (dir: string) => (has(dir) ? readdirSync(join(ROOT, dir)).filter((f) => f.endsWith('.md') && f !== 'README.md').map((f) => `${dir}/${f}`) : [])
+  const has = (p: string) => existsSync(join(ROOT, p)) && canReadKbPath(join(ROOT, p))
+  const list = (dir: string) => (has(dir) ? readdirSync(join(ROOT, dir)).filter((f) => f.endsWith('.md') && f !== 'README.md' && canReadKbPath(join(ROOT, dir, f))).map((f) => `${dir}/${f}`) : [])
   const cards = list('05-方法与判断/小红书内容')
   const rules = list('11-内容与作品/规律')
   const index = '11-内容与作品/作品索引.md'

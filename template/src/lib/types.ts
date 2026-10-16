@@ -38,7 +38,7 @@ export type Receivable = {
 }
 export type Change = { id: number; at: string; actor: string; entity: string; entity_id: string; action: string; summary: string }
 export type ClientDetail = { client: Client; interactions: Interaction[]; deals: Deal[]; projects: Project[]; todos: Todo[]; events: CalEvent[]; receivables: Receivable[] }
-export type NavMode = 'simple' | 'complex' | 'top'
+export type NavMode = 'simple' | 'complex' | 'dual' | 'top'
 export type Theme = 'jade' | 'wood' | 'navy' | 'mono' | 'night'
 /** owner 称呼、business 工作台名称（也当店名）；shop、xhs 是服务端按设置算好的店名和小红书账号名（没设置时是“我的店”“我的账号”），xhs_name 是设置里存的原值 */
 export type Settings = { nav_mode: NavMode; theme: Theme; mobile_nav: 'tabs' | 'drawer'; owner: string; business: string; shop: string; xhs: string; xhs_name: string; today?: string; demo?: boolean; reminders?: RemindSettings

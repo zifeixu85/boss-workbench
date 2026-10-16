@@ -1,15 +1,23 @@
 // 页面骨架：页头、面板、子标签、指标卡。各模块都用这几个，保证长得一样。
-import type { ReactNode } from 'react'
+import { createContext, useContext, type ReactNode } from 'react'
 import { NavLink } from 'react-router'
 import { cn } from '@/lib/utils'
 import { useNavMode } from '@/app/nav-mode'
 
-export function PageHeader({ eyebrow, title, desc, actions, children }: { eyebrow?: string; title: string; desc?: ReactNode; actions?: ReactNode; children?: ReactNode }) {
+/** 没有左栏时（顶部导航、双层里只有一页的分区）正文居中：外壳提供 true，页头和正文加 mx-auto（2026-10-17） */
+export const PageCenterContext = createContext(false)
+/** 分区名：复杂导航的顶栏已经写了位置（分区 › 分组 › 页面），页头上方的小字是分区名时，电脑上不再重复 */
+const SECTION_NAMES = new Set(['今日', '客户', '经营', '内容', '数据', '资料', '系统'])
+
+/** className 用来限宽（比如 max-w-5xl），和下面 PageBody 的宽度对齐；居中时一起居中 */
+export function PageHeader({ eyebrow, title, desc, actions, children, className }: { eyebrow?: string; title: string; desc?: ReactNode; actions?: ReactNode; children?: ReactNode; className?: string }) {
+  const centered = useContext(PageCenterContext)
+  const crumbsOnTop = useNavMode() === 'complex' && !!eyebrow && SECTION_NAMES.has(eyebrow)
   return (
-    <header className="px-4 pt-5 pb-4 md:px-7">
+    <header className={cn('px-4 pt-5 pb-4 md:px-7', centered && 'mx-auto w-full', className)}>
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div className="min-w-0">
-          {eyebrow && <div className="mb-1 text-xs tracking-wide text-muted-foreground">{eyebrow}</div>}
+          {eyebrow && <div className={cn('mb-1 text-xs tracking-wide text-muted-foreground', crumbsOnTop && 'md:hidden')}>{eyebrow}</div>}
           <h1 className="font-heading text-[26px] leading-tight font-semibold">{title}</h1>
           {desc && <p className="mt-1.5 max-w-2xl text-sm text-muted-foreground">{desc}</p>}
         </div>
@@ -37,7 +45,8 @@ export function SubTabs({ items }: { items: { to: string; label: string; end?: b
 }
 
 export function PageBody({ children, className }: { children: ReactNode; className?: string }) {
-  return <div className={cn('px-4 pb-24 md:px-7 md:pb-10', className)}>{children}</div>
+  const centered = useContext(PageCenterContext)
+  return <div className={cn('px-4 pb-24 md:px-7 md:pb-10', centered && 'mx-auto w-full', className)}>{children}</div>
 }
 
 export function Panel({ title, desc, action, children, className, bodyClass }: { title?: ReactNode; desc?: ReactNode; action?: ReactNode; children: ReactNode; className?: string; bodyClass?: string }) {

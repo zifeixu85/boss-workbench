@@ -61,7 +61,7 @@ const HELP = `用法：node 工作台/程序/server/cli.ts <命令> [参数] [--
   milestone-add <项目> "2026-12-20 年会"                    加一个里程碑（关键日期）
   apply <清单.json> [--yes]          一张清单一次写入：不加 --yes 是预演（照样检查，什么都不留）；加 --yes 才写。中间哪步不行，整张都不写
                                      清单格式见 server/services/apply.ts 开头
-  settings-set [--owner 称呼] [--business 店名或工作台名称] [--xhs 小红书账号名] [--theme jade|wood|navy|mono|night] [--nav simple|complex|top]
+  settings-set [--owner 称呼] [--business 店名或工作台名称] [--xhs 小红书账号名] [--theme jade|wood|navy|mono|night] [--nav simple|complex|dual|top]
                [--modules clients,biz|all] [--home projects,inbox,clients]
                                      改设置（搭建时按知识库写老板的称呼、店名、小红书账号名、配色、导航）
                                      --modules 只打开这几个模块（基础版：今日、待办与日程、项目、收件箱、知识库、设置一定开着；打开经营或内容会自动带上数据源与导入）；all = 全部打开

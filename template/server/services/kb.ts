@@ -13,8 +13,84 @@ const SKIP = new Set(['程序', '数据', '备份', 'node_modules', '.git', '截
 /** 根目录下这些 .md 不算知识库内容（README 是给开发者的说明；CLAUDE.md 只有一行“@AGENTS.md”） */
 const ROOT_SKIP = new Set(['README.md', 'CLAUDE.md'])
 
+/** 从建库档案读取老板选的“不读 / 只读”，每次读取都生效，不缓存旧范围。 */
+function accessRules(): { path: string; readonly: boolean }[] {
+  const profile = join(ROOT, '01-AI协作', '建库档案.md')
+  if (!existsSync(profile)) return []
+  assertRealPathInsideRoot(profile)
+  const section = readFileSync(profile, 'utf8').match(/^## 目录对应[^\n]*\n([\s\S]*?)(?=^#{1,2} |$(?![\s\S]))/m)?.[1] ?? ''
+  return section.split('\n').flatMap(line => {
+    const cells = line.trim().replace(/^\||\|$/g, '').split('|').map(x => x.trim())
+    const tag = cells[0] ?? ''
+    if (!/不读|只读/.test(tag)) return []
+    const place = (cells[1] ?? '').replace(/`/g, '').replace(/\\/g, '/').replace(/\/+$/, '').trim()
+    if (!place) return []
+    const path = resolve(ROOT, place)
+    if (path !== ROOT && !path.startsWith(ROOT + sep)) return []
+    return [{ path, readonly: !/不读/.test(tag) }]
+  })
+}
+
+function assertAccess(abs: string, write = false): void {
+  const paths = [abs]
+  // 同一文件的符号链接也遵守范围；新文件按最近的现有父目录判断。
+  let ancestor = abs
+  while (!existsSync(ancestor) && ancestor !== ROOT) ancestor = dirname(ancestor)
+  try { paths.push(resolve(realpathSync(ancestor), relative(ancestor, abs))) } catch { /* 原有路径检查会处理 */ }
+  for (const rule of accessRules()) {
+    if (rule.readonly && !write) continue
+    const targets = [rule.path]
+    try { targets.push(realpathSync(rule.path)) } catch { /* 未创建的位置仍按路径保护 */ }
+    if (paths.some(p => targets.some(t => p === t || p.startsWith(t + sep)))) {
+      throw new BadRequest(rule.readonly ? '这份原有资料只读，请把新内容另存' : '这份资料已设为不读')
+    }
+  }
+}
+
+
+/** 原件清单只用于识别不能覆盖的旧文件，不复核哈希，也不阻止搭台。 */
+function isOriginal(abs: string): boolean {
+  const manifest = join(ROOT, '01-AI协作', '原件清单.md')
+  if (!existsSync(manifest)) return false
+  assertRealPathInsideRoot(manifest)
+  const actual = (p: string) => { try { return realpathSync(p) } catch { return resolve(p) } }
+  return readFileSync(manifest, 'utf8').split('\n').some(line => {
+    const m = line.match(/^\|\s*(.+?)\s*\|\s*(?:原长度\s*)?\d+\s*\|\s*[a-fA-F0-9]{64}\s*\|$/)
+    const path = m?.[1]?.replace(/\\\|/g, '|').replace(/^`|`$/g, '')
+    return !!path && actual(resolve(ROOT, path)) === actual(abs)
+  })
+}
+
+/** 业务模块与知识库页面共用范围检查，不能直接绕过“只读 / 不读”。 */
+export function assertKbAccess(path: string, write = false): string {
+  const abs = resolve(path)
+  if (abs !== ROOT && !abs.startsWith(ROOT + sep)) throw new BadRequest('这个位置不允许读写')
+  assertRealPathInsideRoot(abs)
+  assertAccess(abs, write)
+  if (write && isOriginal(abs)) throw new BadRequest('这是原有资料，原文不改；新进展请另存，或记在工作台')
+  return abs
+}
+export function readKbTextFile(path: string, _encoding: 'utf8' = 'utf8'): string {
+  return readFileSync(assertKbAccess(path), 'utf8')
+}
+export function readKbBufferFile(path: string): Buffer {
+  return readFileSync(assertKbAccess(path))
+}
+export function writeKbTextFile(path: string, body: string, _encoding: 'utf8' = 'utf8'): void {
+  const abs = assertKbAccess(path, true)
+  mkdirSync(dirname(abs), { recursive: true })
+  writeFileSync(abs, body, 'utf8')
+}
+
+export function canReadKbPath(abs: string): boolean {
+  try { assertRealPathInsideRoot(abs); assertAccess(abs); return true } catch (error) {
+    if (error instanceof BadRequest) return false
+    throw error
+  }
+}
+
 function tops(): string[] {
-  const found = readdirSync(ROOT, { withFileTypes: true }).filter((e) => e.isDirectory() && !e.name.startsWith('.') && !SKIP.has(e.name)).map((e) => e.name)
+  const found = readdirSync(ROOT, { withFileTypes: true }).filter((e) => e.isDirectory() && !e.name.startsWith('.') && !SKIP.has(e.name) && canReadKbPath(join(ROOT, e.name))).map((e) => e.name)
   // 工作台/ 是程序导出的快照，不是知识，排最后；其余按名字（新范式带编号：00-收件箱、01-AI协作……）
   const order = (n: string) => { if (n === '工作台') return 999; const i = KB_TOP.indexOf(n); return i === -1 ? 99 : i }
   return found.sort((a, b) => order(a) - order(b) || a.localeCompare(b, 'zh'))
@@ -31,7 +107,7 @@ function updatedOf(abs: string): string {
   return statSync(abs).mtime.toISOString()
 }
 
-const rootFiles = () => readdirSync(ROOT, { withFileTypes: true }).filter((e) => e.isFile() && e.name.endsWith('.md') && !ROOT_SKIP.has(e.name) && !e.name.startsWith('.')).map((e) => e.name)
+const rootFiles = () => readdirSync(ROOT, { withFileTypes: true }).filter((e) => e.isFile() && e.name.endsWith('.md') && !ROOT_SKIP.has(e.name) && !e.name.startsWith('.') && canReadKbPath(join(ROOT, e.name))).map((e) => e.name)
 
 /** 新建文件尚不存在时检查最近的已有祖先；悬空链接不能当成普通缺失路径。 */
 function assertRealPathInsideRoot(abs: string): void {
@@ -63,6 +139,7 @@ export function kbPath(rel: string) {
     throw new BadRequest('这个位置不允许读写')
   }
   assertRealPathInsideRoot(abs)
+  assertAccess(abs)
   return abs
 }
 
@@ -70,7 +147,7 @@ type Node = { name: string; path: string; type: 'dir' | 'file'; children?: Node[
 
 function walk(dir: string): Node[] {
   return readdirSync(dir, { withFileTypes: true })
-    .filter((e) => !e.name.startsWith('.') && !SKIP.has(e.name))
+    .filter((e) => !e.name.startsWith('.') && !SKIP.has(e.name) && canReadKbPath(join(dir, e.name)))
     .map((e): Node | null => {
       const abs = join(dir, e.name)
       const path = relative(ROOT, abs).split(sep).join('/')
@@ -106,6 +183,7 @@ export function readKb(rel: string) {
  *  返回备份位置：在知识库里面就写相对知识库根目录的路径，在库外写完整路径。原文件不存在时返回 null */
 export function backupKbFile(rel: string, stamp: string): string | null {
   const abs = kbPath(rel)
+  assertKbAccess(abs, true)
   if (!existsSync(abs)) return null
   const dir = join(BACKUP_DIR, '知识库')
   mkdirSync(dir, { recursive: true })
@@ -117,6 +195,7 @@ export function backupKbFile(rel: string, stamp: string): string | null {
 
 export function writeKb(rel: string, body: string) {
   const abs = kbPath(rel)
+  assertKbAccess(abs, true)
   mkdirSync(dirname(abs), { recursive: true })
   writeFileSync(abs, body, 'utf8')
   return { path: rel }

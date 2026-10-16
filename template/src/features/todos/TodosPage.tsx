@@ -1,4 +1,4 @@
-// 待办：按时间分组的清单 / 按状态的看板；点开在抽屉里改
+// 待办：按状态的看板（默认，2026-10-17）/ 按时间分组的清单；点开在抽屉里改
 import { useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router'
 import { Columns3, ListChecks, ListPlus, Search } from 'lucide-react'
@@ -92,7 +92,7 @@ function TodoBoard({ todos }: { todos: Todo[] }) {
 export default function TodosPage() {
   const ov = useOverlay()
   const [sp, setSp] = useSearchParams()
-  const view = sp.get('view') === 'board' ? 'board' : 'list'
+  const view = sp.get('view') === 'list' ? 'list' : 'board' // 默认看板（A梦 2026-10-17）
   const [q, setQ] = useState('')
   const [pri, setPri] = useState<string | null>(null)
   const { data: all = [], isLoading } = useApi<Todo[]>('/todos')
@@ -112,7 +112,7 @@ export default function TodosPage() {
         <div className="flex flex-wrap items-center gap-2">
           <div className="relative w-full sm:w-64"><Search className="absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" /><Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="搜待办或客户" className="pl-8" /></div>
           <div className="w-32"><Choice value={pri} onChange={setPri} options={['紧急', '重要', '普通']} allowEmpty emptyLabel="全部优先级" placeholder="全部优先级" /></div>
-          <ViewTabs className="ml-auto" value={view} onChange={(v) => setSp({ view: v }, { replace: true })} items={[{ value: 'list', label: '清单', icon: ListChecks }, { value: 'board', label: '看板', icon: Columns3 }]} />
+          <ViewTabs className="ml-auto" value={view} onChange={(v) => setSp({ view: v }, { replace: true })} items={[{ value: 'board', label: '看板', icon: Columns3 }, { value: 'list', label: '清单', icon: ListChecks }]} />
         </div>
         {view === 'board' ? <TodoBoard todos={todos} /> : (
           <div className="grid grid-cols-[minmax(0,1fr)] gap-4">

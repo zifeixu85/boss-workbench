@@ -1,3 +1,4 @@
+import { isMain } from './is-main.mjs'
 // 找本机 Codex（2026-10-15）：工作台的 AI 助手要靠它。体检、搭建、工作台服务都用这一份。
 // 先找命令行 codex，再找 Codex 桌面版自带的那一个；找到了再看有没有登录。只读，不改任何东西。
 // 普通 JS：老版本 Node 也能跑（install.mjs 要用）。
@@ -55,6 +56,6 @@ export async function findCodex(env = process.env) {
 }
 
 // 直接运行：node scripts/codex-check.mjs
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (isMain(import.meta.url)) {
   findCodex().then((r) => { console.log(JSON.stringify(r, null, 2)); process.exitCode = r.ready ? 0 : 1 })
 }

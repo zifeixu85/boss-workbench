@@ -221,7 +221,7 @@ export function stockOutlook(wh: string, sku: string, date: string, leadDays = 5
   }
   const outFrom = runOut && runOut < earliest ? runOut : null
   const gap = outFrom ? Math.round((new Date(`${earliest}T00:00:00`).getTime() - new Date(`${outFrom}T00:00:00`).getTime()) / 864e5) : 0
-  return { inv, earliest, need, proj, out_from: outFrom, out_to: outFrom ? addDays(earliest, -1) : null, gap }
+  return { inv: { ...inv, avg_daily: inv.avg_daily }, earliest, need, proj, out_from: outFrom, out_to: outFrom ? addDays(earliest, -1) : null, gap }
 }
 
 function stockEvidence(a: AnomalyItem, date: string, cfg: BizConfig) {
@@ -244,7 +244,7 @@ function stockEvidence(a: AnomalyItem, date: string, cfg: BizConfig) {
     out.push({
       title: `只剩 ${inv.stock} 件，一天卖 ${inv.avg_daily.toFixed(1)} 件，${md(runOut)} 前后卖完`,
       tags: [{ label: `${inv.warehouse_name}库存`, value: `${inv.stock} 件` }, { label: '近 7 天日均', value: `${inv.avg_daily.toFixed(1)} 件` }, { label: '在途', value: inv.in_transit ? `${inv.in_transit} 件` : '没有' }],
-      source: '库存表（每天 07:00 同步）+ 商品销售', ops: [],
+      source: '库存表 + 商品销售', ops: [],
       text: `${inv.warehouse_name}还有 ${inv.stock} 件、${inv.in_transit ? `在途 ${inv.in_transit} 件` : '没有在途的货'}；近 7 天日均 ${inv.avg_daily.toFixed(1)} 件，大约 ${md(runOut)} 卖完。`,
     })
     const ib = all<{ arrive_date: string | null; qty: number; status: string }>('SELECT arrive_date, qty, status FROM biz_inbound WHERE warehouse_id = :w AND sku_id = :s ORDER BY arrive_date DESC', { w: wh, s: sku })

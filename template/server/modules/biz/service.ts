@@ -91,16 +91,21 @@ export function ops(r: Range = {}) {
 /** 库存：可售天数 = 库存 / 近 7 天日均销量（按这个仓库供货的渠道算） */
 export function inventory(date = latestDate() ?? today(), stockDays = getConfig().stock_days) {
   const from = addDays(date, -6)
-  return all<{ sku_id: string; sku_name: string; warehouse_id: string; warehouse_name: string; stock: number; in_transit: number; safety_days: number; sku_status: string; avg_daily: number }>(`
+  return all<{ sku_id: string; sku_name: string; warehouse_id: string; warehouse_name: string; stock: number; in_transit: number; safety_days: number; sku_status: string; avg_daily: number | null; sales_rows: number; expected_rows: number }>(`
     SELECT i.sku_id, s.name AS sku_name, s.status AS sku_status, i.warehouse_id, w.name AS warehouse_name, i.stock, i.in_transit, i.safety_days,
-      ROUND(COALESCE((SELECT SUM(p.units) FROM channel_products p JOIN channels c ON c.id = p.channel_id
-        WHERE c.warehouse_id = i.warehouse_id AND p.sku_id = i.sku_id AND p.date BETWEEN :f AND :t), 0) / 7.0, 1) AS avg_daily
+      (SELECT COUNT(*) FROM channel_products p JOIN channels c ON c.id = p.channel_id
+        WHERE c.warehouse_id = i.warehouse_id AND p.sku_id = i.sku_id AND p.date BETWEEN :f AND :t) AS sales_rows,
+      (SELECT COUNT(*) * 7 FROM channels c WHERE c.warehouse_id = i.warehouse_id) AS expected_rows,
+      (SELECT SUM(p.units) / 7.0 FROM channel_products p JOIN channels c ON c.id = p.channel_id
+        WHERE c.warehouse_id = i.warehouse_id AND p.sku_id = i.sku_id AND p.date BETWEEN :f AND :t) AS avg_daily
     FROM inventory i JOIN skus s ON s.id = i.sku_id JOIN warehouses w ON w.id = i.warehouse_id ORDER BY w.id, s.sort`, { f: from, t: date })
     .map((x) => {
-      const days = x.avg_daily > 0 ? round1(x.stock / x.avg_daily) : null
+      // 没有 SKU 与渠道的完整经营范围表时，不假设缺的渠道或日期是零。
+      const avg = x.expected_rows > 0 && x.sales_rows === x.expected_rows ? x.avg_daily : null
+      const days = avg !== null && avg > 0 ? round1(x.stock / avg) : null
       // 告急：不到“日报设置”的天数、也没有在途的货（规则会报）；7 天内：一周内会卖完，要盯着（有在途的也算，到货前可能断）
-      const level = days === null ? '待上线' : days < stockDays && !x.in_transit ? '告急' : days < 7 ? '7 天内' : '正常'
-      return { ...x, days_left: days, level }
+      const level = x.sku_status === '待上线' ? '待上线' : avg === null ? '资料不足' : avg === 0 ? '近7天无销量' : days === null ? '资料不足' : days < stockDays && !x.in_transit ? '告急' : days < 7 ? '7 天内' : '正常'
+      return { ...x, avg_daily: avg, days_left: days, level }
     })
 }
 
@@ -207,7 +212,7 @@ export function anomalies(date = latestDate(), cfg: BizConfig = getConfig(), opt
       id: `stock_${x.warehouse_id}_${x.sku_id}`, level: '高', module: 'biz', kind: '库存', channel_id: ch?.id ?? null, since: date, short: SHORT.库存,
       link: ch ? `/channel/${ch.id}?anomaly=stock_${x.warehouse_id}_${x.sku_id}` : `/biz?anomaly=stock_${x.warehouse_id}_${x.sku_id}`,
       title: `${ch?.name ?? x.warehouse_name}「${x.sku_name}」只够卖 ${x.days_left} 天`,
-      detail: `${x.warehouse_name}还剩 ${x.stock} 件，近 7 天每天卖约 ${x.avg_daily.toFixed(1)} 件，没有在途的货`,
+      detail: `${x.warehouse_name}还剩 ${x.stock} 件，近 7 天每天卖约 ${x.avg_daily?.toFixed(1) ?? '未知'} 件，没有在途的货`,
       cause: op ? `${md(op.at)} ${op.who}：${op.action}` : null,
     })
   }

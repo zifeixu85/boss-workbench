@@ -1,4 +1,5 @@
-// 三种导航外壳共用的零件：品牌、实时状态、新建菜单、全局搜索、手机底栏和“更多”、汉堡菜单、用户菜单
+// 四种导航外壳共用的零件：品牌、实时状态、新建菜单、全局搜索、手机底栏和“更多”、汉堡菜单、用户菜单
+// 2026-10-17：侧栏里的新建、头像整行宽（wide），设置用和菜单项同一种样式（SideSettingsLink、sideItemCls）
 // 2026-10-13 分区 + 二级分组：搜索里的页面写成“分区 › 页面”；“更多”和汉堡菜单按分区分段；设置、组件规范从用户菜单进。
 // 菜单一律经 useNav（nav-sections.ts）取：模块开关关掉的模块不出现在搜索、底栏、“更多”、汉堡菜单里
 import { useEffect, useState } from 'react'
@@ -9,6 +10,7 @@ import type { Overview, SearchHit, Settings } from '@/lib/types'
 import { activeTab, groupModule, mobileTabs, pageBadge, pageTrail, resolveNav, type NavItem } from './nav'
 import { useModules } from '@/lib/modules'
 import { useNav } from './nav-sections'
+import { NAV_MODES } from './nav-mode'
 import { useOverlay } from './overlay'
 import { Button } from '@/components/ui/button'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuShortcut, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
@@ -55,7 +57,24 @@ const QUICK = [
   { k: 'inbox', label: '随手记', icon: Inbox, key: 'N', module: 'inbox' },
 ] as const
 
-export function QuickCreate({ compact }: { compact?: boolean }) {
+/** 侧栏里一行的样式：菜单项、设置、头像都用它，悬停和选中的样子一样 */
+export function sideItemCls(active: boolean, extra?: string) {
+  return cn('relative flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-[14.5px] text-sidebar-foreground transition-colors outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring',
+    active ? 'bg-sidebar-accent font-semibold text-sidebar-accent-foreground shadow-paper before:absolute before:top-2 before:bottom-2 before:-left-3.5 before:w-1 before:rounded-r before:bg-primary' : 'hover:bg-sidebar-accent/60', extra)
+}
+
+/** 侧栏底部的设置：和菜单项一样的一行（compact = 只有图标，窄栏用） */
+export function SideSettingsLink({ compact }: { compact?: boolean }) {
+  const { pathname } = useLocation()
+  const active = pathname.startsWith('/settings')
+  return (
+    <Link to="/settings" aria-label="设置" aria-current={active ? 'page' : undefined} title={compact ? '设置' : undefined} className={sideItemCls(active, compact ? 'justify-center px-0' : undefined)}>
+      <SettingsIcon className="size-[18px] shrink-0 opacity-85" />{!compact && <span className="truncate">设置</span>}
+    </Link>
+  )
+}
+
+export function QuickCreate({ compact, wide }: { compact?: boolean; wide?: boolean }) {
   const ov = useOverlay()
   const { on } = useModules()
   const items = QUICK.filter((i) => on(i.module))
@@ -63,9 +82,9 @@ export function QuickCreate({ compact }: { compact?: boolean }) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        {compact ? <Button size="icon" aria-label="新建"><Plus /></Button> : <Button><Plus />新建<ChevronDown className="opacity-60" /></Button>}
+        {compact ? <Button size="icon" aria-label="新建"><Plus /></Button> : <Button className={cn(wide && 'w-full justify-start')}><Plus />新建<ChevronDown className={cn('opacity-60', wide && 'ml-auto')} /></Button>}
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-48">
+      <DropdownMenuContent align={wide ? 'start' : 'end'} className={wide ? 'w-(--radix-dropdown-menu-trigger-width) min-w-48' : 'w-48'}>
         {items.map((i) => <DropdownMenuItem key={i.k} onSelect={() => ov.openNew(i.k)}><i.icon />{i.label}<DropdownMenuShortcut>{i.key}</DropdownMenuShortcut></DropdownMenuItem>)}
       </DropdownMenuContent>
     </DropdownMenu>
@@ -145,23 +164,24 @@ export function SettingsButton({ label }: { label?: boolean }) {
   )
 }
 
-export function UserMenu({ settings, compact }: { settings?: Settings; compact?: boolean }) {
+/** 头像菜单。wide = 侧栏底部整行宽（名字 + 箭头），菜单往上开；compact = 只有头像 */
+export function UserMenu({ settings, compact, wide }: { settings?: Settings; compact?: boolean; wide?: boolean }) {
   const save = useWrite((b: Partial<Settings>) => api.patch('/settings', b), '导航样式已切换')
   const name = settings?.owner ?? '老板'
   const system = useNav().sections.find((s) => s.key === '系统')
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <button className="flex items-center gap-2 rounded-lg px-1.5 py-1 text-sm hover:bg-foreground/5" aria-label={compact ? `${name}：导航样式、设置` : undefined}>
-          <span className="grid size-7 place-items-center rounded-full bg-accent text-xs font-medium text-accent-foreground">{name.slice(0, 1)}</span>
-          {!compact && <><span>{name}</span><ChevronDown className="size-3.5 opacity-60" /></>}
+        <button className={wide ? sideItemCls(false, 'py-1.5') : 'flex items-center gap-2 rounded-lg px-1.5 py-1 text-sm hover:bg-foreground/5'} aria-label={compact ? `${name}：导航样式、设置` : undefined}>
+          <span className="grid size-7 shrink-0 place-items-center rounded-full bg-accent text-xs font-medium text-accent-foreground">{name.slice(0, 1)}</span>
+          {!compact && <><span className="truncate">{name}</span><ChevronDown className={cn('size-3.5 shrink-0 opacity-60', wide && 'ml-auto')} /></>}
         </button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-56">
+      <DropdownMenuContent align={wide ? 'start' : 'end'} side={wide ? 'top' : 'bottom'} className={wide ? 'w-(--radix-dropdown-menu-trigger-width) min-w-56' : 'w-56'}>
         <DropdownMenuItem asChild><Link to="/settings#profile"><UserRound />我的资料</Link></DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuLabel>导航样式</DropdownMenuLabel>
-        {([['simple', '简单：一列，按分区分段'], ['complex', '复杂：分区页签 + 左栏'], ['top', '顶部：分区下拉']] as const).map(([m, label]) => (
+        {NAV_MODES.map(([m, label]) => (
           <DropdownMenuItem key={m} onSelect={() => save.mutate({ nav_mode: m })}>{settings?.nav_mode === m ? <Check /> : <span className="size-4" />}{label}</DropdownMenuItem>
         ))}
         {/* 系统分区（设置、组件规范）不占顶栏，从这里进 */}

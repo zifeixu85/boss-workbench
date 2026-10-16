@@ -1,4 +1,5 @@
-// 导航样式：三张可选的大卡片，各带一张示意图。点了马上保存、马上生效。三种都按分区（今日 / 客户 / 经营 / 内容 / 数据 / 资料）组织，见 app/nav.ts
+// 导航样式：四张可选的大卡片，各带一张示意图。点了马上保存、马上生效。四种都按分区（今日 / 客户 / 经营 / 内容 / 数据 / 资料）组织，见 app/nav.ts
+// 2026-10-17：“复杂”改成侧栏三级（分区 › 分组 › 页面）；原来的“顶部分区页签 + 左栏”叫“双层”
 import { Check } from 'lucide-react'
 import type { Settings } from '@/lib/types'
 import { api, useWrite } from '@/lib/api'
@@ -9,15 +10,16 @@ type Mode = Settings['nav_mode']
 
 const OPTIONS: { value: Mode; title: string; desc: string; ref: string; Preview: () => React.JSX.Element }[] = [
   { value: 'simple', title: '简单', desc: '一列菜单，按分区分段，所有模块一眼看全；子页面在页头切换。模块不多时最顺手。', ref: '模块少', Preview: SimplePreview },
-  { value: 'complex', title: '复杂', desc: '顶上是分区（今日、客户、经营、内容、数据、资料），带要处理的数；左边只列这个分区的页面，可以收成图标。模块多了更好找。', ref: '模块多', Preview: ComplexPreview },
+  { value: 'complex', title: '复杂', desc: '侧栏三级：分区小标题 › 可收起的分组 › 页面，所有模块都在一列里；可以收成图标栏（每页一个图标）。模块多了更好找。', ref: '模块多', Preview: ComplexPreview },
+  { value: 'dual', title: '双层', desc: '顶上是分区（今日、客户、经营、内容、数据、资料），带要处理的数；左边只列这个分区的页面，可以收成图标。', ref: '分区多', Preview: DualPreview },
   { value: 'top', title: '顶部导航', desc: '分区放在上方，点开下拉选页面；内容区更宽。适合常在大屏上看图表、表格。', ref: '宽屏', Preview: TopPreview },
 ]
 
 export function NavStylePicker({ value }: { value?: Mode }) {
-  const save = useWrite((nav_mode: Mode) => api.patch<Settings>('/settings', { nav_mode }), (o) => `已切换成${{ simple: '简单', complex: '复杂', top: '顶部' }[o.nav_mode]}导航`)
-  if (!value) return <div className="grid gap-4 sm:grid-cols-3"><Skeleton className="h-64" /><Skeleton className="h-64" /><Skeleton className="h-64" /></div>
+  const save = useWrite((nav_mode: Mode) => api.patch<Settings>('/settings', { nav_mode }), (o) => `已切换成${{ simple: '简单', complex: '复杂', dual: '双层', top: '顶部' }[o.nav_mode]}导航`)
+  if (!value) return <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">{[0, 1, 2, 3].map((i) => <Skeleton key={i} className="h-64" />)}</div>
   return (
-    <div className="grid gap-4 sm:grid-cols-3" role="group" aria-label="导航样式">
+    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4" role="group" aria-label="导航样式">
       {OPTIONS.map((o) => {
         const on = (save.isPending ? save.variables : value) === o.value
         return (
@@ -82,6 +84,26 @@ function SimplePreview() {
 }
 
 function ComplexPreview() {
+  // 侧栏三级：分区小标题、分组（带箭头）、往里缩的页面
+  const head = 'mt-1 h-1 w-6 rounded-full bg-muted-foreground/30'
+  return (
+    <div aria-hidden className="flex h-40 overflow-hidden rounded-lg border bg-background">
+      <div className="flex w-[34%] flex-col gap-1.5 border-r bg-sidebar p-2.5">
+        <Logo />
+        <div className={cn(bar, 'w-3/5')} />
+        <div className={head} />
+        <div className="flex items-center gap-1"><div className={cn(bar, 'w-1/2')} /><div className="ml-auto size-1.5 rotate-45 border-t border-r border-muted-foreground/50" /></div>
+        <div className={cn(bar, 'ml-2.5 w-2/5 bg-primary/70')} />
+        <div className={cn(bar, 'ml-2.5 w-1/2')} />
+        <div className={head} />
+        <div className="flex items-center gap-1"><div className={cn(bar, 'w-3/5')} /><div className="ml-auto size-1.5 rotate-45 border-t border-r border-muted-foreground/50" /></div>
+      </div>
+      <Content />
+    </div>
+  )
+}
+
+function DualPreview() {
   const label = 'mt-1.5 h-1 w-6 rounded-full bg-muted-foreground/30'
   return (
     <div aria-hidden className="flex h-40 flex-col overflow-hidden rounded-lg border bg-background">

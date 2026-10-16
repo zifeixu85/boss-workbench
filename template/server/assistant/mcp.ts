@@ -1,3 +1,4 @@
+import { isMain } from '../../scripts/is-main.mjs'
 // AI 助手用的工作台工具（MCP，stdio）。工作台页面里的 AI 助手调本机 Codex 时挂上它（见 runner.ts）；
 // 老板自己在 Codex 里也可以挂：codex mcp add workbench -- node 工作台/程序/server/assistant/mcp.ts
 //
@@ -172,7 +173,7 @@ export async function handle(msg: Msg): Promise<object | null> {
 }
 
 // 直接运行：作为 stdio 服务
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (isMain(import.meta.url)) {
   const rl = createInterface({ input: process.stdin })
   const pending = new Set<Promise<void>>()
   rl.on('line', (line) => {

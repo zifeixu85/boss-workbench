@@ -28,7 +28,7 @@ export function AssistantSettings() {
         <Switch checked={data.on} disabled={save.isPending} aria-label="AI 助手" onCheckedChange={(c) => save.mutate(c)} />
       </label>
       <ul className="grid gap-1.5 border-t pt-4 text-[13px] text-muted-foreground">
-        <li>· 用你自己电脑上的 Codex 和你的账号，资料不经过别的服务器。</li>
+        <li>· 使用本机 Codex 和你的账号。文件保存在本机，AI 处理时会把用到的内容发给模型服务商。</li>
         <li>· 能读写工作台（待办、日程、项目、收件箱、客户跟进）和读知识库；它写的东西记在“最近改动”里，操作人是 Codex。</li>
         <li>· 报价、合同、收款、答应别人的事、改客户阶段，它会先问你。不发消息、不付款、不删东西。</li>
         <li>· 不用页面里的助手也可以：在 Codex 里直接说，它用同一套命令读写，页面会自动刷新。</li>

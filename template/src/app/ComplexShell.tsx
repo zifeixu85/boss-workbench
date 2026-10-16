@@ -1,14 +1,16 @@
-// 复杂导航：顶栏放分区页签（今日 / 客户 / 经营 / 内容 / 数据 / 资料，带这个分区要处理的数），左栏只列当前分区的分组和页面；
-// 左栏可收起成图标栏：每个页面一个图标（分组之间一条细线），悬停或聚焦出名字，触屏点一下直接进那一页，不靠悬停弹子菜单。分区只有一页（资料）时不显示左栏。
-// 位置只画一层：顶栏不画面包屑（页签和左栏的高亮已经说明在哪），页头上方的小字就是那一层。
-// 手机上页签和左栏都收起来，用底栏和“更多”（或汉堡菜单）。分区、分组、高亮都来自 nav.ts（经 useNav：关掉的模块不出现）。
-// 顶栏的铃铛是普通链接，不算“当前页”（全站只亮一项，由 resolveNav 算）。
-import { Fragment, useId, useState } from 'react'
+// 复杂导航（2026-10-17 改成侧栏三级，参照 A梦 自己的工作台）：侧栏列出全部分区（小标题）→ 二级分组（可收起）→ 页面。
+// 二级分组就是有子页面的模块（客户与跟进、小红书）或写了 sub 的一组（经营里的“渠道”）；当前页所在的组锁定展开，其余的收起状态存本机。
+// 侧栏可收起成图标栏：每个页面一个图标（分区之间一条细线），悬停或聚焦出“分区 › 页面”；触屏点一下直接进那一页，不靠悬停弹子菜单。
+// 顶上一条窄顶栏（和 A梦 的工作台一样）：左边是位置（分区 › 分组 › 页面），右上角是工具（搜索、同步、今天要做、新建、设置、头像）；
+// 侧栏只放品牌和菜单；收起 / 展开的按钮在侧栏左下角（和 A梦 的工作台一样），收起后居中。
+// 顶栏写了位置，页头上方的分区名在电脑上就不再重复（components/page.tsx）。
+// 原来“顶栏分区页签 + 左栏当前分区”的那种改叫“双层”（DualShell.tsx）。菜单都来自 nav.ts（经 useNav：关掉的模块不出现）。
+import { Fragment, useState } from 'react'
 import { Link, Outlet, useLocation } from 'react-router'
 import { Bell, ChevronRight, PanelLeftClose, PanelLeftOpen } from 'lucide-react'
 import { groupModule, pageBadge, resolveNav, sectionCount, type NavGroup, type NavPage, type NavSection } from './nav'
 import { useNav } from './nav-sections'
-import { Brand, Badge, LiveDot, MobileMenuButton, MobileTabs, QuickCreate, SearchButton, SearchDialog, SettingsButton, UserMenu, useHotkeys, useShellData } from './shell-parts'
+import { Brand, Badge, LiveDot, MobileMenuButton, MobileTabs, QuickCreate, SearchButton, SearchDialog, SettingsButton, UserMenu, sideItemCls, useHotkeys, useShellData } from './shell-parts'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { Button } from '@/components/ui/button'
 import type { LiveState } from '@/lib/api'
@@ -18,127 +20,101 @@ import { cn } from '@/lib/utils'
 const KEY = 'wb.sidebar.collapsed'
 const GROUPS_KEY = 'wb.nav.groups'
 const read = () => { try { return localStorage.getItem(KEY) === '1' } catch { return false } }
-/** 收起了哪些二级分组（存本机，坏数据当没有） */
+/** 收起了哪些二级分组（存本机，坏数据当没有）；和双层导航共用一份 */
 const readGroups = (): Record<string, boolean> => {
   try { const v: unknown = JSON.parse(localStorage.getItem(GROUPS_KEY) ?? '{}'); return v && typeof v === 'object' && !Array.isArray(v) ? v as Record<string, boolean> : {} } catch { return {} }
 }
 
-function itemCls(active: boolean) {
-  return cn('relative flex h-[34px] items-center gap-2.5 rounded-lg px-2.5 text-sm transition-colors outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring',
-    active ? 'border border-sidebar-border bg-sidebar-accent font-medium text-sidebar-accent-foreground shadow-paper before:absolute before:top-2 before:bottom-2 before:-left-2 before:w-[3px] before:rounded-r before:bg-primary'
-      : 'hover:bg-sidebar-accent/60')
-}
-
-/** 顶栏的分区页签：点进去落在分区的第一页；角标是分区里要你处理的数 */
-function SectionTabs({ sections, current, overview }: { sections: NavSection[]; current?: NavSection; overview?: Overview }) {
+/** 一页：分组里的页面往里缩一格 */
+function PageLink({ p, active, overview, nested }: { p: NavPage; active: boolean; overview?: Overview; nested?: boolean }) {
   return (
-    <nav className="hidden h-full min-w-0 items-stretch md:flex" aria-label="分区">
-      {sections.map((s) => {
-        const on = current?.key === s.key
-        const count = sectionCount(s.items, overview)
-        return (
-          <Link key={s.key} to={s.to} aria-current={on ? 'true' : undefined}
-            className={cn('relative inline-flex items-center gap-1.5 px-3 text-sm whitespace-nowrap transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:ring-inset lg:px-3.5',
-              on ? 'font-semibold text-foreground after:absolute after:inset-x-3 after:bottom-0 after:h-[2px] after:rounded-full after:bg-primary' : 'text-muted-foreground hover:text-foreground')}>
-            <s.icon className={cn('hidden size-4 xl:block', on ? 'text-primary' : 'opacity-70')} />{s.label}
-            {count > 0 && <span className="num rounded-full bg-warn px-1.5 text-[12px] leading-4 font-medium text-white" aria-label={`${count} 项要处理`}>{count}</span>}
-          </Link>
-        )
-      })}
-    </nav>
-  )
-}
-
-/** 宽栏的一行：一个页面 */
-function SideLink({ p, active, overview }: { p: NavPage; active: boolean; overview?: Overview }) {
-  return (
-    <Link to={p.to} aria-current={active ? 'page' : undefined} className={itemCls(active)}>
-      <p.icon className="size-[18px] shrink-0" /><span className="truncate">{p.label}</span><Badge n={pageBadge(p, overview)} tone={p.item.tone} />
+    <Link to={p.to} aria-current={active ? 'page' : undefined} className={sideItemCls(active, cn('py-1.5', nested && 'pl-8 text-[14px]'))}>
+      {!nested && <p.icon className="size-[18px] shrink-0 opacity-85" />}<span className="truncate">{p.label}</span><Badge n={pageBadge(p, overview)} tone={p.item.tone} />
     </Link>
   )
 }
 
-/** 一个二级分组：小标题不可点，只管展开 / 收起；当前页在组里时锁定展开 */
-function SideGroup({ g, activeId, open, onToggle, overview }: { g: NavGroup; activeId?: string; open: boolean; onToggle: () => void; overview?: Overview }) {
-  const id = useId()
-  const locked = g.pages.some((p) => p.id === activeId)
-  const list = (
-    <div id={id} hidden={!open} className="flex flex-col gap-0.5">
-      {g.pages.map((p) => <SideLink key={p.id} p={p} active={p.id === activeId} overview={overview} />)}
-    </div>
-  )
-  if (!g.label) return <div className="mb-2 last:mb-0">{list}</div>
-  // 组就是一个有子页面的模块（客户与跟进、小红书）：模块的角标显示在组名旁边
+/** 二级分组：一行（模块图标 + 组名 + 箭头），点开 / 收起；当前页在组里时锁定展开 */
+function Group({ g, sectionKey, activeId, overview, shut, onToggle }: { g: NavGroup; sectionKey: string; activeId?: string; overview?: Overview; shut: Record<string, boolean>; onToggle: (id: string) => void }) {
+  const id = `${sectionKey}/${g.label}`
+  const inside = g.pages.some((p) => p.id === activeId)
+  const open = inside || !shut[id]
   const module = groupModule(g)
+  const Icon = module?.icon ?? g.items[0]?.icon
   const badge = module && overview ? module.badge?.(overview) : undefined
   const pending = overview ? sectionCount(g.items, overview) : 0
   return (
-    <div className="mt-3 first:mt-0">
-      <button type="button" onClick={onToggle} disabled={locked} aria-expanded={open} aria-controls={id} title={locked ? '当前页面在这一组' : undefined}
-        className="flex h-7 w-full items-center gap-1.5 rounded-md px-2.5 text-[12px] tracking-wide text-muted-foreground transition-colors outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-sidebar-ring disabled:cursor-default disabled:hover:text-muted-foreground">
-        <span className="truncate">{g.label}</span>
+    <div>
+      <button type="button" onClick={() => onToggle(id)} disabled={inside} aria-expanded={open} title={inside ? '当前页面在这一组' : undefined}
+        className={sideItemCls(false, cn('py-1.5 disabled:cursor-default disabled:hover:bg-transparent', inside && 'font-semibold'))}>
+        {Icon && <Icon className="size-[18px] shrink-0 opacity-85" />}<span className="truncate">{g.label}</span>
         <span className="ml-auto flex items-center gap-1.5">
           {badge ? <Badge n={badge} tone={module?.tone} /> : !open && pending > 0 ? <span className="size-1.5 rounded-full bg-warn" aria-label={`${pending} 项要处理`} /> : null}
-          <ChevronRight className={cn('size-3.5 shrink-0 transition-transform', open && 'rotate-90', locked ? 'opacity-25' : 'opacity-60')} />
+          <ChevronRight className={cn('size-3.5 shrink-0 transition-transform', open && 'rotate-90', inside ? 'opacity-25' : 'opacity-60')} />
         </span>
       </button>
-      {list}
+      {open && <div className="mt-0.5 flex flex-col gap-0.5">{g.pages.map((p) => <PageLink key={p.id} p={p} active={p.id === activeId} overview={overview} nested />)}</div>}
     </div>
   )
 }
 
-/** 图标栏的一项：一个页面一个图标（子页面各有图标），悬停或聚焦出“组名 › 页面名”；触屏点一下直接进这一页（不靠悬停弹子菜单，iOS Safari 点链接不给焦点） */
-function IconPage({ p, group, activeId, overview }: { p: NavPage; group: string | null; activeId?: string; overview?: Overview }) {
-  const on = p.id === activeId
-  // 有子页面的模块：它的角标挂在模块首页那个图标上；别的页面用自己的角标
+/** 宽栏的一个分区：小标题（和第一页同名时不写，比如“今日”）+ 不分组的页面 + 可收起的分组 */
+function SectionBlock({ s, activeId, overview, shut, onToggle }: { s: NavSection; activeId?: string; overview?: Overview; shut: Record<string, boolean>; onToggle: (id: string) => void }) {
+  const showLabel = s.label !== s.pages[0]?.label // 分区名和第一页同名（今日）时不写小标题，和简单导航一样
+  return (
+    <div className="mt-4 first:mt-0">
+      {showLabel && <div className="px-2.5 pb-1 text-[12px] tracking-wide text-muted-foreground">{s.label}</div>}
+      <div className="flex flex-col gap-0.5">
+        {s.groups.map((g, i) => g.label
+          ? <Group key={g.label} g={g} sectionKey={s.key} activeId={activeId} overview={overview} shut={shut} onToggle={onToggle} />
+          : g.pages.map((p) => <PageLink key={`${i}-${p.id}`} p={p} active={p.id === activeId} overview={overview} />))}
+      </div>
+    </div>
+  )
+}
+
+/** 图标栏的一项：一个页面一个图标，悬停或聚焦出“分区 › 分组 › 页面”；触屏点一下直接进这一页 */
+function IconPage({ p, trail, active, overview }: { p: NavPage; trail: string; active: boolean; overview?: Overview }) {
   const n = p.item
   const badge = overview && (n.children?.length ? (p.to === n.to ? n.badge?.(overview) : undefined) : pageBadge(p, overview))
-  const name = group && group !== p.label ? `${group} › ${p.label}` : p.label
   return (
     <Tooltip>
       <TooltipTrigger asChild>
-        <Link to={p.to} aria-label={name} aria-current={on ? 'page' : undefined} className={cn(itemCls(on), 'justify-center px-0')}>
-          <p.icon className="size-[18px]" />{badge ? <span className={cn('absolute top-1 right-1.5 size-1.5 rounded-full', n.tone === 'warn' ? 'bg-warn' : 'bg-muted-foreground/50')} /> : null}
+        <Link to={p.to} aria-label={trail} aria-current={active ? 'page' : undefined} className={sideItemCls(active, 'justify-center px-0 py-1.5')}>
+          <p.icon className="size-[18px]" />{badge ? <span aria-hidden className={cn('absolute top-1 right-2 size-1.5 rounded-full', n.tone === 'warn' ? 'bg-warn' : 'bg-muted-foreground/50')} /> : null}
         </Link>
       </TooltipTrigger>
-      <TooltipContent side="right">{name}</TooltipContent>
+      <TooltipContent side="right">{trail}</TooltipContent>
     </Tooltip>
   )
 }
 
-function SideBar({ section, activeId, overview, collapsed, onToggle }: { section: NavSection; activeId?: string; overview?: Overview; collapsed: boolean; onToggle: () => void }) {
-  const [shut, setShut] = useState(readGroups)
-  const toggleGroup = (label: string) => setShut((prev) => {
-    const id = `${section.key}/${label}`
-    const next = { ...prev, [id]: !prev[id] }
-    try { localStorage.setItem(GROUPS_KEY, JSON.stringify(next)) } catch { /* 隐私模式 */ }
-    return next
-  })
+/** 图标栏的一个分区：分区里每页一个图标 */
+function SectionIcons({ s, activeId, overview }: { s: NavSection; activeId?: string; overview?: Overview }) {
   return (
-    <aside className={cn('hidden min-h-0 shrink-0 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground md:flex', collapsed ? 'w-16' : 'w-16 lg:w-[212px]')}>
-      <nav className="min-h-0 flex-1 overflow-y-auto px-2 py-3" aria-label={`${section.label}的页面`}>
-        {/* 宽栏：分组小标题 + 页面 */}
-        <div className={collapsed ? 'hidden' : 'hidden lg:block'}>
-          {section.groups.map((g, i) => (
-            <SideGroup key={g.label ?? `_${i}`} g={g} activeId={activeId} overview={overview} onToggle={() => g.label && toggleGroup(g.label)}
-              open={!g.label || g.pages.some((p) => p.id === activeId) || !shut[`${section.key}/${g.label}`]} />
-          ))}
-        </div>
-        {/* 图标栏：不显示小标题，每页一个图标，组之间一条细线 */}
-        <div className={cn('flex flex-col gap-0.5', collapsed ? '' : 'lg:hidden')}>
-          {section.groups.map((g, i) => (
-            <Fragment key={g.label ?? `_${i}`}>
-              {i > 0 && <span className="mx-3 my-1.5 h-px bg-sidebar-border" aria-hidden />}
-              {g.pages.map((p) => <IconPage key={p.id} p={p} group={g.label} activeId={activeId} overview={overview} />)}
-            </Fragment>
-          ))}
-        </div>
-      </nav>
-      <div className={cn('flex items-center border-t border-sidebar-border px-3 py-2.5', collapsed ? 'justify-center' : 'justify-center lg:justify-between')}>
-        {!collapsed && <span className="hidden text-[12px] opacity-60 lg:inline">v0.2 · 本机</span>}
-        <Button variant="ghost" size="icon-sm" onClick={onToggle} aria-label={collapsed ? '展开左栏' : '收起左栏'} className="hidden lg:inline-flex">{collapsed ? <PanelLeftOpen /> : <PanelLeftClose />}</Button>
-      </div>
-    </aside>
+    <>
+      {s.groups.map((g) => g.pages.map((p) => {
+        const trail = [s.label, g.label, p.label].filter((x, i, a) => x && a.indexOf(x) === i).join(' › ')
+        return <IconPage key={p.id} p={p} trail={trail} active={p.id === activeId} overview={overview} />
+      }))}
+    </>
+  )
+}
+
+/** 顶栏左边的位置：分区 › 分组 › 页面（重复的名字只写一次，比如“今日 › 今日”只写“今日”） */
+function Crumbs({ section, page, groups }: { section?: NavSection; page?: NavPage; groups: NavGroup[] }) {
+  if (!section || !page) return null
+  const group = groups.find((g) => g.pages.some((p) => p.id === page.id))?.label
+  const parts = [section.label, group, page.label].filter((x, i, a): x is string => !!x && a.indexOf(x) === i)
+  return (
+    <nav aria-label="位置" className="flex min-w-0 items-center gap-1.5 text-sm text-muted-foreground">
+      {parts.map((x, i) => (
+        <span key={x} className="flex min-w-0 items-center gap-1.5">
+          {i > 0 && <ChevronRight className="size-3.5 shrink-0 opacity-50" />}
+          {i < parts.length - 1 ? (i === 0 ? <Link to={section.to} className="truncate hover:text-foreground">{x}</Link> : <span className="truncate">{x}</span>) : <span aria-current="page" className="truncate font-medium text-foreground">{x}</span>}
+        </span>
+      ))}
+    </nav>
   )
 }
 
@@ -146,34 +122,60 @@ export function ComplexShell({ live }: { live: LiveState }) {
   const { settings, overview } = useShellData()
   const { pathname } = useLocation()
   const [collapsed, setCollapsed] = useState(read)
+  const [shut, setShut] = useState(readGroups)
   const [searchOpen, setSearchOpen] = useState(false)
   useHotkeys(() => setSearchOpen(true))
   const toggle = () => setCollapsed((c) => { try { localStorage.setItem(KEY, c ? '0' : '1') } catch { /* 隐私模式 */ } return !c })
+  const toggleGroup = (id: string) => setShut((prev) => {
+    const next = { ...prev, [id]: !prev[id] }
+    try { localStorage.setItem(GROUPS_KEY, JSON.stringify(next)) } catch { /* 隐私模式 */ }
+    return next
+  })
   const { sections, top } = useNav()
   const { section, page } = resolveNav(pathname, sections)
   const business = settings?.business ?? '工作台'
   const todayCount = overview?.todos.today.length ?? 0
+  // 宽栏：lg 以上且没收起；否则是图标栏（md 到 lg 之间一直是图标栏）
+  const wide = collapsed ? 'hidden' : 'hidden lg:block'
+  const icons = collapsed ? 'block' : 'lg:hidden'
   return (
-    <div className="flex h-dvh flex-col">
-      <header className="z-30 flex h-14 shrink-0 items-center gap-2 border-b bg-card/90 px-4 backdrop-blur-md md:gap-3 md:px-5">
-        {settings?.mobile_nav === 'drawer' && <MobileMenuButton overview={overview} business={business} />}
-        <Link to="/" aria-label="回到今日" className="mr-1 shrink-0 rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-ring/50 md:mr-2"><span className="hidden xl:block"><Brand name={business} /></span><span className="xl:hidden"><Brand name={business} compact /></span></Link>
-        <SectionTabs sections={top} current={section} overview={overview} />
+    <div className={cn('grid h-dvh grid-cols-1 grid-rows-[48px_minmax(0,1fr)]', collapsed ? 'md:grid-cols-[64px_minmax(0,1fr)]' : 'md:grid-cols-[64px_minmax(0,1fr)] lg:grid-cols-[240px_minmax(0,1fr)]')}>
+      <aside className="row-span-2 hidden min-h-0 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground md:flex">
+        {/* 品牌这一行和顶栏一样高；logo 和下面菜单的图标左边对齐，图标栏时居中 */}
+        <div className={cn('flex h-12 shrink-0 items-center border-b border-sidebar-border', collapsed ? 'justify-center' : 'justify-center lg:justify-start lg:px-5')}>
+          <Link to="/" aria-label="回到今日" className="min-w-0 rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring">
+            <span className={icons}><Brand name={business} compact /></span><span className={wide}><Brand name={business} /></span>
+          </Link>
+        </div>
+        <nav className="min-h-0 flex-1 overflow-y-auto px-3.5 py-3" aria-label="主导航">
+          <div className={wide}>
+            {top.map((s) => <SectionBlock key={s.key} s={s} activeId={page?.id} overview={overview} shut={shut} onToggle={toggleGroup} />)}
+          </div>
+          <div className={cn('flex flex-col gap-0.5', icons)}>
+            {top.map((s, i) => <Fragment key={s.key}>{i > 0 && <span className="mx-3 my-1.5 h-px bg-sidebar-border" aria-hidden />}<SectionIcons s={s} activeId={page?.id} overview={overview} /></Fragment>)}
+          </div>
+        </nav>
+        {/* 左下角：收起 / 展开（md 到 lg 之间一直是图标栏，不显示这个按钮） */}
+        <div className={cn('flex shrink-0 items-center border-t border-sidebar-border px-3 py-2.5', collapsed ? 'justify-center' : 'justify-center lg:justify-between lg:px-5')}>
+          {!collapsed && <span className="hidden text-[12px] text-muted-foreground lg:inline">本机 · 127.0.0.1</span>}
+          <Button variant="ghost" size="icon-sm" onClick={toggle} aria-label={collapsed ? '展开侧栏' : '收起侧栏'} title={collapsed ? '展开侧栏' : '收起侧栏'} className="hidden lg:inline-flex">{collapsed ? <PanelLeftOpen /> : <PanelLeftClose />}</Button>
+        </div>
+      </aside>
+      {/* 窄顶栏：左边位置，右上角工具 */}
+      <header className="sticky top-0 z-30 flex h-12 items-center gap-2 border-b bg-card/90 px-4 backdrop-blur-md md:px-5">
+        <span className="flex min-w-0 items-center gap-1 md:hidden">{settings?.mobile_nav === 'drawer' && <MobileMenuButton overview={overview} business={business} />}<Brand name={business} compact /></span>
+        <div className="hidden min-w-0 md:block"><Crumbs section={section} page={page} groups={section?.groups ?? []} /></div>
         <div className="ml-auto flex items-center gap-1.5 md:gap-2">
           <span className="hidden xl:flex"><SearchButton wide onClick={() => setSearchOpen(true)} /></span>
           <span className="xl:hidden"><SearchButton onClick={() => setSearchOpen(true)} /></span>
-          <span className="hidden 2xl:inline-flex"><LiveDot state={live} /></span>
-          <span className="2xl:hidden"><LiveDot state={live} compact /></span>
+          <LiveDot state={live} compact />
           <Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" asChild><Link to="/todos" aria-label="今天要做"><Bell />{todayCount > 0 && <span className="num absolute -mt-4 ml-4 rounded-full bg-warn px-1 text-[12px] leading-4 text-white">{todayCount}</span>}</Link></Button></TooltipTrigger><TooltipContent>今天要做 {todayCount} 件</TooltipContent></Tooltip>
           <span className="hidden sm:inline-flex"><QuickCreate /></span><span className="sm:hidden"><QuickCreate compact /></span>
           <span className="hidden md:inline-flex"><SettingsButton /></span>
           <span className="hidden md:inline-flex"><UserMenu settings={settings} compact /></span>
         </div>
       </header>
-      <div className="flex min-h-0 flex-1">
-        {section && section.pages.length > 1 && <SideBar key={section.key} section={section} activeId={page?.id} overview={overview} collapsed={collapsed} onToggle={toggle} />}
-        <main className="min-h-0 min-w-0 flex-1 overflow-y-auto"><Outlet /></main>
-      </div>
+      <main className="min-h-0 min-w-0 overflow-y-auto"><Outlet /></main>
       {settings?.mobile_nav !== 'drawer' && <MobileTabs overview={overview} />}
       <SearchDialog open={searchOpen} onOpenChange={setSearchOpen} />
     </div>

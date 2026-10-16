@@ -16,7 +16,7 @@ export default function InboxPage() {
 
   return (
     <>
-      <PageHeader eyebrow="今日" title="收件箱" desc="想到什么先记下来，不用想放哪。有空再一条条转成待办、跟进或日程。" />
+      <PageHeader className="max-w-3xl" eyebrow="今日" title="收件箱" desc="想到什么先记下来，不用想放哪。有空再一条条转成待办、跟进或日程。" />
       <PageBody className="max-w-3xl">
         <QuickAdd />
 

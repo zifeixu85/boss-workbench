@@ -1,6 +1,7 @@
 // 顶部导航：分区放在页面上方，点开下拉选页面（下拉里按二级分组排，组名是小标题）；内容区居中。适合模块不多、喜欢宽屏看内容的老板
 // 分区只有一页（资料）时直接是链接。位置只画一层：顶栏不画面包屑，页头上方的小字就是那一层。系统页从头像菜单进。
-import { Fragment, useState } from 'react'
+// 2026-10-17：鼠标移到分区上就展开下拉，移开稍等一下收起；鼠标点分区进分区第一页；触屏点一下展开；键盘 Enter / ↓ 展开
+import { Fragment, useRef, useState } from 'react'
 import { Link, Outlet, useLocation, useNavigate } from 'react-router'
 import { ChevronDown } from 'lucide-react'
 import { groupModule, pageBadge, resolveNav, sectionCount } from './nav'
@@ -9,6 +10,7 @@ import { Brand, Badge, LiveDot, MobileMenuButton, MobileTabs, QuickCreate, Searc
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import type { LiveState } from '@/lib/api'
 import { cn } from '@/lib/utils'
+import { PageCenterContext } from '@/components/page'
 
 const itemCls = (active: boolean) => cn('relative inline-flex h-14 items-center gap-1.5 px-3 text-sm transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:ring-inset',
   active ? 'font-semibold text-primary after:absolute after:inset-x-3 after:bottom-0 after:h-[2px] after:rounded-full after:bg-primary' : 'text-muted-foreground hover:text-foreground')
@@ -23,6 +25,11 @@ export function TopShell({ live }: { live: LiveState }) {
   const { sections, top } = useNav()
   const { section: current, page } = resolveNav(pathname, sections)
   const business = settings?.business ?? '工作台'
+  // 悬停展开：同一时间只开一个；离开分区和下拉 150ms 后收起（从分区挪到下拉的路上不会收）
+  const [openKey, setOpenKey] = useState<string | null>(null)
+  const timer = useRef<number | undefined>(undefined)
+  const hoverOpen = (key: string) => { window.clearTimeout(timer.current); setOpenKey(key) }
+  const hoverClose = () => { window.clearTimeout(timer.current); timer.current = window.setTimeout(() => setOpenKey(null), 150) }
   return (
     <div className="min-h-dvh">
       <header className="sticky top-0 z-30 border-b bg-card/90 backdrop-blur-md">
@@ -35,11 +42,15 @@ export function TopShell({ live }: { live: LiveState }) {
               if (s.pages.length === 1) return <Link key={s.key} to={s.to} aria-current={on ? 'true' : undefined} className={itemCls(on)}>{s.label}</Link>
               const count = sectionCount(s.items, overview)
               return (
-                <DropdownMenu key={s.key}>
-                  <DropdownMenuTrigger aria-current={on ? 'true' : undefined} className={itemCls(on)}>
+                <DropdownMenu key={s.key} modal={false} open={openKey === s.key} onOpenChange={(o) => setOpenKey(o ? s.key : null)}>
+                  <DropdownMenuTrigger aria-current={on ? 'true' : undefined} className={itemCls(on)}
+                    onPointerEnter={(e) => { if (e.pointerType === 'mouse') hoverOpen(s.key) }}
+                    onPointerLeave={(e) => { if (e.pointerType === 'mouse') hoverClose() }}
+                    onPointerDown={(e) => { if (e.pointerType === 'mouse' && e.button === 0) { e.preventDefault(); setOpenKey(null); go(s.to) } }}>
                     {s.label}{count > 0 && <span className="num rounded-full bg-warn px-1.5 text-[12px] leading-4 text-white" aria-label={`${count} 项要处理`}>{count}</span>}<ChevronDown className="size-3.5 opacity-60" />
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent align="start" className="max-h-[70vh] w-56 overflow-y-auto">
+                  <DropdownMenuContent align="start" sideOffset={0} className="max-h-[70vh] w-56 overflow-y-auto"
+                    onPointerEnter={() => hoverOpen(s.key)} onPointerLeave={hoverClose} onCloseAutoFocus={(e) => e.preventDefault()}>
                     {s.groups.map((g, i) => {
                       // 组就是一个有子页面的模块（客户与跟进、小红书）：模块的角标挂在组名上
                       const module = groupModule(g)
@@ -73,7 +84,7 @@ export function TopShell({ live }: { live: LiveState }) {
           </div>
         </div>
       </header>
-      <main className="mx-auto min-w-0 max-w-[1400px] [--sticky-top:56px]"><Outlet /></main>
+      <main className="mx-auto min-w-0 max-w-[1400px] [--sticky-top:56px]"><PageCenterContext.Provider value={true}><Outlet /></PageCenterContext.Provider></main>
       {settings?.mobile_nav !== 'drawer' && <MobileTabs overview={overview} />}
       <SearchDialog open={searchOpen} onOpenChange={setSearchOpen} />
     </div>

@@ -158,7 +158,7 @@ test('从 install.mjs 命令行跑一遍（假的 launchctl 放在 PATH 最前�
   const sb = sandbox()
   cpSync(join(HERE, 'install.mjs'), join(sb.app, 'scripts', 'install.mjs'))
   cpSync(join(HERE, 'autostart.mjs'), join(sb.app, 'scripts', 'autostart.mjs'))
-  for (const f of ['shell-check.mjs', 'codex-check.mjs']) cpSync(join(HERE, f), join(sb.app, 'scripts', f)) // install.mjs 体检时要用
+  for (const f of ['shell-check.mjs', 'codex-check.mjs', 'is-main.mjs']) cpSync(join(HERE, f), join(sb.app, 'scripts', f)) // install.mjs 体检时要用
   const bin = join(sb.base, 'fakebin')
   const logFile = join(sb.base, 'launchctl.log')
   const mark = join(sb.base, 'loaded')

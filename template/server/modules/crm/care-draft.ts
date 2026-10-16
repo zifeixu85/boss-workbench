@@ -1,6 +1,7 @@
+import { readKbTextFile as readFileSync, canReadKbPath } from '../../services/kb.ts'
 // “让 Codex 写一版”关怀草稿：真接本机 Codex（只读知识库），写好存进 client_care，标“Codex 现场写 · 时间”。归属：大客户模块。
 // 90 秒没写完就停，如实说；不拿模板冒充 AI。
-import { existsSync, readFileSync } from 'node:fs'
+import { existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { all, get, ROOT } from '../../db.ts'
 import { now } from '../../clock.ts'
@@ -17,7 +18,7 @@ const SCHEMA = {
   properties: { gift: { type: 'string' }, message: { type: 'string' }, why: { type: 'string' } },
 }
 const CARE_FILE = '05-方法与判断/大客户关怀.md'
-const read = (rel: string) => { const abs = join(ROOT, rel); return existsSync(abs) ? readFileSync(abs, 'utf8').replace(/^---[\s\S]*?---\n/, '') : '' }
+const read = (rel: string) => { const abs = join(ROOT, rel); return existsSync(abs) && canReadKbPath(abs) ? readFileSync(abs, 'utf8').replace(/^---[\s\S]*?---\n/, '') : '' }
 
 export async function careDraft(input: unknown, actor: Actor) {
   const data = careDraftInput.parse(input)

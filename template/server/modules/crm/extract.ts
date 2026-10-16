@@ -1,10 +1,11 @@
+import { readKbTextFile as readFileSync, canReadKbPath } from '../../services/kb.ts'
 // 新材料提取：从知识库收件箱选一份（或粘贴），交给本机 Codex 提取“你答应的、对方的状态、顾虑、怎么定（谁拍板、哪天定）、下一步”。归属：大客户模块。
 // 真接 Codex（codex exec，工作目录是知识库根目录、只读、不读用户配置、按 JSON 格式回答），150 秒没做完就停，如实说。
 // Codex 回来后，工作台再按《判断规则》核对一遍价格（rules.ts）；和规则对不上的标黄，等老板定。
 // 写入、撤销在 extract-write.ts；预先跑好的备用结果在 prepared.ts。
 // 第二轮：提示词瘦身（客户档案只给要用的几节、规则和价格只给表格），超时放宽到 150 秒；显示前规整文字（tidy.ts）；
 //         结果里带上这位客户在谈的商机（金额要不要改由老板定）和还没发的关怀草稿（新材料让它过时了，可以顺手“不做”）。
-import { existsSync, readFileSync } from 'node:fs'
+import { existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { z } from 'zod'
 import { all, get, run, uid, nowIso, logChange, ROOT } from '../../db.ts'
@@ -64,7 +65,7 @@ export const resultShape = z.object({
 })
 export type CodexExtract = z.infer<typeof resultShape>
 
-const readKb = (rel: string) => { const abs = join(ROOT, rel); return existsSync(abs) ? readFileSync(abs, 'utf8') : '' }
+const readKb = (rel: string) => { const abs = join(ROOT, rel); return existsSync(abs) && canReadKbPath(abs) ? readFileSync(abs, 'utf8') : '' }
 const strip = (md: string) => md.replace(/^---[\s\S]*?---\n/, '').replace(/^>.*\n/gm, '').trim()
 /** 只留要用的几节（按“## 标题”切），去掉来源、关怀建议这些提取用不上的 */
 function sections(md: string, keep: (title: string) => boolean) {

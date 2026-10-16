@@ -124,7 +124,7 @@ export function getSettings() {
   const s = Object.fromEntries(rows.map((r) => [r.key, r.value]))
   const id = identity()
   return {
-    nav_mode: (s.nav_mode as 'simple' | 'complex' | 'top') ?? 'complex',
+    nav_mode: (s.nav_mode as 'simple' | 'complex' | 'dual' | 'top') ?? 'complex',
     theme: s.theme ?? 'jade',
     mobile_nav: (s.mobile_nav as 'tabs' | 'drawer') ?? 'tabs',
     owner: id.owner, business: s.business || '我的工作台',

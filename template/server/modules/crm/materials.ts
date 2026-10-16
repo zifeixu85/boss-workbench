@@ -1,10 +1,11 @@
+import { readKbTextFile as readFileSync, writeKbTextFile as writeFileSync, canReadKbPath } from '../../services/kb.ts'
 // 知识库收件箱里的新材料（00-收件箱/*.md）和写回客户文件。归属：大客户模块。
 // 读：列出还没整理的材料，猜是哪位客户的（文件名、正文里出现客户名或联系人）。拿不准就不猜。
 // 写（第二轮修 #17）：客户文件里几处跟着改——开头的“上次联系 / 下次跟进 / 更新”、“答应过的事”表格加行、“往来记录”末尾加一行；
 //      第三轮：“偏好与重要日子”对应那一行后面追加（不删原文）、“还缺：…”后面补一句、“顾虑”加一条；收件箱原件末尾加一行备注；
 //      标黄的答应老板定了以后，客户文件“答应过的事”那一行后面追加怎么定的。
 //      写之前先把原文件备份到数据库旁边的 备份/知识库/（services/kb.ts 的 backupKbFile），网页上先给看要改哪几处。撤销时按记下的改动逐处退回（不整份覆盖）。
-import { existsSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs'
+import { existsSync, readdirSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import { all, get, ROOT } from '../../db.ts'
 import { BadRequest, NotFound } from '../../services/common.ts'
@@ -56,11 +57,11 @@ export function guessClient(fileName: string, text: string, clients = all<Client
 /** 收件箱里的材料（不含 README），按日期从旧到新 */
 export function listInbox(): InboxFile[] {
   const dir = join(ROOT, INBOX_DIR)
-  if (!existsSync(dir)) return []
+  if (!existsSync(dir) || !canReadKbPath(dir)) return []
   const clients = all<ClientKey>('SELECT id, name, contact_name, key_account FROM clients')
   const runs = all<{ id: string; source_path: string; status: string; started_at: string }>(
     "SELECT id, source_path, status, started_at FROM crm_extractions WHERE source_path IS NOT NULL AND status != '放弃' ORDER BY started_at DESC")
-  return readdirSync(dir).filter((f) => f.endsWith('.md') && f !== 'README.md' && !f.startsWith('.')).map((f) => {
+  return readdirSync(dir).filter((f) => f.endsWith('.md') && f !== 'README.md' && !f.startsWith('.') && canReadKbPath(join(dir, f))).map((f) => {
     const path = `${INBOX_DIR}/${f}`
     const abs = join(dir, f)
     const text = readFileSync(abs, 'utf8')
@@ -321,9 +322,9 @@ export function inboxNoteRevert(n: { path: string; line: string; suffix: string 
 /** 演示复原：收件箱里工作台加的备注都删掉 */
 export function inboxNotesRemoveAll() {
   const dir = join(ROOT, INBOX_DIR)
-  if (!existsSync(dir)) return 0
+  if (!existsSync(dir) || !canReadKbPath(dir)) return 0
   let n = 0
-  for (const f of readdirSync(dir).filter((x) => x.endsWith('.md'))) {
+  for (const f of readdirSync(dir).filter((x) => x.endsWith('.md') && canReadKbPath(join(dir, x)))) {
     const abs = join(dir, f)
     const body = readFileSync(abs, 'utf8')
     if (!body.includes(INBOX_MARK)) continue

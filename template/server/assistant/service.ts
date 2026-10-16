@@ -9,6 +9,7 @@ type Row = { id: string; role: 'user' | 'assistant'; text: string; status: strin
 const shape = (r: Row) => ({ ...r, steps: r.steps_json ? JSON.parse(r.steps_json) : [], steps_json: undefined })
 
 let current: { id: string; handle: RunHandle } | null = null
+let starting: { cancelled: boolean } | null = null
 
 export async function status(force = false) {
   const { info } = await codexInfo(force)
@@ -23,6 +24,7 @@ export function messages(limit = 40) {
 
 /** 新开一段对话：清掉记录（正在跑的先停） */
 export function clear() {
+  if (starting) starting.cancelled = true
   current?.handle.cancel()
   run('DELETE FROM assistant_messages')
   return { cleared: true }
@@ -32,8 +34,12 @@ export async function ask(input: { text?: unknown; page?: PageContext }) {
   const text = String(input.text ?? '').trim()
   if (!text) throw new BadRequest('要写想让 AI 做什么')
   if (text.length > 4000) throw new BadRequest('一次说得太长了，拆成几次说')
-  if (current) throw new BadRequest('上一个问题还在答，等它答完或者先点“停止”')
+  if (current || starting) throw new BadRequest('上一个问题还在答，等它答完或者先点“停止”')
+  const attempt = { cancelled: false }
+  starting = attempt
+  try {
   const st = await status()
+  if (attempt.cancelled) throw new BadRequest('这一轮已停止')
   if (!st.on) throw new BadRequest('AI 助手关着：到“设置 → AI 助手”打开')
   if (!st.ready) throw new BadRequest(`${st.detail}。${st.fix ?? ''}`)
   const history = all<{ role: 'user' | 'assistant'; text: string }>("SELECT role, text FROM assistant_messages WHERE status = 'done' ORDER BY created_at DESC, rowid DESC LIMIT 10").reverse()
@@ -57,9 +63,11 @@ export async function ask(input: { text?: unknown; page?: PageContext }) {
   current = { id: uidBot, handle }
   handle.done.finally(() => { if (current?.id === uidBot) current = null })
   return { id: uidBot }
+  } finally { if (starting === attempt) starting = null }
 }
 
 export function stop() {
+  if (starting) { starting.cancelled = true; return { stopped: true } }
   if (!current) return { stopped: false }
   current.handle.cancel()
   return { stopped: true }

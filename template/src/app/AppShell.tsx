@@ -7,6 +7,7 @@ import type { Settings, Theme } from '@/lib/types'
 import { NavModeContext } from './nav-mode'
 import { SimpleShell } from './SimpleShell'
 import { ComplexShell } from './ComplexShell'
+import { DualShell } from './DualShell'
 import { TopShell } from './TopShell'
 import { Overlays } from './Overlays'
 
@@ -48,7 +49,7 @@ export function AppShell() {
   if (embed) return <NavModeContext.Provider value={mode}><main className="min-h-dvh min-w-0 bg-background"><Outlet /></main><Overlays /></NavModeContext.Provider>
   return (
     <NavModeContext.Provider value={mode}>
-      {mode === 'simple' ? <SimpleShell live={live} /> : mode === 'top' ? <TopShell live={live} /> : <ComplexShell live={live} />}
+      {mode === 'simple' ? <SimpleShell live={live} /> : mode === 'top' ? <TopShell live={live} /> : mode === 'dual' ? <DualShell live={live} /> : <ComplexShell live={live} />}
       <Overlays />
       <AssistantDock />
     </NavModeContext.Provider>

@@ -87,7 +87,7 @@ export type Campaign = {
 }
 export type InventoryRow = {
   sku_id: string; sku_name: string; sku_status: string; warehouse_id: string; warehouse_name: string; stock: number; in_transit: number
-  safety_days: number; avg_daily: number; days_left: number | null; level: string
+  safety_days: number; avg_daily: number | null; days_left: number | null; level: string
 }
 export type Aftersale = {
   id: string; order_no: string; applied_at: string; sku_id: string | null; sku_name: string | null; qty: number; amount: number

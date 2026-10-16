@@ -1,7 +1,8 @@
+import { readKbTextFile as readFileSync, writeKbTextFile as writeFileSync, canReadKbPath } from '../../services/kb.ts'
 // 每周复盘：一周按周二到下周一算（和知识库 01-AI协作/任务手册/每周复盘.md 一样，每周二 07:30 的定时任务写上一周），
 // 这里是小红书那一段的细账。生成复盘现场调本机 Codex（<review>）；下周选题建议可以放进灵感池；
 // 可沉淀的经验，老板点“存进知识库”才追加到 90-持续生长/待确认的发现.md（照那里的发现卡格式，只追加不改别的）。归属：小红书内容模块。
-import { readFileSync, writeFileSync, existsSync } from 'node:fs'
+import { existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { all, get, run, uid, nowIso, logChange, ROOT } from '../../db.ts'
 import { now } from '../../clock.ts'

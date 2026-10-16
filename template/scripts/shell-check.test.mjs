@@ -10,7 +10,7 @@ const APP = join(import.meta.dirname, '..')
 const copy = (t) => {
   const dir = mkdtempSync(join(tmpdir(), 'shell-check-'))
   t.after(() => rmSync(dir, { recursive: true, force: true }))
-  for (const f of ['src/main.tsx', 'src/app/router.tsx', 'src/app/nav.ts', 'src/features/settings/SettingsPage.tsx', 'shared/modules.ts', 'server/index.ts', 'server/routes.ts', 'server/cli.ts']) cpSync(join(APP, f), join(dir, f), { recursive: true })
+  for (const f of ['src/main.tsx', 'src/app/router.tsx', 'src/app/nav.ts', 'src/app/AppShell.tsx', 'src/app/SimpleShell.tsx', 'src/app/ComplexShell.tsx', 'src/app/DualShell.tsx', 'src/app/TopShell.tsx', 'src/features/settings/SettingsPage.tsx', 'shared/modules.ts', 'server/index.ts', 'server/routes.ts', 'server/cli.ts']) cpSync(join(APP, f), join(dir, f), { recursive: true })
   return dir
 }
 
@@ -37,3 +37,19 @@ test('拿掉收件箱、把待办改成可以关：报出来', (t) => {
 })
 
 function readFile(f) { return readFileSync(f, 'utf8') }
+
+for (const file of ['src/app/AppShell.tsx', 'server/routes.ts']) test(`缺少 ${file} 不能通过`, t => {
+  const dir = copy(t)
+  rmSync(join(dir, file))
+  assert.ok(checkShell(dir).length)
+})
+test('只保留导入但不显示提醒设置、新建按钮也不能通过', t => {
+  const dir = copy(t)
+  for (const [file, tag] of [['src/features/settings/SettingsPage.tsx', 'ReminderSettings'], ['src/app/TopShell.tsx', 'QuickCreate']]) {
+    const f = join(dir, file)
+    writeFileSync(f, readFile(f).replaceAll(`<${tag}`, '<Removed'))
+  }
+  const problems = checkShell(dir).join('\n')
+  assert.match(problems, /ReminderSettings/)
+  assert.match(problems, /QuickCreate/)
+})

@@ -1,10 +1,11 @@
 // 简单导航：一列菜单，按分区（今日 / 客户 / 经营 / 内容 / 数据 / 资料）分段，只列模块不列子页面（子页面用页内的 SubTabs）；
-// 宽屏图标+文字、分段有小标题，中屏只剩图标、分段之间一条细线；手机底栏。系统页从头像菜单进
+// 宽屏图标+文字、分段有小标题，中屏只剩图标、分段之间一条细线；手机底栏。
+// 2026-10-17：新建、头像整行宽；底下的“设置”和菜单项同一种样式（shell-parts 的 sideItemCls）
 import { useState } from 'react'
 import { Link, Outlet, useLocation } from 'react-router'
 import { resolveNav } from './nav'
 import { useNav } from './nav-sections'
-import { Brand, Badge, LiveDot, MobileMenuButton, MobileTabs, QuickCreate, SearchButton, SearchDialog, SettingsButton, UserMenu, useHotkeys, useShellData } from './shell-parts'
+import { Brand, Badge, LiveDot, MobileMenuButton, MobileTabs, QuickCreate, SearchButton, SearchDialog, SideSettingsLink, UserMenu, sideItemCls, useHotkeys, useShellData } from './shell-parts'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import type { LiveState } from '@/lib/api'
 import { cn } from '@/lib/utils'
@@ -21,8 +22,8 @@ export function SimpleShell({ live }: { live: LiveState }) {
     <div className="grid min-h-dvh grid-cols-1 md:grid-cols-[76px_minmax(0,1fr)] lg:grid-cols-[232px_minmax(0,1fr)]">
       <aside className="sticky top-0 hidden h-dvh flex-col border-r border-sidebar-border bg-sidebar px-3.5 pt-5 pb-4 text-sidebar-foreground md:flex">
         <div className="mb-5 px-1 lg:px-1.5"><span className="lg:hidden"><Brand name={settings?.business ?? '工作台'} compact /></span><span className="hidden lg:block"><Brand name={settings?.business ?? '工作台'} /></span></div>
-        <div className="mb-4 flex gap-2 lg:px-0.5">
-          <span className="hidden flex-1 lg:block"><QuickCreate /></span><span className="lg:hidden"><QuickCreate compact /></span>
+        <div className="mb-4 flex items-center gap-2">
+          <div className="hidden min-w-0 flex-1 lg:block"><QuickCreate wide /></div><span className="mx-auto lg:hidden"><QuickCreate compact /></span>
           <span className="hidden lg:block"><SearchButton onClick={() => setSearchOpen(true)} /></span>
         </div>
         <nav className="-mx-3.5 min-h-0 flex-1 overflow-y-auto px-3.5" aria-label="主导航">
@@ -39,8 +40,7 @@ export function SimpleShell({ live }: { live: LiveState }) {
                     <Tooltip key={n.key}>
                       <TooltipTrigger asChild>
                         <Link to={n.to} aria-current={active ? 'page' : undefined}
-                          className={cn('relative flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[14.5px] transition-colors md:justify-center lg:justify-start',
-                            active ? 'bg-sidebar-accent font-semibold text-sidebar-accent-foreground shadow-paper before:absolute before:top-2 before:bottom-2 before:-left-3.5 before:w-1 before:rounded-r before:bg-primary' : 'hover:bg-sidebar-accent/60')}>
+                          className={sideItemCls(active, 'md:justify-center lg:justify-start')}>
                           <n.icon className="size-[18px] shrink-0 opacity-85" />
                           <span className="hidden truncate lg:inline">{n.label}</span>
                           <span className="hidden lg:contents"><Badge n={badge || undefined} tone={n.tone} /></span>
@@ -55,12 +55,12 @@ export function SimpleShell({ live }: { live: LiveState }) {
             </div>
           ))}
         </nav>
-        <div className="mt-auto flex flex-col gap-3 px-1 pt-4 lg:px-1.5">
-          <LiveDot state={live} compact={false} />
-          <div className="hidden lg:block"><SettingsButton label /></div>
-          <div className="lg:hidden"><SettingsButton /></div>
-          <div className="hidden lg:block"><UserMenu settings={settings} /></div>
-          <div className="lg:hidden"><UserMenu settings={settings} compact /></div>
+        <div className="mt-auto flex flex-col gap-1 pt-4">
+          <div className="px-1 pb-1"><LiveDot state={live} compact={false} /></div>
+          <div className="hidden lg:block"><SideSettingsLink /></div>
+          <div className="lg:hidden"><SideSettingsLink compact /></div>
+          <div className="hidden lg:block"><UserMenu settings={settings} wide /></div>
+          <div className="flex justify-center lg:hidden"><UserMenu settings={settings} compact /></div>
         </div>
       </aside>
       <main className="min-w-0">

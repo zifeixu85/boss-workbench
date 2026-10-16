@@ -1,10 +1,11 @@
+import { readKbTextFile as readFileSync, canReadKbPath } from '../../services/kb.ts'
 // 发布前检查的词表（本地规则，不用 AI）。归属：小红书内容模块。
 // 查的词从知识库和工作台现拿（文件改了自动重读）：
 //   ① 03-生意/品牌与口吻.md 的“不能说的话”表（功效、极限词、贬低别家…）
 //   ② 工作台客户表里的企业客户和渠道客户名字（“不提企业客户的名字”）
 //   ③ 03-生意/产品与服务/零售商品清单.md 里“待上线 / 上线前保密”的新品名字和上线日（找不到再看 06-项目）
 // 怎么查（规格、AI 腔、后台字眼）在 shared/xhs-check.ts，网页和服务端共用。
-import { readFileSync, statSync } from 'node:fs'
+import { statSync } from 'node:fs'
 import { join } from 'node:path'
 import { ROOT, all } from '../../db.ts'
 import { today } from '../../services/common.ts'
@@ -89,7 +90,7 @@ function storeClosed() {
 
 /** 现在的词表（网页拿去边改边查；文件或客户变了自动重读） */
 export function checkRules() {
-  const key = [VOICE, PRODUCTS, PROJECT].map(mtime).join('|') + `|${all<{ n: number }>('SELECT COUNT(*) AS n FROM clients')[0]?.n}`
+  const key = [VOICE, PRODUCTS, PROJECT].map(p => `${mtime(p)}:${canReadKbPath(join(ROOT, p))}`).join('|') + `|${all<{ n: number }>('SELECT COUNT(*) AS n FROM clients')[0]?.n}`
   if (cache?.key === key) return { rules: cache.rules, sources: cache.sources, today: today(), store_closed: storeClosed() }
   const v = voiceRules(), c = clientRules(), l = launchRules()
   const launch = l.find((r) => r.category === '新品名字' && r.level === 'block')
