@@ -15,6 +15,7 @@ import {
   ScanText, Settings, ShoppingBag, SquareKanban, Store, Sun, Users, Video, type LucideIcon,
 } from 'lucide-react'
 import type { Overview } from '@/lib/types'
+import { MODULE_NAV } from './modules.nav.gen.ts'
 
 /** 一级分区。系统不占顶栏，从头像菜单进 */
 export type NavSectionKey = '今日' | '客户' | '经营' | '内容' | '数据' | '资料' | '系统'
@@ -39,7 +40,7 @@ export type NavItem = {
 /** 某个渠道的经营异常条数（菜单角标用） */
 const channelAlerts = (id: string) => (o: Overview) => o.alerts?.filter((a) => a.module === 'biz' && a.channel_id === id).length || undefined
 
-export const NAV: NavItem[] = [
+const CORE_NAV: NavItem[] = [
   // 今日：首页 + 每天用的几页，平铺不分组
   { key: 'today', to: '/', label: '今日', icon: LayoutDashboard, section: '今日', module: 'today' },
   { key: 'calendar', to: '/calendar', label: '日程', icon: CalendarDays, section: '今日', module: 'tasks', badge: (o) => o.events.length || undefined, tone: 'quiet' },
@@ -86,6 +87,14 @@ export const NAV: NavItem[] = [
   { key: 'settings', to: '/settings', label: '设置', icon: Settings, section: '系统', module: 'settings' },
   { key: 'design', to: '/design', label: '组件规范', icon: Palette, section: '系统', module: 'design' },
 ]
+
+/** 装进来的模块（scripts/module.mjs add，登记在 modules.nav.gen.ts）的菜单项排在知识库前面：
+ *  放进“资料”分区的在知识库上面，放进别的分区的跟在那个分区原有的项后面 */
+function withModuleNav(core: NavItem[], extra: NavItem[]): NavItem[] {
+  const at = core.findIndex((n) => n.key === 'kb')
+  return [...core.slice(0, at), ...extra.filter((n) => !core.some((c) => c.key === n.key)), ...core.slice(at)]
+}
+export const NAV: NavItem[] = withModuleNav(CORE_NAV, MODULE_NAV)
 
 /** 手机底栏的 4 个：每个分区一个入口（今日 / 客户 / 经营 / 内容）。拿掉了的模块自动跳过，空位先给还没有入口的分区（见 mobileTabs） */
 export const MOBILE_TABS = ['today', 'clients', 'biz', 'content']

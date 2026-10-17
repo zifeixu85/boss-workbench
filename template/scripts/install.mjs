@@ -16,6 +16,7 @@ import os from 'node:os'
 import { autostart } from './autostart.mjs'
 import { checkShell } from './shell-check.mjs'
 import { findCodex } from './codex-check.mjs'
+import { checkModules } from './module.mjs'
 
 const APP = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 // 知识库根目录和数据库位置：默认 程序/../.. 和 <知识库>/工作台/数据/workbench.db；
@@ -156,7 +157,12 @@ async function checkInstalled() {
   say(C.b('\n③ 检查外壳（基础版页面、导航、设置页、AI 助手）'))
   const shell = checkShell(APP)
   shell.length ? shell.forEach((p) => bad(p, '外壳和基础版不删不换，业务页面按 Skill 的“加减模块”挂进去')) : ok('外壳完整')
-  say(C.b('\n④ AI 助手（本机 Codex，只报告，不算问题）'))
+  say(C.b('\n④ 装进来的模块（scripts/module.mjs）'))
+  const mods = checkModules(APP)
+  mods.problems.forEach((p) => bad(p))
+  mods.notes.forEach((n) => say(`  ${C.dim('·')} ${n}`))
+  if (!mods.problems.length) ok(mods.installed.length ? `装进来的模块：${mods.installed.join('、')}` : '没有装进来的模块')
+  say(C.b('\n⑤ AI 助手（本机 Codex，只报告，不算问题）'))
   const codex = await findCodex()
   codex.ready ? ok(`本机 Codex 能用：${codex.version}`) : warn(codex.detail, codex.fix)
   say(C.dim('  开机自启（只报告，不算问题）：'))

@@ -17,6 +17,7 @@ description: 老板工作台：在本机搭一个个人工作台网页，把今�
 | “帮我搭工作台”，读不到知识库且没什么资料（`empty` 或 `existing.suggest` 是“空白起步”），或老板说“还没有知识库” | 先问建库还是先搭空白版；选空白版就搭基础版 | [references/空白起步.md](references/空白起步.md) |
 | “工作台接上我的知识库” | 空白版接上新建好的知识库：对照、导入、写入口 | [references/空白起步.md](references/空白起步.md) 的“以后接上知识库” |
 | “工作台加个××模块”“我想管好大客户”“把某个页面改成……”“导入这份导出表” | 加模块、改功能：立项对焦 → 需求文档 → 选起点 → 样张 → 开发 → 验收 → 记录；小改动直接改 | [references/加减模块.md](references/加减模块.md)、[references/立项对焦.md](references/立项对焦.md) |
+| “工作台装上行业资讯”“有哪些现成的模块”“把资讯模块拿掉 / 更新一下” | 装现成的模块包：`node scripts/module.mjs list / add / update / remove <编号>`（在程序文件夹里跑；工作台开着也不用重开） | [references/加减模块.md](references/加减模块.md) 的“装现成的模块包”、Skill 的 `modules/README.md` |
 | “这个模块用不上了”“把经营打开” | 模块开关：`modules --off/--on`，不改代码、不删数据 | [references/加减模块.md](references/加减模块.md) 的“打开、收起模块” |
 | “和某某聊了”“整理收件箱”“这几件事记一下”“会上定了这些” | 进内容：拆 7 类 → 一次问清 → 一张清单 → `apply` 一次写入工作台 | [references/进内容.md](references/进内容.md) |
 | “换个配色”“重新选模块” | 重开确认页，只改要改的部分 | 本文件第 1 步最后一条 |
@@ -96,6 +97,7 @@ node "<本 Skill 文件夹>/scripts/confirm_ui/server.mjs" "<工作目录>" --wa
 |---|---|
 | `scripts/kb_scan.mjs` | 读知识库地图和元信息，输出清单（JSON），只读；带出建库档案里的“工作台结构草案”（`workbench_draft`）；不是知识库时输出 `kb: false`，有老板自己的资料时加 `existing`（只有顶层文件夹名和份数，建议先梳理） |
 | `scripts/confirm_ui/` | 本地确认页：`server.mjs` 零依赖；`page/` 页面；`example/` 示例推荐（ABC茶社） |
+| `modules/` | 模块包（2026-10-18 起）：每个文件夹一个“一句话装进工作台”的模块，现在有 `news`（行业资讯）；格式和规矩见 `modules/README.md` |
 | `scripts/deploy/` | 上线手机版：`preflight`（装机检查）、`export_snapshot`（打码快照）、`build_page`（只读网页）、`check_dist`（上传前自检）、`qrcode`、`record`（云上文件夹和记录） |
 | [references/复述规则.md](references/复述规则.md) | 复述写什么、不写什么 |
 | [references/模块目录.md](references/模块目录.md) | 可选模块、推荐条件、预览数据、导航和提醒的定法 |
@@ -106,7 +108,7 @@ node "<本 Skill 文件夹>/scripts/confirm_ui/server.mjs" "<工作目录>" --wa
 | [references/加减模块.md](references/加减模块.md) | 加模块、改功能的七步；打开、收起模块；案例索引 |
 | [references/立项对焦.md](references/立项对焦.md)、[references/模块需求文档模板.md](references/模块需求文档模板.md) | 和老板对焦的七问；需求文档怎么写 |
 | [references/进内容.md](references/进内容.md) | 进内容六步、7 类写进工作台的哪里、`apply` 一次写入、收件箱带判断 |
-| `references/需求文档-*.md`、`references/配方-*.md`、[references/数据来源.md](references/数据来源.md) | 六份案例需求文档（客户跟进、多平台经营、小红书内容中心、门店订单与取件、报价到回款、项目交付与验收）；小红书写作规则、数据导入与对字段；数据从哪来 |
+| `references/需求文档-*.md`、`references/配方-*.md`、[references/数据来源.md](references/数据来源.md) | 七份案例需求文档（客户跟进、多平台经营、小红书内容中心、门店订单与取件、报价到回款、项目交付与验收、行业资讯）；小红书写作规则、数据导入与对字段；数据从哪来 |
 | [references/上线手机版.md](references/上线手机版.md) | 上线、更新、撤下只读手机版的步骤和规矩 |
 | [references/行业样板.md](references/行业样板.md) | 五种老板（电商、自媒体、门店、B2B、专业服务，虚构）的工作台：首页重点卡、导航、基础版之外加什么、借哪份需求文档 |
 | [references/AI助手.md](references/AI助手.md) | 工作台接入 Codex：在 Codex 里说 + 右边开着工作台；每页右边的 AI 助手；搭建时查本机 Codex、跟老板怎么说 |

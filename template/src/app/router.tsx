@@ -1,19 +1,10 @@
 // 页面登记。每个页面按需加载（日历、图表这些大组件只在用到时下载）
 // 4 个业务模块的页面在各自的 features 文件夹里：经营 biz、小红书 content、数据源与导入 data、大客户 crm（客户列表和抽屉在 clients）
-import { lazy, Suspense, type ComponentType, type ReactNode } from 'react'
+// 装进来的模块（scripts/module.mjs add）的页面登记在 modules.routes.gen.tsx，不用改这里
 import { createBrowserRouter, Link, Navigate } from 'react-router'
 import { AppShell, EmbedShell } from './AppShell'
-import { ModuleGate } from './ModuleGate'
-import { Skeleton } from '@/components/ui/skeleton'
-
-const page = <P extends object>(load: () => Promise<{ default: ComponentType<P> }>) => {
-  const C = lazy(load)
-  return (props: P) => (
-    <Suspense fallback={<div className="grid gap-3 p-7"><Skeleton className="h-9 w-48" /><Skeleton className="h-40" /><Skeleton className="h-64" /></div>}>
-      <C {...props} />
-    </Suspense>
-  )
-}
+import { page, gate } from './pages'
+import { MODULE_ROUTES } from './modules.routes.gen'
 
 // 公共
 const Today = page(() => import('@/features/today/TodayPage'))
@@ -53,9 +44,6 @@ function NotFound() {
   return <div className="p-10 text-center"><h1 className="font-heading text-2xl">这个页面不存在</h1><p className="mt-2 text-sm text-muted-foreground">可能是模块没有安装，或者地址写错了。</p><Link to="/" className="mt-4 inline-block text-primary underline">回到今日</Link></div>
 }
 
-/** 模块没打开时显示说明页（模块开关，见 shared/modules.ts）；id 和 nav.ts 里菜单项的 module 一致 */
-const gate = (id: string, el: ReactNode) => <ModuleGate id={id}>{el}</ModuleGate>
-
 export const router = createBrowserRouter([
   {
     path: '/',
@@ -92,6 +80,7 @@ export const router = createBrowserRouter([
       { path: 'kb', element: gate('kb', <Kb />) },
       { path: 'settings', element: <SettingsPage /> },
       { path: 'design', element: gate('design', <Design />) },
+      ...MODULE_ROUTES,
       { path: '*', element: <NotFound /> },
     ],
   },

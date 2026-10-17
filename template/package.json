@@ -1,7 +1,7 @@
 {
   "name": "boss-workbench",
   "private": true,
-  "version": "0.2.0",
+  "version": "0.3.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -10,12 +10,13 @@
     "build": "tsc -b && vite build",
     "seed": "node server/seed/index.ts --demo --reset",
     "wb": "node server/cli.ts",
+    "module": "node scripts/module.mjs",
     "setup": "node scripts/install.mjs",
     "doctor": "node scripts/install.mjs --check",
     "lint": "oxlint",
     "seed:only": "node server/seed/index.ts --only",
-    "test": "node --test \"server/reminders/*.test.ts\" \"server/modules/crm/*.test.ts\" \"shared/*.test.ts\" \"server/services/*.test.ts\" \"server/assistant/*.test.ts\" \"scripts/*.test.mjs\"",
-    "check:server": "tsc --ignoreConfig --noEmit --strict --allowImportingTsExtensions --module nodenext --moduleResolution nodenext --target es2023 --lib ES2023 --types node --skipLibCheck --erasableSyntaxOnly --verbatimModuleSyntax server/index.ts server/cli.ts server/seed/index.ts server/reminders/rules.test.ts server/reminders/tick.test.ts server/reminders/demo.test.ts server/reminders/notify.test.ts server/modules/crm/follow.test.ts shared/modules.test.ts server/services/apply.test.ts server/assistant/assistant.test.ts",
+    "test": "node --test \"server/reminders/*.test.ts\" \"server/modules/crm/*.test.ts\" \"shared/*.test.ts\" \"server/services/*.test.ts\" \"server/assistant/*.test.ts\" \"server/jobs/*.test.ts\" \"scripts/*.test.mjs\"",
+    "check:server": "tsc --ignoreConfig --noEmit --strict --allowImportingTsExtensions --module nodenext --moduleResolution nodenext --target es2023 --lib ES2023 --types node --skipLibCheck --erasableSyntaxOnly --verbatimModuleSyntax server/index.ts server/cli.ts server/seed/index.ts server/reminders/rules.test.ts server/reminders/tick.test.ts server/reminders/demo.test.ts server/reminders/notify.test.ts server/modules/crm/follow.test.ts shared/modules.test.ts server/services/apply.test.ts server/assistant/assistant.test.ts server/jobs/jobs.test.ts",
     "shots": "node scripts/截图.mjs http://127.0.0.1:4517 ../../截图"
   },
   "dependencies": {

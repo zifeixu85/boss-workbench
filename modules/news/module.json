@@ -1,0 +1,19 @@
+{
+  "id": "news",
+  "name": "行业资讯",
+  "version": "0.1.0",
+  "summary": "每天 08:30 取一份 AIHOT 日报（只存标题、链接和一句总结），标出你关注的词；没取到就写今天没取到",
+  "needs": [],
+  "nav": [
+    { "key": "news", "to": "/news", "label": "行业资讯", "short": "资讯", "icon": "Newspaper", "section": "资料" }
+  ],
+  "pages": [
+    { "path": "news", "file": "src/features/news/NewsPage.tsx" }
+  ],
+  "server": {
+    "api": "server/modules/news/routes.ts#newsRoutes",
+    "jobs": "server/modules/news/jobs.ts#newsJobs",
+    "cli": { "file": "server/modules/news/cli.ts#newsCli", "commands": ["news"] },
+    "read": ["news"]
+  }
+}

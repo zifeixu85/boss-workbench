@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>资讯日报（测试样例，内容全部虚构）</title>
+    <link>https://example.com/daily</link>
+    <description>测试用：格式照 AIHOT 日报（每期一条，正文按类列标题和链接），链接都指向 example.com。</description>
+    <item>
+      <title><![CDATA[资讯日报 · 2030-03-05 — 某表格软件上线 AI 助手（虚构）]]></title>
+      <link>https://example.com/daily/2030-03-05</link>
+      <description><![CDATA[<p>测试日报：小模型更好用了，客服工具陆续接入 AI &amp; 自动回复。</p>
+<p><strong>模型发布/更新</strong></p>
+<ul><li><a href="https://example.com/a1">示例模型 A 发布新版本（虚构）</a></li></ul>
+<p><strong>产品发布/更新</strong></p>
+<ul><li><a href="https://example.com/a2">某表格软件上线 AI 助手（虚构）</a></li><li><a href="javascript:alert(1)">一条坏链接（虚构）</a></li></ul>
+<p><strong>行业动态</strong></p>
+<ul><li><a href="https://example.com/a3">某地发布中小企业 AI 补贴细则（虚构）</a></li></ul>
+]]></description>
+      <pubDate>Tue, 05 Mar 2030 00:00:00 GMT</pubDate>
+      <guid>daily-2030-03-05</guid>
+    </item>
+    <item>
+      <title>资讯日报 · 2030-03-04 — 没有分类的一期（虚构）</title>
+      <link>https://example.com/daily/2030-03-04</link>
+      <description>&lt;p&gt;只有一句话的一期，没有按类列条目。&lt;/p&gt;</description>
+      <pubDate>Mon, 04 Mar 2030 00:00:00 GMT</pubDate>
+      <guid>daily-2030-03-04</guid>
+    </item>
+  </channel>
+</rss>

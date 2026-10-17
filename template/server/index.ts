@@ -1,9 +1,8 @@
 // 本地服务：只监听本机，提供 /api 和网页；数据库或知识库文件变了就推送刷新
 import { serve } from '@hono/node-server'
 import { serveStatic } from '@hono/node-server/serve-static'
-import { Hono, type Context } from 'hono'
+import { Hono } from 'hono'
 import { streamSSE } from 'hono/streaming'
-import { ZodError } from 'zod'
 import { existsSync, watch, readFileSync } from 'node:fs'
 import { join, relative } from 'node:path'
 import { open, dataVersion, APP_DIR, ROOT, DB_PATH } from './db.ts'
@@ -11,6 +10,9 @@ import { routes } from './routes.ts'
 import { demoDate } from './clock.ts'
 import { startReminders, type PushPayload } from './reminders/service.ts'
 import { markInterrupted } from './assistant/service.ts'
+import { errorResponse } from './module-kit.ts'
+import { moduleApi, refreshModules } from './modules-live.ts'
+import { startJobs } from './jobs/service.ts'
 
 const PORT = Number(process.env.PORT || 4517) // 默认 4517；被占用时启动加 PORT=4527 这样换一个
 const HOST = '127.0.0.1'
@@ -35,15 +37,7 @@ app.use('/api/*', async (c, next) => {
   if (c.req.method !== 'GET' && c.res.status < 300) broadcast({ reason: 'web', path: c.req.path })
 })
 
-app.onError((err, c: Context) => {
-  if (err instanceof ZodError) {
-    const issues = err.issues.map((i) => ({ path: i.path.join('.'), message: i.message }))
-    return c.json({ ok: false, error: issues[0]?.message ?? '填写有误', issues }, 400)
-  }
-  const status = (err as { status?: number }).status ?? 500
-  if (status >= 500) console.error(err)
-  return c.json({ ok: false, error: status >= 500 ? `服务出错：${err.message}` : err.message }, status as 400)
-})
+app.onError(errorResponse)
 
 // 实时推送。页面连上时带 ?notify=on 表示“这个浏览器点过开启提醒、也允许了通知”：有这样的页面开着，提醒走浏览器通知；
 // 一个都没有（页面关了、切到后台超过半分钟会断开、没允许通知），提醒走电脑系统通知（见 reminders/service.ts）
@@ -70,6 +64,17 @@ app.get('/api/live', (c) => streamSSE(c, async (stream) => {
 }))
 
 app.route('/api', routes)
+// 装进来的模块的接口：/api/m/<模块编号>/…，交给模块自己的 Hono（server/modules.gen.ts）。工作台开着时新装的模块也能马上用
+const toModule = async (c: { req: { param: (k: string) => string; url: string; raw: Request } }) => {
+  const id = c.req.param('module')
+  const api = await moduleApi(id)
+  if (!api) return Response.json({ ok: false, error: `没有装“${id}”这个模块（或者它没有接口）` }, { status: 404 })
+  const url = new URL(c.req.url)
+  url.pathname = url.pathname.slice(`/api/m/${id}`.length) || '/'
+  return api.fetch(new Request(url, c.req.raw))
+}
+app.all('/api/m/:module', toModule)
+app.all('/api/m/:module/*', toModule)
 // 底座审查 #10：没有的接口回 404 JSON，不要落到下面的网页兜底（原来回 200 的 index.html）
 app.all('/api/*', (c) => c.json({ ok: false, error: `没有这个接口：${c.req.method} ${c.req.path}` }, 404))
 
@@ -78,6 +83,8 @@ let lastVersion = dataVersion()
 setInterval(() => {
   const v = dataVersion()
   if (v !== lastVersion) { lastVersion = v; broadcast({ reason: 'external' }) }
+  // 装了 / 拿掉了模块（scripts/module.mjs 改了 server/modules.gen.ts）：换上新清单，页面刷新一下就看得到
+  void refreshModules().then((changed) => { if (changed) broadcast({ reason: 'modules' }) })
 }, 1000)
 
 // 知识库 Markdown 被改（Codex、编辑器）也推送
@@ -121,6 +128,8 @@ const server = serve({ fetch: app.fetch, port: PORT, hostname: HOST }, () => {
     push: (p: PushPayload) => broadcast({ ...p }, 'reminder'),
     base: `http://${HOST}:${PORT}`,
   })
+  // 定时任务：模块登记的“每天几点跑一次”，没赶上的补跑（jobs/service.ts）
+  startJobs((r) => broadcast({ reason: 'job', job: r.id, ok: r.ok }))
 })
 // 端口被占了（多半是工作台已经开着一个）：说清楚，正常退出。开机自启（Mac 登录项服务）按“出错才重启”配置，这样不会反复重启
 server.on('error', (err: NodeJS.ErrnoException) => {

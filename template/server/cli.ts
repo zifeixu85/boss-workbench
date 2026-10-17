@@ -25,6 +25,8 @@ import { backupDatabase, open } from './db.ts'
 import { today, addDays, dayOf } from './services/common.ts'
 import { now as clockNow } from './clock.ts'
 import { REMIND_HELP, isRemindCommand, runRemindCli } from './reminders/cli.ts'
+import { JOBS_HELP, isJobCommand, runJobsCli } from './jobs/cli.ts'
+import { SERVER_MODULES } from './modules.gen.ts'
 
 const ACTOR = 'Codex' as const
 const HELP = `用法：node 工作台/程序/server/cli.ts <命令> [参数] [--json]
@@ -71,6 +73,8 @@ const HELP = `用法：node 工作台/程序/server/cli.ts <命令> [参数] [--
   snapshot                           导出只读快照到 工作台/快照/
   backup                             改功能、换数据前先备份数据库：存到数据库旁边的 备份/workbench-日期时间.db
 ${REMIND_HELP}
+
+${JOBS_HELP}
 大客户（客户详情加深，E5）
   materials                          知识库收件箱里的新材料：是谁的、提取过没有
   extract <收件箱文件> [--client 客户]  让 Codex 提取一份新材料（最多等 150 秒），结果“待确认”，到网页 /clients/extract 确认后才写入
@@ -94,6 +98,20 @@ ${REMIND_HELP}
   import <文件.csv> --yes             导入（先 import-check 给老板看，确认后再加 --yes）；import-undo <批次ID> --yes 撤销
   import-rules / import-runs / import-samples   导入规则 / 导入记录 / 示例数据（clear、restore 清掉或恢复）
 规则：听不准的人名、金额先问老板，或在内容里标“（待确认）”；不要替老板编造金额和结论。`
+
+// 定时任务的命令（jobs、job- 开头）交给 jobs/cli.ts（公共，2026-10-18）
+if (isJobCommand(process.argv.slice(2))) {
+  try { process.exit(await runJobsCli(process.argv.slice(2))) } catch (err) { console.error(`没办成：${(err as Error).message}`); process.exit(1) }
+}
+
+// 装进来的模块自己的命令（server/modules.gen.ts 的 commands：写 news 就认 news 和 news- 开头的），参数由模块解析
+{
+  const name = process.argv[2]
+  const mod = name ? SERVER_MODULES.find((m) => m.cli && m.commands?.some((c) => name === c || name.startsWith(`${c}-`))) : undefined
+  if (mod?.cli) {
+    try { process.exit(await (await mod.cli()).run(process.argv.slice(2))) } catch (err) { console.error(`没办成：${(err as Error).message}`); process.exit(1) }
+  }
+}
 
 // 数据源与导入模块的命令（import 开头）交给模块文件夹处理，参数也由它解析（数据源模块 10-10 追加）
 if (process.argv[2] === 'import' || process.argv[2]?.startsWith('import-')) {
@@ -416,15 +434,22 @@ function main() {
     }
     case undefined:
     case 'help':
-      return console.log(HELP)
+      return printHelp()
     default:
       // 底座审查 #14：命令写错也说人话（原来不吭声地打印帮助、返回成功）
       throw new Error(`没有「${cmd}」这个命令。全部命令见 node 工作台/程序/server/cli.ts --help`)
   }
 }
 
+/** 全部命令：核心的 + 装进来的模块的（模块的帮助要加载模块的命令行才知道） */
+function printHelp() {
+  console.log(HELP)
+  void Promise.all(SERVER_MODULES.filter((m) => m.cli).map((m) => m.cli!().then((c) => `\n${m.name}（装进来的模块）\n${c.help}`).catch(() => '')))
+    .then((xs) => { for (const x of xs) if (x) console.log(x) })
+}
+
 try {
-  if (o.help) console.log(HELP)
+  if (o.help) printHelp()
   else main()
 } catch (err) {
   const e = err as { issues?: { path: (string | number)[]; message: string }[]; message: string }

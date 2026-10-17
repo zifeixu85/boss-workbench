@@ -13,8 +13,11 @@ import { join } from 'node:path'
 import { createInterface } from 'node:readline'
 import { APP_DIR } from '../db.ts'
 import { kbTree, readKb } from '../services/kb.ts'
+import { SERVER_MODULES } from '../modules.gen.ts'
 
-export const READ_COMMANDS = ['today', 'todos', 'events', 'projects', 'clients', 'client', 'receivables', 'modules', 'materials', 'care', 'biz', 'xhs', 'sources', 'biz-report', 'biz-anomalies', 'reminders'] as const
+const CORE_READ = ['today', 'todos', 'events', 'projects', 'clients', 'client', 'receivables', 'modules', 'materials', 'care', 'biz', 'xhs', 'sources', 'biz-report', 'biz-anomalies', 'reminders', 'jobs'] as const
+/** 能读的命令：核心的 + 装进来的模块在 module.json 里写明只读的（server/modules.gen.ts 的 read）。写的命令不开放给模块 */
+export const READ_COMMANDS: readonly string[] = [...CORE_READ, ...SERVER_MODULES.flatMap((m) => m.read ?? []).filter((c) => !(CORE_READ as readonly string[]).includes(c))]
 export const WRITE_COMMANDS = ['todo-add', 'todo-set', 'event-add', 'project-add', 'project-set', 'milestone-add', 'inbox', 'inbox-done', 'log', 'client-add', 'client-set', 'follow', 'stage', 'promise-add', 'promise-done', 'care-add', 'care-set', 'xhs-topics-add'] as const
 
 /** 工具清单。名字就是 Codex 里看到的 mcp__workbench__<名字> */

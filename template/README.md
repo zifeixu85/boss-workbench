@@ -116,13 +116,17 @@ node server/seed/index.ts --only biz # 只重灌一个模块（biz、content、d
 | 经营（汇总 + 每个渠道一页、经营早报、异常） | `/biz`、`/channel/<渠道>` | `src/features/biz` | `server/modules/biz` | `003_biz.sql`、`012_biz_reports.sql` |
 | 小红书内容中心（今天、内容、创作、数据、复盘） | `/content…` | `src/features/content` | `server/modules/content` | `004_content.sql`、`013_content_center*.sql` |
 | 数据源与导入（导入文件、对字段、导入记录、导入规则） | `/sources`、`/imports…` | `src/features/data` | `server/modules/data` | `005_data.sql`、`014_data_import*.sql` |
+| 公共：定时任务（模块登记“每天几点跑一次”，没赶上补跑，失败了隔 15 分钟再试） | 命令 `jobs`、`job-run`、`job-set` | — | `server/jobs/` | `020_定时任务.sql` |
+| 装进来的模块（Skill 的 `modules/<编号>/`，比如行业资讯 `news`） | 模块自己的地址；接口在 `/api/m/<编号>/` | 模块自己的 `src/features/<编号>` | `server/modules/<编号>`；清单 `server/modules.gen.ts` 等四份 | 模块自己的 `m-<编号>-*.sql` |
+
+**装模块**（2026-10-18）：做好的模块放在 Skill 的 `modules/` 里，在程序文件夹里运行 `node scripts/module.mjs list | add <编号> | update <编号> | remove <编号> | status`。装的时候把代码拷进程序、在 `modules.lock.json` 记下每个文件的指纹、生成四份清单（`shared/modules.gen.ts`、`server/modules.gen.ts`、`src/app/modules.nav.gen.ts`、`src/app/modules.routes.gen.tsx`，不要手改），打开模块开关、重新构建网页；工作台开着也不用重开，刷新页面就有。拿掉时代码和菜单拿掉，数据留着；装好后改过的文件挪进备份。模块包怎么写见 Skill 的 `modules/README.md`。
 
 - 菜单只有一个来源：`src/app/nav.ts`，分三层：分区（今日 / 客户 / 经营 / 内容 / 数据 / 资料；设置、组件规范从头像菜单进）→ 页面（可以分组）→ 页内 Tab，不嵌第四层。页面登记在 `src/app/router.tsx`。加模块 = `nav.ts` 加一项（写上 `section` 和 `module`）+ `router.tsx` 用 `gate('<id>', …)` 登记 + `shared/modules.ts` 登记模块 id。不用的模块用模块开关收起（`node server/cli.ts modules --off <id>`，或网页“设置 → 模块”）：菜单、手机底栏、搜索里都不出现，空了的分区自动不显示，代码和数据都留着，随时打开；不用改 `nav.ts`。外壳从 `src/app/nav-sections.ts` 的 `useNav()` 取菜单。细则见 `规范/导航与Tab.md`。
 - 数据库升级文件（`server/migrations/`）只加不改，程序打开数据库时自动执行没跑过的。
 - 改界面先读 `规范/README.md` 和另外 6 篇，对照网页里的“组件规范”页（`/design`）；加减模块按 Skill 里的 `references/加减模块.md`。
 - 外壳不删不换：导航、顶栏、设置页、AI 助手和基础版页面一直在，业务模块往里挂。`npm run doctor` 会跑 `scripts/shell-check.mjs`，外壳被拆了就报错。
 - 今日页顶上的重点卡（最多 3 张）按设置 `home` 排：`node server/cli.ts settings-set --home projects,inbox`（卡片 id 见 `shared/home.ts`）。
-- 检查：`npm run build`（网页）、`npm run lint`、`npm run check:server`（服务端严格类型检查）、`npm test`（提醒规则、开机自启、自动跟进待办、菜单、外壳、AI 助手）、`npm run doctor`（含外壳检查和本机 Codex 检查）。
+- 检查：`npm run build`（网页）、`npm run lint`、`npm run check:server`（服务端严格类型检查）、`npm test`（提醒规则、开机自启、自动跟进待办、菜单、外壳、AI 助手、定时任务、装模块）、`npm run doctor`（含外壳检查、装进来的模块和本机 Codex 检查）。
 
 ## 和示例数据（--demo）的关系
 

@@ -2,10 +2,13 @@
 // id 和搭建确认页的模块 id 一致（Skill 的 references/模块目录.md）；导航里每一项用 module 字段指向这里的 id。
 // 关掉只是“收起来”：代码和数据都留着，随时能打开。
 // 设置里存成一个 settings 键 modules（逗号隔开的 id）；没存过 = 全部打开（老数据库、演示模式照旧）。
-// 加一个新模块：在 MODULES 里加一项，再在 src/app/nav.ts 的菜单项上写 module。
+// 加一个新模块：有现成模块包的用 scripts/module.mjs add 装（2026-10-18，装进来的登记在 modules.gen.ts，排在知识库前面）；
+// 自己在程序里写的，在 CORE_MODULES 里加一项，再在 src/app/nav.ts 的菜单项上写 module。
 // 基础版（2026-10-15 A梦 定）：今日、待办与日程、项目、收件箱、知识库、设置每个工作台都有，有没有数据都在（没数据显示空状态和“新建”），
 // 所以都是 required，关不掉。客户与跟进是业务模块：老板确实在维护客户，才按他的做法加进来；
 // 经营、内容搭建时不放（2026-10-13、10-18 A梦 定），以后要用再作为模块加。
+
+import { INSTALLED_MODULES } from './modules.gen.ts'
 
 export type ModuleDef = {
   id: string
@@ -16,7 +19,7 @@ export type ModuleDef = {
   needs?: string[]
 }
 
-export const MODULES: ModuleDef[] = [
+const CORE_MODULES: ModuleDef[] = [
   { id: 'today', name: '今日', required: true },
   { id: 'tasks', name: '待办与日程', required: true },
   { id: 'projects', name: '项目', required: true },
@@ -31,7 +34,21 @@ export const MODULES: ModuleDef[] = [
   { id: 'design', name: '组件规范' },
 ]
 
-export const MODULE_IDS = MODULES.map((m) => m.id)
+/** 核心模块 + 装进来的模块（装进来的排在知识库前面；和核心重名的不算） */
+function withInstalled(installed: ModuleDef[]): ModuleDef[] {
+  const extra = installed.filter((m) => !CORE_MODULES.some((c) => c.id === m.id))
+  const at = CORE_MODULES.findIndex((m) => m.id === 'kb')
+  return [...CORE_MODULES.slice(0, at), ...extra, ...CORE_MODULES.slice(at)]
+}
+
+export let MODULES: ModuleDef[] = withInstalled(INSTALLED_MODULES)
+export let MODULE_IDS = MODULES.map((m) => m.id)
+
+/** 服务端开着时又装了模块（server/modules-live.ts 发现清单变了）：换成新的一份。网页这边按构建时的清单 */
+export function setInstalledModules(installed: ModuleDef[]) {
+  MODULES = withInstalled(installed)
+  MODULE_IDS = MODULES.map((m) => m.id)
+}
 export const moduleName = (id: string) => MODULES.find((m) => m.id === id)?.name ?? id
 
 /** 把“today, tasks、kb”这类写法拆成 id 列表（逗号、顿号、空格都行） */
