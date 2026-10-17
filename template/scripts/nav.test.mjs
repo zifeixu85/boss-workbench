@@ -113,9 +113,9 @@ test('手机底栏按分区亮：在分区里任何一页都亮这个分区的�
   assert.equal(activeTab(tabs, resolveNav('/kb')), undefined)
 })
 
-test('外壳：菜单都从 useNav 取（关掉的模块不出现）；复杂导航的铃铛不算“当前页”；图标栏每页一个图标，不靠悬停才看到子页面', () => {
+test('外壳：菜单都从 useNav 取（关掉的模块不出现）；复杂导航收起后只放一级菜单，分组悬停弹出子页面；双层导航的图标栏每页一个图标', () => {
   const read = (name) => readFileSync(new URL(`../src/app/${name}`, import.meta.url), 'utf8')
-  for (const name of ['ComplexShell.tsx', 'TopShell.tsx', 'SimpleShell.tsx', 'shell-parts.tsx']) {
+  for (const name of ['ComplexShell.tsx', 'DualShell.tsx', 'TopShell.tsx', 'SimpleShell.tsx', 'shell-parts.tsx']) {
     const code = read(name)
     assert.match(code, /useNav\(\)/, name)
     assert.doesNotMatch(code, /\b(TOP_SECTIONS|SECTIONS)\b/, name)
@@ -123,6 +123,10 @@ test('外壳：菜单都从 useNav 取（关掉的模块不出现）；复杂导
   }
   const complex = read('ComplexShell.tsx')
   assert.doesNotMatch(complex, /NavLink/)
-  assert.doesNotMatch(complex, /HoverCard/)
-  assert.match(complex, /g\.pages\.map/)
+  // A梦 2026-10-17：复杂导航收起后只显示一级菜单（不分组的页面、每个分组各一个图标），分组悬停弹出浮层选子页面，点图标进组里第一页
+  assert.match(complex, /HoverCard/)
+  assert.match(complex, /to=\{g\.pages\[0\]\.to\}/)
+  const dual = read('DualShell.tsx')
+  assert.doesNotMatch(dual, /HoverCard/)
+  assert.match(dual, /g\.pages\.map/)
 })

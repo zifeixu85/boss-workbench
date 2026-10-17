@@ -10,7 +10,7 @@ type Mode = Settings['nav_mode']
 
 const OPTIONS: { value: Mode; title: string; desc: string; ref: string; Preview: () => React.JSX.Element }[] = [
   { value: 'simple', title: '简单', desc: '一列菜单，按分区分段，所有模块一眼看全；子页面在页头切换。模块不多时最顺手。', ref: '模块少', Preview: SimplePreview },
-  { value: 'complex', title: '复杂', desc: '侧栏三级：分区小标题 › 可收起的分组 › 页面，所有模块都在一列里；可以收成图标栏（每页一个图标）。模块多了更好找。', ref: '模块多', Preview: ComplexPreview },
+  { value: 'complex', title: '复杂', desc: '侧栏三级：分区小标题 › 可收起的分组 › 页面，所有模块都在一列里；收起后只留一级菜单，鼠标移到分组上弹出子页面。模块多了更好找。', ref: '模块多', Preview: ComplexPreview },
   { value: 'dual', title: '双层', desc: '顶上是分区（今日、客户、经营、内容、数据、资料），带要处理的数；左边只列这个分区的页面，可以收成图标。', ref: '分区多', Preview: DualPreview },
   { value: 'top', title: '顶部导航', desc: '分区放在上方，点开下拉选页面；内容区更宽。适合常在大屏上看图表、表格。', ref: '宽屏', Preview: TopPreview },
 ]

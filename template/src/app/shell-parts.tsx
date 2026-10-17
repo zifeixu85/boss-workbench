@@ -153,7 +153,7 @@ export function SearchDialog({ open, onOpenChange }: { open: boolean; onOpenChan
   )
 }
 
-/** 设置入口：一个齿轮按钮，三种导航都放在看得见的地方（不只藏在头像菜单里） */
+/** 设置入口：一个齿轮按钮，四种导航都放在看得见的地方（不只藏在头像菜单里） */
 export function SettingsButton({ label }: { label?: boolean }) {
   const { pathname } = useLocation()
   const active = pathname.startsWith('/settings')

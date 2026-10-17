@@ -1,6 +1,6 @@
-// 3. 导航：三层各管一件事（分区 → 页面 → 页内 Tab）；电脑上 3 种布局、手机上 2 种，都画成示意图；以及导航规则
+// 3. 导航：三层各管一件事（分区 → 页面 → 页内 Tab）；电脑上 4 种布局、手机上 2 种，都画成示意图；以及导航规则（2026-10-17 改成四种）
 import type { ReactNode } from 'react'
-import { ChevronDown, Menu, Search } from 'lucide-react'
+import { ChevronDown, Menu, PanelLeftClose, Search } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Bar, Code, Rules, Section, Sub } from '../parts'
 
@@ -20,10 +20,10 @@ function Frame({ title, desc, fit, children, phone }: { title: string; desc: str
 /** 三层：每层一张卡，写清管什么、长什么样、在 nav.ts 里怎么写 */
 const LAYERS: { n: string; name: string; job: string; looks: ReactNode; how: ReactNode }[] = [
   { n: '1', name: '分区', job: '这是哪一摊事',
-    looks: '今日 / 客户 / 经营 / 内容 / 数据 / 资料。复杂导航在顶栏做页签（带要处理的数），顶部导航做下拉，简单导航做分段。设置、组件规范在“系统”，从头像菜单进。',
+    looks: '今日 / 客户 / 经营 / 内容 / 数据 / 资料。复杂导航在侧栏做小标题，双层在顶栏做页签（带要处理的数），顶部导航做下拉，简单导航做分段。设置、组件规范在“系统”，从头像菜单进。',
     how: <>每项写 <Code>section</Code>；一个分区的模块都拿掉了，分区自动不显示。</> },
   { n: '2', name: '页面', job: '去哪一页',
-    looks: '左栏只列当前分区的页面。页面多了分组：组名是不可点的小标题（经营里的“渠道”）；有子页面的模块，模块名就是组名。',
+    looks: '复杂导航的侧栏列全部页面，双层的左栏只列当前分区的页面。页面多了分组：经营里的“渠道”；有子页面的模块，模块名就是组名。复杂导航的组能收起，收起侧栏后一组一个图标、悬停选子页面。',
     how: <>分组写 <Code>sub</Code>，子页面写 <Code>children</Code>。地址不同就是不同页面。</> },
   { n: '3', name: '页内 Tab', job: '同一页换个看法',
     looks: '表格 / 看板、月 / 周 / 日、近 6 / 12 个月、按状态分类。一页最多一排。',
@@ -83,7 +83,31 @@ function SimpleLayout() {
   )
 }
 
+/** 复杂：侧栏三级（分区小标题 › 可收起的分组 › 页面）+ 窄顶栏（左边位置，右上角工具），左下角收起 */
 function ComplexLayout() {
+  return (
+    <div className="flex h-full">
+      <div className="flex w-[30%] flex-col gap-1.5 border-r bg-sidebar p-2">
+        <Logo />
+        <Label /><Bar className="w-3/5" /><Bar className="w-1/2 bg-primary/70" />
+        <Label /><span className="flex items-center gap-0.5"><ChevronDown className="size-2 text-muted-foreground" /><Bar className="w-1/2" /></span>
+        <Bar className="ml-2 w-1/2" /><Bar className="ml-2 w-2/5" />
+        <PanelLeftClose className="mt-auto size-2.5 text-muted-foreground" />
+      </div>
+      <div className="flex min-w-0 flex-1 flex-col">
+        <div className="flex h-5 shrink-0 items-center gap-1 border-b bg-card px-2">
+          <Bar className="h-1 w-5" /><Bar className="h-1 w-6 bg-foreground/35" />
+          <span className="ml-auto flex h-2.5 w-8 items-center rounded-full border bg-background px-0.5"><Search className="size-1.5 text-muted-foreground" /></span>
+          <span className="size-2.5 rounded-[3px] bg-primary/70" /><span className="size-2.5 rounded-full bg-accent" />
+        </div>
+        <Content />
+      </div>
+    </div>
+  )
+}
+
+/** 双层：顶栏分区页签 + 左栏当前分区 */
+function DualLayout() {
   return (
     <div className="flex h-full flex-col">
       <div className="flex h-6 shrink-0 items-center gap-1.5 border-b bg-card px-2">
@@ -149,15 +173,16 @@ function PhoneDrawer() {
 
 export function NavSection() {
   return (
-    <Section title="导航" desc="菜单只有一个来源：src/app/nav.ts。三层各管一件事：分区 → 页面 → 页内 Tab，不嵌第四层。三种电脑布局、两种手机布局都从它生成，老板在设置里随时切换，页面代码不用跟着改。">
-      <Sub title="三层各管一件事" desc="分组只是小标题，不能点，不算一层。位置只画一层：顶栏不画面包屑，页头上方的小字就是那一层。">
+    <Section title="导航" desc="菜单只有一个来源：src/app/nav.ts。三层各管一件事：分区 → 页面 → 页内 Tab，不嵌第四层。四种电脑布局、两种手机布局都从它生成，老板在设置里随时切换，页面代码不用跟着改。">
+      <Sub title="三层各管一件事" desc="分组不算一层（复杂导航里能收起，别的布局里是小标题）。位置只写一处：复杂导航写在窄顶栏左边（分区 › 分组 › 页面），页头上方不再重复分区名；其他布局页头上方的小字就是那一层。">
         <Layers />
       </Sub>
-      <Sub title="电脑：3 种布局">
-        <div className="grid gap-4 md:grid-cols-3">
-          <Frame title="复杂（默认）" desc="顶栏是分区页签，带这个分区要处理的数；左栏只列当前分区的分组和页面，可收成图标栏（每个页面一个图标，悬停或聚焦出名字）。" fit="模块多、每天来回切换。"><ComplexLayout /></Frame>
+      <Sub title="电脑：4 种布局">
+        <div className="grid gap-4 sm:grid-cols-2 2xl:grid-cols-4">
+          <Frame title="复杂（默认）" desc="侧栏三级：分区小标题 › 可收起的分组 › 页面。顶上一条窄顶栏，左边位置，右上角搜索、新建、设置、头像。左下角收起侧栏，收起后只留一级菜单，鼠标移到分组上弹出子页面。" fit="模块多、每天来回切换。"><ComplexLayout /></Frame>
+          <Frame title="双层" desc="顶栏是分区页签，带这个分区要处理的数；左栏只列当前分区的分组和页面，可收成图标栏（每页一个图标）。分区只有一页时不显示左栏，正文居中。" fit="分区多、喜欢顶上切分区。"><DualLayout /></Frame>
           <Frame title="简单" desc="一列菜单，按分区分段，只列模块；中等宽度只剩图标。子页面用页内的下划线 Tab（SubTabs）切换。" fit="模块不多（8 个以内）、刚开始用。"><SimpleLayout /></Frame>
-          <Frame title="顶部" desc="分区放在页面上方，点开下拉选页面（下拉里按分组排）；内容区居中，左右留白。" fit="喜欢宽屏看内容、模块不多。"><TopLayout /></Frame>
+          <Frame title="顶部" desc="分区放在页面上方，鼠标移上去就展开下拉（下拉里按分组排）；内容区居中，左右留白。" fit="喜欢宽屏看内容、模块不多。"><TopLayout /></Frame>
         </div>
       </Sub>
       <Sub title="手机：2 种">
@@ -169,9 +194,9 @@ export function NavSection() {
       <Rules title="导航规则" items={[
         <><b>三层各管一件事，不嵌第四层：</b>分区（哪一摊事）→ 页面（去哪一页）→ 页内 Tab（同一页换个看法）。分组小标题不能点；页面里不再放一排跳到别的页面的 Tab。</>,
         <><b>左侧导航有子页面时，页内不再放 Tab。</b>比如“客户与跟进”下面的客户列表 / 跟进看板 / 跟进清单，左栏里已经列出，页面里不再重复一排。</>,
-        <>简单导航只列模块，所以只有它会显示页内子页面 Tab：用 <Code>{'<SubTabs />'}</Code>，它在复杂 / 顶部导航里自动隐藏。</>,
+        <>简单导航只列模块，所以只有它会显示页内子页面 Tab：用 <Code>{'<SubTabs />'}</Code>，它在另外三种导航里自动隐藏。</>,
         <>加一个模块 = <Code>app/nav.ts</Code> 加一项（写上 <Code>section</Code>，有模块开关时再写 <Code>module</Code>）+ <Code>app/router.tsx</Code> 登记页面。外壳从 <Code>useNav()</Code>（<Code>app/nav-sections.ts</Code>）取菜单，不要在别处手写菜单，当前在哪一页一律用 <Code>resolveNav</Code> 算。</>,
-        <>菜单角标只放“要你处理”的数（逾期、该跟进），用 warn 色；单纯的数量用安静的灰色。分区页签上的数是分区里 warn 角标的合计。</>,
+        <>菜单角标只放“要你处理”的数（逾期、该跟进），用 warn 色；单纯的数量用安静的灰色。分区页签（双层）、收起后的分组图标上的数或圆点，是里面 warn 角标的合计。</>,
       ]} />
     </Section>
   )

@@ -1,6 +1,7 @@
 // 复杂导航（2026-10-17 改成侧栏三级，参照 A梦 自己的工作台）：侧栏列出全部分区（小标题）→ 二级分组（可收起）→ 页面。
 // 二级分组就是有子页面的模块（客户与跟进、小红书）或写了 sub 的一组（经营里的“渠道”）；当前页所在的组锁定展开，其余的收起状态存本机。
-// 侧栏可收起成图标栏：每个页面一个图标（分区之间一条细线），悬停或聚焦出“分区 › 页面”；触屏点一下直接进那一页，不靠悬停弹子菜单。
+// 侧栏可收起成图标栏（A梦 2026-10-17 定，和他自己的工作台一样）：只显示一级菜单——不分组的页面一个图标，分组（客户与跟进、渠道、小红书）一个图标；
+// 鼠标移到分组图标上弹出浮层选子页面，点图标进这一组的第一页（触屏也是）。分区之间一条细线。
 // 顶上一条窄顶栏（和 A梦 的工作台一样）：左边是位置（分区 › 分组 › 页面），右上角是工具（搜索、同步、今天要做、新建、设置、头像）；
 // 侧栏只放品牌和菜单；收起 / 展开的按钮在侧栏左下角（和 A梦 的工作台一样），收起后居中。
 // 顶栏写了位置，页头上方的分区名在电脑上就不再重复（components/page.tsx）。
@@ -10,6 +11,7 @@ import { Link, Outlet, useLocation } from 'react-router'
 import { Bell, ChevronRight, PanelLeftClose, PanelLeftOpen } from 'lucide-react'
 import { groupModule, pageBadge, resolveNav, sectionCount, type NavGroup, type NavPage, type NavSection } from './nav'
 import { useNav } from './nav-sections'
+import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/ui/hover-card'
 import { Brand, Badge, LiveDot, MobileMenuButton, MobileTabs, QuickCreate, SearchButton, SearchDialog, SettingsButton, UserMenu, sideItemCls, useHotkeys, useShellData } from './shell-parts'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { Button } from '@/components/ui/button'
@@ -73,7 +75,7 @@ function SectionBlock({ s, activeId, overview, shut, onToggle }: { s: NavSection
   )
 }
 
-/** 图标栏的一项：一个页面一个图标，悬停或聚焦出“分区 › 分组 › 页面”；触屏点一下直接进这一页 */
+/** 图标栏的一项：不分组的页面一个图标，悬停或聚焦出“分区 › 页面”；点一下直接进这一页 */
 function IconPage({ p, trail, active, overview }: { p: NavPage; trail: string; active: boolean; overview?: Overview }) {
   const n = p.item
   const badge = overview && (n.children?.length ? (p.to === n.to ? n.badge?.(overview) : undefined) : pageBadge(p, overview))
@@ -89,14 +91,41 @@ function IconPage({ p, trail, active, overview }: { p: NavPage; trail: string; a
   )
 }
 
-/** 图标栏的一个分区：分区里每页一个图标 */
+/** 图标栏的一个分组：一个图标；悬停弹出浮层选子页面（点了就收起），点图标进组里第一页 */
+function IconGroup({ g, s, activeId, overview }: { g: NavGroup; s: NavSection; activeId?: string; overview?: Overview }) {
+  const inside = g.pages.some((p) => p.id === activeId)
+  const module = groupModule(g)
+  const Icon = module?.icon ?? g.items[0]?.icon ?? s.icon
+  const pending = overview ? sectionCount(g.items, overview) : 0
+  const title = [s.label, g.label].filter((x, i, a) => x && a.indexOf(x) === i).join(' › ')
+  const [open, setOpen] = useState(false)
+  return (
+    <HoverCard open={open} onOpenChange={setOpen} openDelay={60} closeDelay={160}>
+      <HoverCardTrigger asChild>
+        <Link to={g.pages[0].to} aria-label={pending ? `${title}（${pending} 项要处理）` : title} aria-current={inside ? 'true' : undefined} className={sideItemCls(inside, 'justify-center px-0 py-1.5')}>
+          <Icon className="size-[18px]" />{pending > 0 && <span aria-hidden className="absolute top-1 right-2 size-1.5 rounded-full bg-warn" />}
+        </Link>
+      </HoverCardTrigger>
+      <HoverCardContent side="right" align="start" sideOffset={10} className="max-h-[70vh] w-52 overflow-y-auto p-1.5">
+        <div className="px-2 pt-0.5 pb-1 text-xs font-medium text-muted-foreground">{title}</div>
+        {g.pages.map((p) => (
+          <Link key={p.id} to={p.to} onClick={() => setOpen(false)} aria-current={p.id === activeId ? 'page' : undefined}
+            className={cn('flex items-center gap-2 rounded-md px-2 py-1.5 text-sm', p.id === activeId ? 'bg-accent font-medium text-accent-foreground' : 'hover:bg-muted')}>
+            <p.icon className="size-4 shrink-0 text-muted-foreground" /><span className="min-w-0 truncate">{p.label}</span><Badge n={pageBadge(p, overview)} tone={p.item.tone} />
+          </Link>
+        ))}
+      </HoverCardContent>
+    </HoverCard>
+  )
+}
+
+/** 图标栏的一个分区：只放一级菜单——不分组的页面各一个图标，每个分组一个图标 */
 function SectionIcons({ s, activeId, overview }: { s: NavSection; activeId?: string; overview?: Overview }) {
   return (
     <>
-      {s.groups.map((g) => g.pages.map((p) => {
-        const trail = [s.label, g.label, p.label].filter((x, i, a) => x && a.indexOf(x) === i).join(' › ')
-        return <IconPage key={p.id} p={p} trail={trail} active={p.id === activeId} overview={overview} />
-      }))}
+      {s.groups.map((g, i) => g.label
+        ? <IconGroup key={`g-${g.label}`} g={g} s={s} activeId={activeId} overview={overview} />
+        : g.pages.map((p) => <IconPage key={`${i}-${p.id}`} p={p} trail={[s.label, p.label].filter((x, j, a) => a.indexOf(x) === j).join(' › ')} active={p.id === activeId} overview={overview} />))}
     </>
   )
 }
