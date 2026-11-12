@@ -21,7 +21,7 @@ export function AgendaSide() {
   // 全天日程的 end 是“结束后的那一天”（end 写 5/13 = 实际到 5/12），所以那天不算（底座审查 #5）
   const list = monthEvents.filter((e) => e.start.slice(0, 10) <= day && (e.all_day && e.end ? e.end.slice(0, 10) > day : (e.end ?? e.start).slice(0, 10) >= day))
   return (
-    <div className="grid content-start gap-4 sm:grid-cols-2 xl:grid-cols-1">
+    <div className="grid min-w-0 content-start gap-4 sm:grid-cols-2 xl:grid-cols-1 [&>*]:min-w-0">
       <div className="rounded-xl border bg-card p-2 shadow-paper">
         <Calendar mode="single" locale={zhCN} weekStartsOn={1} today={now()} selected={new Date(`${day}T00:00:00`)} onSelect={(d) => d && setDay(toDateStr(d))}
           month={month} onMonthChange={setMonth} className="mx-auto"
@@ -32,10 +32,10 @@ export function AgendaSide() {
         {list.map((e) => {
           const c = EVENT_COLORS[e.kind] ?? EVENT_COLORS['内部']
           return (
-            <button key={e.id} onClick={() => ov.openDetail('event', e.id)} className="flex w-full items-start gap-3 rounded-lg px-3 py-2 text-left hover:bg-muted">
+            <button key={e.id} onClick={() => ov.openDetail('event', e.id)} className="flex w-full min-w-0 items-start gap-3 rounded-lg px-3 py-2 text-left hover:bg-muted">
               <span className="num w-11 shrink-0 pt-0.5 text-xs text-muted-foreground">{e.all_day ? '全天' : timeOf(e.start)}</span>
               <span className="mt-1 h-8 w-[3px] shrink-0 rounded-full" style={{ background: c.border }} />
-              <span className="min-w-0"><span className="block truncate text-sm font-medium">{e.title}</span><span className="block truncate text-xs text-muted-foreground">{[e.kind, e.client_name, e.location].filter(Boolean).join(' · ')}</span></span>
+              <span className="min-w-0 flex-1"><span className="line-clamp-2 block text-sm font-medium break-words">{e.title}</span><span className="block truncate text-xs text-muted-foreground">{[e.kind, e.client_name, e.location].filter(Boolean).join(' · ')}</span></span>
             </button>
           )
         })}

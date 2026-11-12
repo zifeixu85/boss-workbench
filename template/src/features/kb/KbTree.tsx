@@ -7,10 +7,12 @@ import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import { ancestorsOf, countFiles, filterTree, displayName } from './kb-utils'
+import { useIdentity } from '@/lib/identity'
 
 type TreeProps = { tree: KbNode[]; active: string | null; onOpen: (path: string) => void }
 
 export function KbTree({ tree, active, onOpen }: TreeProps) {
+  const kb = useIdentity().kb
   const [query, setQuery] = useState('')
   const [toggled, setToggled] = useState<Record<string, boolean>>({})
   const shown = useMemo(() => filterTree(tree, query), [tree, query])
@@ -28,12 +30,12 @@ export function KbTree({ tree, active, onOpen }: TreeProps) {
     <div className="min-w-0">
       <div className="relative">
         <Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
-        <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="按名字筛选，如 澜拓" aria-label="按名字筛选文件" className="pr-8 pl-8" />
+        <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="按文件名筛选" aria-label="按名字筛选文件" className="pr-8 pl-8" />
         {filtering && (
           <Button variant="ghost" size="icon-xs" className="absolute top-1/2 right-1.5 -translate-y-1/2" aria-label="清空筛选" onClick={() => setQuery('')}><X /></Button>
         )}
       </div>
-      <nav aria-label="知识库目录" className="mt-3">
+      <nav aria-label={`${kb}目录`} className="mt-3">
         {shown.length ? <NodeList nodes={shown} depth={0} ctx={ctx} /> : <p className="px-2 py-4 text-[13px] text-muted-foreground">没有名字里带“{query.trim()}”的文件</p>}
       </nav>
     </div>

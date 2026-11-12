@@ -4,7 +4,7 @@
 // 第二轮：取数失败显示“没取到 + 重试”、按钮先禁用；伙伴用简化版。
 // 第三轮（产品评审 #7 #9 #10 #22、README 线索 5）：标签行只留等级、大客户、城市（纯文字），不再重复阶段和描边标签；
 //   手机上露 4 格（联系人、阶段、下次跟进、上次联系），“展开”只收来源和累计消费，不再透出灰格；
-//   切到“概况”以外的页签，6 格收成一行摘要，正文往上提；“有新材料”只在蓝条里说一次；撞上门店停业的事标黄。
+//   切到“概况”以外的页签，6 格收成一行摘要，正文往上提；“有新材料”只在蓝条里说一次；撞上停业的事标黄。
 import { useState, type ReactNode } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router'
 import { CalendarClock, CalendarPlus, ChevronDown, ExternalLink, FileSearch, ListPlus, MessageSquarePlus, MoveRight, Pencil, TriangleAlert } from 'lucide-react'
@@ -179,7 +179,7 @@ export function ClientBody({ d }: { d?: ClientProfile }) {
             {d.clashes.map((x) => <span key={x.date + x.what} className="block">{shortDate(x.date)}“{x.what}”撞上{d.closure!.label}，{x.why}{x.also.length ? `（${[x.kind, ...x.also].join('、')}里都记着）` : ''}</span>)}
             <span className="block text-[12px] text-warn/80">改到复业以后，或者改去对方那里；改了在“往来和答应”里改日期</span>
           </span>
-          {d.closure.source && <SourceLink path={d.closure.source} label="门店改造" className="shrink-0" />}
+          {d.closure.source && <SourceLink path={d.closure.source} label="看停业安排" className="shrink-0" />}
         </div>
       )}
       <div className="mt-5"><ClientTabs d={d} /></div>

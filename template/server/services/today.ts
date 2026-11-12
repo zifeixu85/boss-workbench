@@ -17,6 +17,7 @@ import * as dataSources from '../modules/data/service.ts'
 import { readRemindSettings } from '../reminders/settings.ts'
 import { unreadCount } from '../reminders/store.ts'
 import { enabled as enabledModules } from './modules.ts'
+import { searchKb } from './kb.ts'
 import { homeFocus } from '../../shared/home.ts'
 
 const moduleErrors: { module: string; error: string }[] = []
@@ -130,6 +131,8 @@ export function getSettings() {
     owner: id.owner, business: s.business || '我的工作台',
     // 店名、小红书账号名（没设置时是中性说法，见 services/identity.ts）；xhs_name 是设置里存的原值，空着就是没设
     shop: id.shop, xhs: id.xhs, xhs_name: s.xhs_name ?? '',
+    // “知识库”这一页叫什么（kb 是算好的名字；kb_name 是设置里存的原值，空着就是没设）
+    kb: id.kb, kb_name: s.kb_name ?? '',
     today: today(), demo: demoDate() !== null,
     reminders: readRemindSettings(),
     // 打开着的模块（shared/modules.ts）；没设过 = 全部
@@ -144,10 +147,12 @@ export function saveSettings(input: unknown, actor: Actor) {
     if (value === undefined) continue
     // 小红书账号名写空 = 不单独设，跟着店名走
     if (key === 'xhs_name' && value === '') { run("DELETE FROM settings WHERE key = 'xhs_name'"); continue }
+    // “知识库”页的名字写空 = 改回“知识库”
+    if (key === 'kb_name' && value === '') { run("DELETE FROM settings WHERE key = 'kb_name'"); continue }
     run('INSERT INTO settings (key, value) VALUES (:key, :value) ON CONFLICT(key) DO UPDATE SET value = :value', { key, value })
   }
   const NAMES: Record<string, string> = {
-    nav_mode: '电脑导航', theme: '风格', mobile_nav: '手机导航', owner: '称呼', business: '工作台名称（店名）', xhs_name: '小红书账号名', home: '首页重点卡', assistant_on: 'AI 助手开关',
+    nav_mode: '电脑导航', theme: '风格', mobile_nav: '手机导航', owner: '称呼', business: '工作台名称（店名）', xhs_name: '小红书账号名', kb_name: '“知识库”页的名字', home: '首页重点卡', assistant_on: 'AI 助手开关',
     remind_on: '提醒开关', notify_at: '每天看汇总的时间', quiet_start: '免打扰时段', quiet_end: '免打扰时段', remind_demo_system: '演示时弹不弹系统通知',
   }
   const changed = [...new Set(Object.entries(data).filter(([, v]) => v !== undefined).map(([k]) => NAMES[k] ?? k))]
@@ -155,7 +160,22 @@ export function saveSettings(input: unknown, actor: Actor) {
   return getSettings()
 }
 
-/** 全局搜索：客户、项目、待办、日程、知识库文件名。搜索词里的 % 和 _ 按普通字符找（E5 修 #8） */
+/** 知识库那一组：文件名和正文都找（services/kb.ts 的 searchKb，和 AI 助手的 kb_search 同一套）；
+ *  “不读”的文件夹、工作台/ 快照、标“私密”的笔记不列。知识库读不了（没接知识库、权限不对）就不出这一组，不影响别的结果 */
+function searchKbHits(q: string) {
+  try {
+    // 命中的那一行去掉 Markdown 记号（链接只留名字、表格竖线换成 ·），README 显示成“某文件夹的说明”
+    const plain = (line: string) => line.replace(/\[\[([^\]|]+)\|?([^\]]*)\]\]/g, (_, p: string, n: string) => n || p.split('/').pop() || p)
+      .replace(/\[([^\]]*)\]\([^)]*\)/g, '$1').replace(/\s*\|\s*/g, ' · ').replace(/^[·\s]+|[·\s]+$/g, '').replace(/[*_`]/g, '')
+    return searchKb(q, { limit: 6, skipPrivate: true }).map((h) => {
+      const folder = h.path.split('/').slice(0, -1)
+      const title = /^README(-知识库)?$/.test(h.name) && folder.length ? `${folder[folder.length - 1]}的说明` : h.name
+      return { type: 'kb' as const, id: h.path, title, sub: h.line === '（文件名）' ? folder.join(' / ') : plain(h.line) }
+    })
+  } catch { return [] }
+}
+
+/** 全局搜索：客户、项目、待办、日程、知识库（文件名和正文）。搜索词里的 % 和 _ 按普通字符找（E5 修 #8） */
 export function search(q: string) {
   if (!q.trim()) return []
   const like = `%${escapeLike(q.trim())}%`
@@ -166,5 +186,6 @@ export function search(q: string) {
     ...all(`SELECT 'project' AS type, id, name AS title, stage AS sub FROM projects WHERE ${L('name')} LIMIT 4`, { l: like }),
     ...all(`SELECT 'todo' AS type, id, title, status AS sub FROM todos WHERE ${L('title')} LIMIT 4`, { l: like }),
     ...all(`SELECT 'event' AS type, id, title, substr(start,1,16) AS sub FROM events WHERE ${L('title')} LIMIT 4`, { l: like }),
+    ...searchKbHits(q),
   ]
 }

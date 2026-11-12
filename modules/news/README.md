@@ -2,6 +2,8 @@
 
 每天 08:30 取一份 AIHOT 日报（只存标题、链接和一句总结），在工作台“资料 › 行业资讯”里看：一句话总结、标题里有你关注词的几条、按类的标题和链接。今天的没取到就如实写“今天没取到”，下面放最近一期。
 
+页面最下面有“自动运行记录”：它自己几点跑的、是定时还是补跑、成没成、为什么没成。点“现在去取”是手动取，不记在那里。
+
 这是第二天上午课上那个模块的参考答案：学员照 `需求文档.md` 从零做；没做出来的，装上它保底，再接着改。
 
 ## 装、改、拿掉
@@ -13,6 +15,7 @@ node scripts/module.mjs add news          # 装：拷代码、打开模块开关
 node server/cli.ts news-fetch              # 现在去取一次（--file 样例.xml 读离线样例）
 node server/cli.ts news-set --keywords "客服，补贴"   # 关注的词
 node server/cli.ts job-set news.daily --at 09:00     # 改每天几点取
+node server/cli.ts job-set news.daily --once 12:07   # 今天 12:07 再自动跑一次（当场看一次自动触发；要比现在晚，工作台要开着）
 node scripts/module.mjs remove news       # 拿掉：代码和菜单拿掉，数据留着
 ```
 

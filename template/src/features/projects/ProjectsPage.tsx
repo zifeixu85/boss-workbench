@@ -161,7 +161,7 @@ export default function ProjectsPage() {
         {view === 'cards' && going.length > 0 && <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">{going.map((p) => <ProjectTile key={p.id} p={p} />)}</div>}
         {view === 'list' && going.length > 0 && <ProjectList rows={going} />}
         {view === 'timeline' && going.map((p) => <ProjectCard key={p.id} p={p} />)}
-        {!isLoading && !going.length && <EmptyNote>还没有进行中的项目。新品上市、春节预售、门店改造这种要好几步推进的事，建成项目来跟。</EmptyNote>}
+        {!isLoading && !going.length && <EmptyNote>还没有进行中的项目。新品上市、春节预售、办一场活动这种要好几步推进的事，建成项目来跟。</EmptyNote>}
       </PageBody>
     </>
   )

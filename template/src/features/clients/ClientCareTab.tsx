@@ -35,8 +35,8 @@ export function ClientCareTab({ d }: { d: ClientProfile }) {
           <CodexDraftButton clientId={c.id} occasion={next ? next.label : open.length ? '问候一声' : '好久没联系，问候一声'} date={next?.next ?? null} />
         </div>
         {open.length ? <div className="grid gap-3">{open.map((x) => <CareDraftCard key={x.id} care={x} clientName={c.name} kbPath={d.kb_note.path} />)}</div>
-          : <EmptyNote>还没有关怀草稿。点右上角“让 Codex 写一版”，它会读这位客户的档案和《大客户关怀》的做法来写；也可以去“关怀与回访”页看这个月该关心谁。</EmptyNote>}
-        <p className="mt-2 text-[12px] text-muted-foreground">话都是草稿，{owner}自己改、自己发；送什么、怎么说照知识库《大客户关怀》的规矩，送礼的消息里不提单子。</p>
+          : <EmptyNote>还没有关怀草稿。点右上角“让 Codex 写一版”，它会读这位客户的档案和知识库里关怀的做法来写；也可以去“关怀与回访”页看这个月该关心谁。</EmptyNote>}
+        <p className="mt-2 text-[12px] text-muted-foreground">话都是草稿，{owner}自己改、自己发；送什么、怎么说照知识库里关怀的做法。</p>
       </section>
 
       {past.length > 0 && (

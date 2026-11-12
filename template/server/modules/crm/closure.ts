@@ -1,33 +1,50 @@
-// 门店停业撞日子（第三轮修 README 线索 5）：门店改造 11/3 起停业约 10 天，约在门店见面、品鉴、留包间的事落在这几天就标黄。归属：大客户模块。
-// 停业区间不写死：读“门店改造”项目的里程碑（“开始施工，停业…” → 停业第一天，“恢复营业” → 前一天是最后一天）；
-// 读不到里程碑再看项目下标题带“停业”的日程。只核对，不改任何东西。
-import { all, get } from '../../db.ts'
-import { addDays } from '../../services/common.ts'
+// 停业撞日子：店里停业（装修、搬家、放假）的那几天，约在店里见面、品鉴、留包间的事落进去就标黄。归属：大客户模块。
+// 停业区间不写死、也不认项目名：在所有项目的里程碑里找“停业 / 暂停营业 / 闭店 / 歇业”（“通知…停业”这种不算）作停业第一天，
+// 同一个项目里“恢复营业 / 复业 / 重新开业”的前一天是最后一天；里程碑里没有，再看标题带“停业”这类字的日程。
+// 一个都没有就是 null，所有撞日子的核对都跳过。只核对，不改任何东西。
+import { all } from '../../db.ts'
+import { addDays, today } from '../../services/common.ts'
 
 export type Closure = { from: string; to: string; label: string; source: string | null }
 export type Clash = { what: string; date: string; kind: '答应的事' | '重要日子' | '日程' | '下次跟进'; why: string; also: string[] }
 
 const md = (d: string) => `${Number(d.slice(5, 7))}/${Number(d.slice(8, 10))}`
-/** 说的是在门店办的事（见面、品鉴、喝茶、留包间） */
+/** 说的是在店里办的事（见面、品鉴、喝茶、留包间） */
 export const AT_STORE = /门店|到店|来店|店里|品鉴|包间|喝茶|喝喝茶|茶空间/
 /** 说的就是停业这件事本身（通知停业、停业期间送到办公室），不算撞 */
 const ABOUT_CLOSURE = /停业|装修|改造|复业|重新开/
+const SHUT = /停业|暂停营业|闭店|歇业/
+/** 说停业这件事、但那天不停业的：“通知会员停业时间”“停业前最后一场品茶会” */
+const SHUT_NOTICE = /通知|告诉|提醒|公告|停业前|停业后|闭店前/
+const REOPEN = /恢复营业|复业|重新开业|重新开门/
 
-export function storeClosure(): Closure | null {
-  const p = get<{ id: string; name: string; kb_path: string | null }>("SELECT id, name, kb_path FROM projects WHERE kb_path = '06-项目/门店改造.md' OR name LIKE '%门店改造%' LIMIT 1")
-  if (!p) return null
-  const ms = all<{ date: string; title: string }>('SELECT date, title FROM project_milestones WHERE project_id = :id ORDER BY date', { id: p.id })
-  const start = ms.find((m) => /停业/.test(m.title) && !/通知|告诉/.test(m.title))?.date // “开始施工，停业约 10 天”；“通知会员停业时间”不算
-  const reopen = ms.find((m) => /恢复营业|复业/.test(m.title))?.date
-  let from = start ?? null
-  let to = start && reopen && reopen > start ? addDays(reopen, -1) : null
-  if (!from || !to) {
-    const e = get<{ start: string; end: string | null }>("SELECT start, end FROM events WHERE project_id = :id AND title LIKE '%停业%' ORDER BY start LIMIT 1", { id: p.id })
-    if (!e) return null
-    from = e.start.slice(0, 10)
-    to = e.end ? addDays(e.end.slice(0, 10), e.end.length > 10 ? 0 : -1) : addDays(from, 9)
+/** 从项目里程碑、日程里认出停业区间；优先还没结束的那次，都结束了用最近的一次 */
+export function storeClosure(t = today()): Closure | null {
+  const found: Closure[] = []
+  const ms = all<{ project_id: string; name: string; kb_path: string | null; date: string; title: string }>(
+    'SELECT m.project_id, p.name, p.kb_path, m.date, m.title FROM project_milestones m JOIN projects p ON p.id = m.project_id ORDER BY m.date')
+  for (const pid of [...new Set(ms.map((m) => m.project_id))]) {
+    const mine = ms.filter((m) => m.project_id === pid)
+    const start = mine.find((m) => SHUT.test(m.title) && !SHUT_NOTICE.test(m.title))
+    if (!start) continue
+    const reopen = mine.find((m) => REOPEN.test(m.title) && m.date > start.date)
+    const ev = reopen ? null : all<{ title: string; end: string | null }>("SELECT title, end FROM events WHERE project_id = :id AND (title LIKE '%停业%' OR title LIKE '%闭店%' OR title LIKE '%歇业%') ORDER BY start", { id: pid })
+      .find((e) => !SHUT_NOTICE.test(e.title))
+    const to = reopen ? addDays(reopen.date, -1) : ev?.end ? addDays(ev.end.slice(0, 10), ev.end.length > 10 ? 0 : -1) : null
+    if (!to) continue
+    found.push({ from: start.date, to, label: `${start.name}停业（${md(start.date)}—${md(to)}）`, source: start.kb_path })
   }
-  return { from, to, label: `门店改造停业（${md(from)}—${md(to)}）`, source: p.kb_path }
+  if (!found.length) {
+    const evs = all<{ title: string; start: string; end: string | null; name: string | null; kb_path: string | null }>(
+      "SELECT e.title, e.start, e.end, p.name, p.kb_path FROM events e LEFT JOIN projects p ON p.id = e.project_id WHERE e.title LIKE '%停业%' OR e.title LIKE '%闭店%' OR e.title LIKE '%歇业%' ORDER BY e.start")
+    for (const e of evs.filter((x) => !SHUT_NOTICE.test(x.title))) {
+      const from = e.start.slice(0, 10)
+      const to = e.end ? addDays(e.end.slice(0, 10), e.end.length > 10 ? 0 : -1) : addDays(from, 9)
+      found.push({ from, to, label: `${e.name ?? ''}停业（${md(from)}—${md(to)}）`, source: e.kb_path })
+    }
+  }
+  if (!found.length) return null
+  return found.filter((c) => c.to >= t).sort((a, b) => a.from.localeCompare(b.from))[0] ?? found.sort((a, b) => b.to.localeCompare(a.to))[0]
 }
 
 const inside = (c: Closure, date: string | null | undefined) => !!date && date.slice(0, 10) >= c.from && date.slice(0, 10) <= c.to
@@ -39,7 +56,7 @@ export function clashes(clientId?: string, c: Closure | null = storeClosure()): 
   if (!c) return out
   const add = (cid: string, x: Clash) => out.set(cid, [...(out.get(cid) ?? []), x])
   const where = clientId ? 'AND client_id = :cid' : ''
-  const why = '那天门店不开'
+  const why = '那天店里不开'
   for (const p of all<{ client_id: string; text: string; due: string | null }>(`SELECT client_id, text, due FROM client_promises WHERE status = '待兑现' ${where}`, { cid: clientId ?? '' })) {
     if (inside(c, p.due) && atStore(p.text)) add(p.client_id, { kind: '答应的事', what: p.text, date: p.due!, why, also: [] })
   }
@@ -64,7 +81,7 @@ export function clashes(clientId?: string, c: Closure | null = storeClosure()): 
   return out
 }
 
-/** 材料里说“下周 / 这周 / 某天来门店、留包间”，换成日子范围（按材料的日期算） */
+/** 材料里说“下周 / 这周 / 某天来店里、留包间”，换成日子范围（按材料的日期算） */
 export function storeVisitRange(text: string, materialDate: string): { from: string; to: string; quote: string } | null {
   const line = text.split(/\n|[。！？]/).find((l) => atStore(l) && /下周|这周|本周|周[一二三四五六日天]|\d{1,2}\s*[号日]|明天|后天/.test(l))
   if (!line) return null

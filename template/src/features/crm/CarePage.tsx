@@ -1,5 +1,5 @@
 // 关怀与回访：未来 30 天的生日、纪念日、节日（立冬）和太久没联系的人，每人一条建议（送什么、怎么说）；右边是春节要提前问的老客户。归属：大客户模块
-// 第二轮：每张卡只留三个按钮，“谁写的”单独一行不截断；老板的规矩从知识库《大客户关怀》读（读不到只留看原文）。
+// 第二轮：每张卡只留三个按钮，“谁写的”单独一行不截断；老板的规矩从知识库里关怀的做法读（按方法选择表找；读不到就说还没有）。
 // 第三轮（产品评审 #11 #12、数据评审 #7）：类型用中性灰标签、4—6 个字，下一行不再重复；依据拆成“口味 / 送礼对象 / 习惯”几小块、各带出处；
 //   约好的日子已经过了的单独一组、写“已过 X 天”（青砚原定 10/20 联系）；右栏春节名单改成“去年买了什么 + 右边一个状态小标签”。
 import { useSearchParams } from 'react-router'
@@ -52,7 +52,7 @@ export default function CarePage() {
           <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
             <Stat label="这 30 天要关心" value={pick('todo').length} unit="位" hint={`已发出 ${pick('sent').length} 条`} />
             <Stat label="生日和纪念日" value={count('生日') + count('纪念日')} unit="个" hint={items.filter((x) => x.kinds.includes('生日') || x.kinds.includes('纪念日')).map((x) => x.client_name).join('、') || '这个月没有'} />
-            <Stat label="立冬 11月7日" value={count('立冬')} unit="位老茶客" hint="天冷了，喝点暖的" />
+            {count('立冬') > 0 && <Stat label="立冬 11月7日" value={count('立冬')} unit="位老茶客" hint="天冷了，喝点暖的" />}
             <Stat label="太久没联系" value={count('久未联系')} unit="位" tone={count('久未联系') ? 'warn' : undefined} hint="大客户 30 天、其他 60 天没联系" />
           </div>
           <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_360px]">
@@ -68,7 +68,7 @@ export default function CarePage() {
               ))}
             </div>
             <aside className="grid content-start gap-5">
-              <SpringPanel spring={data.spring} />
+              {data.spring.clients.length > 0 && <SpringPanel spring={data.spring} />}
               <RulesPanel rules={data.rules} />
             </aside>
           </div>
@@ -122,12 +122,12 @@ function CareRow({ x }: { x: CareItem }) {
   )
 }
 
-/** 老板的关怀规矩：从知识库《大客户关怀》读原话；读不到就只给原文链接 */
+/** 老板的关怀规矩：从知识库里关怀的做法读原话；还没有就说一句 */
 function RulesPanel({ rules }: { rules: CareRules }) {
   const { owner } = useIdentity()
   return (
     <Panel title={<span className="flex items-center gap-1.5"><Leaf className="size-4 text-primary" />{owner}的规矩</span>}
-      desc={rules.found ? `${owner}的原话，摘自知识库《大客户关怀》${rules.confirm ? `（${rules.confirm}）` : ''}；知识库改了这里跟着变` : '知识库里没读到《大客户关怀》'} bodyClass="px-5 py-4">
+      desc={rules.found ? `${owner}的原话，摘自知识库《${(rules.file ?? '').split('/').pop()?.replace(/\.md$/, '')}》${rules.confirm ? `（${rules.confirm}）` : ''}；知识库改了这里跟着变` : '知识库里还没有关怀的做法，下面的建议按通用的写法套的'} bodyClass="px-5 py-4">
       {rules.found && rules.rules.length > 0 && (
         <ul className="grid gap-2 text-[13px] leading-relaxed">
           {rules.rules.map((r) => <li key={r} className="flex gap-1.5"><span className="text-muted-foreground">“</span><span className="min-w-0">{r}<span className="text-muted-foreground">”</span></span></li>)}
@@ -139,7 +139,7 @@ function RulesPanel({ rules }: { rules: CareRules }) {
           <ul className="grid gap-1 text-[12.5px] text-muted-foreground">{rules.donts.slice(0, 4).map((r) => <li key={r}>· {r}</li>)}</ul>
         </div>
       )}
-      <SourceLink path={rules.file} label={`看原文：${rules.file}`} className="mt-3" />
+      {rules.file && <SourceLink path={rules.file} label={`看原文：${rules.file}`} className="mt-3" />}
     </Panel>
   )
 }

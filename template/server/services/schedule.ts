@@ -1,6 +1,6 @@
 // 日程与待办
 import { all, get, run, uid, nowIso, logChange, params } from '../db.ts'
-import { eventInput, todoInput } from '../../shared/schema.ts'
+import { eventInput, todoInput, SYNCED_EVENT_SOURCE, SYNCED_EVENT_READONLY } from '../../shared/schema.ts'
 import { type Actor, NotFound, BadRequest, today, setClause, onlyGiven } from './common.ts'
 
 const EVENT_SQL = `SELECT e.*, c.name AS client_name, p.name AS project_name FROM events e
@@ -39,8 +39,14 @@ export function createEvent(input: unknown, actor: Actor) {
   return getEvent(id)
 }
 
+/** 从老板自己的日历同步来的（server/calendar/）只读：工作台不改、不删，下次同步会照日历重写 */
+function assertEditable(row: { source?: unknown }) {
+  if (row.source === SYNCED_EVENT_SOURCE) throw new BadRequest(SYNCED_EVENT_READONLY)
+}
+
 export function updateEvent(id: string, input: unknown, actor: Actor) {
-  const before = getEvent(id) as { title: string }
+  const before = getEvent(id) as { title: string; source: string }
+  assertEditable(before)
   const patch = onlyGiven(eventInput.partial().parse(input), input)
   if (!Object.keys(patch).length) throw new BadRequest('没有要修改的字段')
   run(`UPDATE events SET ${setClause(patch)}, updated_at = :at WHERE id = :id`, params({ ...patch, at: nowIso(), id }))
@@ -49,7 +55,8 @@ export function updateEvent(id: string, input: unknown, actor: Actor) {
 }
 
 export function deleteEvent(id: string, actor: Actor) {
-  const before = getEvent(id) as { title: string }
+  const before = getEvent(id) as { title: string; source: string }
+  assertEditable(before)
   run('DELETE FROM events WHERE id = :id', { id })
   logChange(actor, 'event', id, '删除', `删除日程「${before.title}」`)
   return { id }

@@ -36,7 +36,7 @@ export function NewTodoDialog({ onClose, forId, date, text }: Props) {
     (d) => api.post('/todos', d), '已新增待办', onClose)
   return (
     <FormDialog open onClose={onClose} title="新建待办" desc="要做的一件具体的事。关联客户后，会出现在客户详情和跟进清单里。" onSubmit={f.onSubmit} submitting={f.pending}>
-      <FormField label="要做什么" error={f.errors.title}><TextInput autoFocus value={f.v.title} onChange={(e) => f.set('title')(e.target.value)} placeholder="例如：给衡言出两款升级包装效果图" /></FormField>
+      <FormField label="要做什么" error={f.errors.title}><TextInput autoFocus value={f.v.title} onChange={(e) => f.set('title')(e.target.value)} placeholder="例如：周五前把报价单发给客户" /></FormField>
       <div className="grid grid-cols-2 gap-3">
         <FormField label="优先级"><Choice value={f.v.priority} onChange={(x) => f.set('priority')(x ?? '普通')} options={TODO_PRIORITY} /></FormField>
         <FormField label="状态"><Choice value={f.v.status} onChange={(x) => f.set('status')(x ?? '待办')} options={TODO_STATUS.filter((s) => s !== '取消')} /></FormField>
@@ -50,7 +50,7 @@ export function NewTodoDialog({ onClose, forId, date, text }: Props) {
         <FormField label="关联客户"><ClientChoice value={f.v.client_id} onChange={f.set('client_id')} /></FormField>
         <FormField label="关联项目"><ProjectChoice value={f.v.project_id} onChange={f.set('project_id')} /></FormField>
       </div>
-      <FormField label="谁做" hint="空着 = 你自己；团队里谁做写名字；在等对方写“对方”"><TextInput value={f.v.owner ?? ''} onChange={(e) => f.set('owner')(e.target.value)} placeholder="例如：小艾" /></FormField>
+      <FormField label="谁做" hint="空着 = 你自己；团队里谁做写名字；在等对方写“对方”"><TextInput value={f.v.owner ?? ''} onChange={(e) => f.set('owner')(e.target.value)} placeholder="例如：团队里谁的名字" /></FormField>
       <FormField label="备注"><TextArea value={f.v.note ?? ''} onChange={(e) => f.set('note')(e.target.value)} /></FormField>
     </FormDialog>
   )
@@ -88,11 +88,11 @@ export function NewClientDialog({ onClose }: Props) {
   return (
     <FormDialog wide open onClose={onClose} title="新建客户" desc="先填称呼就能保存，其余可以以后补。长期背景（这个人在意什么）写进知识库的客户笔记。" onSubmit={f.onSubmit} submitting={f.pending}>
       <div className="grid gap-3 sm:grid-cols-2">
-        <FormField label="称呼" error={f.errors.name}><TextInput autoFocus value={f.v.name} onChange={(e) => f.set('name')(e.target.value)} placeholder="澜拓科技 / 许国平" /></FormField>
+        <FormField label="称呼" error={f.errors.name}><TextInput autoFocus value={f.v.name} onChange={(e) => f.set('name')(e.target.value)} placeholder="公司名或人名" /></FormField>
         <FormField label="补充说明"><TextInput value={f.v.label ?? ''} onChange={(e) => f.set('label')(e.target.value)} placeholder="约 300 人 · 员工礼" /></FormField>
         <FormField label="类型"><Choice value={f.v.kind} onChange={(x) => f.set('kind')(x ?? '客户')} options={['客户', '伙伴']} /></FormField>
         <FormField label="阶段"><Choice value={f.v.stage} onChange={(x) => f.set('stage')(x ?? '新线索')} options={CLIENT_STAGES} /></FormField>
-        <FormField label="来源"><TextInput value={f.v.source ?? ''} onChange={(e) => f.set('source')(e.target.value)} placeholder="小红书 / 茶博会 / 老客户介绍" /></FormField>
+        <FormField label="来源"><TextInput value={f.v.source ?? ''} onChange={(e) => f.set('source')(e.target.value)} placeholder="小红书 / 展会 / 老客户介绍" /></FormField>
         <FormField label="预算"><MoneyInput value={f.v.budget as number | null} onChange={f.set('budget')} /></FormField>
         <FormField label="电话"><TextInput value={f.v.phone ?? ''} onChange={(e) => f.set('phone')(e.target.value)} /></FormField>
         <FormField label="下次跟进"><DatePicker value={f.v.next_follow as string | null} onChange={f.set('next_follow')} /></FormField>
@@ -123,7 +123,7 @@ function EditClientForm({ c, onClose }: { c: Client; onClose: () => void }) {
         <FormField label="预算"><MoneyInput value={f.v.budget as number | null} onChange={f.set('budget')} /></FormField>
         <FormField label="标签" hint="用逗号分开"><TextInput value={(f.v.tags as string[]).join('，')} onChange={(e) => f.set('tags')(e.target.value.split(/[,，]/).map((x) => x.trim()).filter(Boolean))} /></FormField>
       </div>
-      <FormField label="背景笔记位置" hint="知识库里这位客户的长期背景，例如 04-客户/企业客户/澜拓科技.md"><TextInput value={f.v.kb_path ?? ''} onChange={(e) => f.set('kb_path')(e.target.value)} /></FormField>
+      <FormField label="背景笔记位置" hint="知识库里这位客户的长期背景，例如 04-客户/某某公司.md"><TextInput value={f.v.kb_path ?? ''} onChange={(e) => f.set('kb_path')(e.target.value)} /></FormField>
       <FormField label="备注"><TextArea value={f.v.note ?? ''} onChange={(e) => f.set('note')(e.target.value)} /></FormField>
     </FormDialog>
   )
@@ -210,7 +210,7 @@ export function NewProjectDialog({ onClose, forId }: Props) {
   const f = useForm(projectInput, { name: '', client_id: forId ?? null, stage: '筹备', contract: null, next_step: '', waiting_on: '', due: null, risk: '', owner: '', goal: '' },
     (d) => api.post('/projects', d), '已新建项目', onClose)
   return (
-    <FormDialog open onClose={onClose} title="新建项目" desc="一件要多步推进的事，比如新品上市、春节预售、门店改造。里程碑在项目详情里加。" onSubmit={f.onSubmit} submitting={f.pending}>
+    <FormDialog open onClose={onClose} title="新建项目" desc="一件要多步推进的事，比如新品上市、春节预售、办一场活动。里程碑在项目详情里加。" onSubmit={f.onSubmit} submitting={f.pending}>
       <FormField label="项目名称" error={f.errors.name}><TextInput autoFocus value={f.v.name} onChange={(e) => f.set('name')(e.target.value)} /></FormField>
       <div className="grid grid-cols-2 gap-3">
         <FormField label="客户"><ClientChoice value={f.v.client_id} onChange={f.set('client_id')} /></FormField>
@@ -218,7 +218,7 @@ export function NewProjectDialog({ onClose, forId }: Props) {
         <FormField label="合同额"><MoneyInput value={f.v.contract as number | null} onChange={f.set('contract')} /></FormField>
         <FormField label="截止"><DatePicker value={f.v.due as string | null} onChange={f.set('due')} /></FormField>
       </div>
-      <FormField label="负责人"><TextInput value={f.v.owner ?? ''} onChange={(e) => f.set('owner')(e.target.value)} placeholder="宋姐" /></FormField>
+      <FormField label="负责人"><TextInput value={f.v.owner ?? ''} onChange={(e) => f.set('owner')(e.target.value)} placeholder="谁负责" /></FormField>
       <FormField label="想达到的结果"><TextArea value={f.v.goal ?? ''} onChange={(e) => f.set('goal')(e.target.value)} placeholder="11 月底前改造完，预算 6 万" /></FormField>
       <FormField label="下一步"><TextInput value={f.v.next_step ?? ''} onChange={(e) => f.set('next_step')(e.target.value)} /></FormField>
       <FormField label="在等谁"><TextInput value={f.v.waiting_on ?? ''} onChange={(e) => f.set('waiting_on')(e.target.value)} /></FormField>

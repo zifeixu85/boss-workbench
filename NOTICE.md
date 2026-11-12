@@ -17,4 +17,4 @@ Copyright 2026 A梦（https://ameng.blog）
 
 ## 第三方组件
 
-工作台模板（`template/`）里的界面组件（`src/components/ui/`）由 shadcn/ui 生成，按 MIT License 使用（Copyright (c) 2023 shadcn）。模板通过 npm 引用的依赖（React、Radix UI、FullCalendar 的免费插件、Recharts、Hono 等）各按其自身许可使用，见各依赖包自带的 LICENSE。
+工作台模板（`template/`）里的界面组件（`src/components/ui/`）由 shadcn/ui 生成，按 MIT License 使用（Copyright (c) 2023 shadcn）。模板通过 npm 引用的依赖（React、Radix UI、FullCalendar 的免费插件、Recharts、Hono、读日历订阅链接用的 ical.js〔MPL-2.0，原样引用、未修改〕等）各按其自身许可使用，见各依赖包自带的 LICENSE。

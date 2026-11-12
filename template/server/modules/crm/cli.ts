@@ -22,7 +22,7 @@ export const isCrmCommand = (argv: string[]) => CRM_COMMANDS.includes(argv[0] ??
 
 const HELP = `大客户模块的命令（在知识库根目录运行 node 工作台/程序/server/cli.ts <命令>）：
   stage <客户> <新阶段> --reason "为什么改"      改阶段，留新旧值和原因。“考虑一下”不算往前走
-      例：stage 衡言律师事务所 待签约 --reason "11/2 合伙人开会定了，陈静说下周签"
+      例：stage 某某公司 待签约 --reason "对方开会定了，说下周签"
   client-set <客户> --stage <新阶段> --reason "…"  同上（client-set 改阶段也要写原因）
   follow <客户> <日期|none> [--step "那天做什么"] [--reason "…"]   改下次跟进（今天或以后），自动建 / 改 / 取消跟进待办
   promise-done <答应的事ID> --reason "怎么做到的"

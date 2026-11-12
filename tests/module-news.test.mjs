@@ -33,7 +33,7 @@ test('装上行业资讯：读样例、命令行、定时任务、AI 助手能�
 
   const add = tool('add', 'news', '--from', PACK, '--no-build')
   assert.equal(add.code, 0, add.out)
-  assert.match(add.out, /装好了：行业资讯 0\.1\.0/)
+  assert.match(add.out, /装好了：行业资讯 0\.2\.0/)
   assert.match(cli('modules').out, /开着 {2}行业资讯（news）/, '装完模块开关是开着的')
 
   const fetched = cli('news-fetch', '--file', join(PACK, 'tests', 'fixture-daily.xml'))

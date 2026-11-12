@@ -34,7 +34,7 @@ export function QuickAdd() {
         rows={3}
         maxLength={MAX_TEXT}
         aria-label="随手记内容"
-        placeholder="想到什么写什么，比如：宋姐问停业那几天会员卡要不要顺延"
+        placeholder="想到什么写什么，比如：周五前问一下那份合同改好没有"
         className="min-h-20 resize-none border-0 bg-transparent shadow-none focus-visible:ring-0 dark:bg-transparent"
       />
       <div className="flex items-center justify-end gap-2 px-1.5 pt-1">

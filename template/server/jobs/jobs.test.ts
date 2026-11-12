@@ -9,7 +9,7 @@ const dir = mkdtempSync(join(os.tmpdir(), 'wb-jobs-'))
 process.env.WORKBENCH_ROOT = dir
 process.env.WORKBENCH_DB = join(dir, 'workbench.db')
 process.env.DEMO_TODAY = 'off'
-const { dueTrigger, runJob, setJob, atOf, isOff } = await import('./service.ts')
+const { dueTrigger, runJob, setJob, atOf, isOff, onceOf, setOnce, runsSince } = await import('./service.ts')
 const { all, open } = await import('../db.ts')
 open()
 
@@ -75,4 +75,60 @@ test('归属的模块收起来了就不跑', async () => {
   setModules(['today', 'tasks', 'projects', 'inbox', 'kb', 'settings'], '网页')
   assert.equal(dueTrigger({ ...job, id: 'test.other', module: 'clients' }, t('10:00', '2030-03-11')), null)
   assert.equal(dueTrigger({ ...job, id: 'test.other2' }, t('10:00', '2030-03-11')), '补跑')
+})
+
+test('今天再自动跑一次（--once）：当天成功过也照样到点跑，跑过一次就不再跑；只管当天', async () => {
+  const day = '2030-03-20'
+  fail = false
+  await runJob(job, '定时', t('09:16', day)) // 当天的每日任务已经成功（上一条测试把时间改成了 09:15）
+  assert.equal(dueTrigger(job, t('11:00', day)), null)
+  setOnce(job.id, '12:07', t('11:30', day))
+  assert.deepEqual(onceOf(job, t('11:31', day)), { day, at: '12:07', done: false, pending: true })
+  assert.equal(dueTrigger(job, t('12:06', day)), null, '没到点')
+  // 任务停着也不跑：先打开
+  const { run } = await import('../db.ts')
+  run("DELETE FROM settings WHERE key = 'job_off:test.daily'")
+  assert.equal(dueTrigger(job, t('12:07', day)), '单次')
+  const before = calls
+  const r = await runJob(job, '单次', t('12:07', day))
+  assert.equal(r.ok, true)
+  assert.equal(calls, before + 1)
+  assert.equal(dueTrigger(job, t('12:20', day)), null, '这一次跑过了')
+  assert.equal(onceOf(job, t('12:20', day))?.done, true)
+  assert.equal(onceOf(job, t('12:20', '2030-03-21')), null, '第二天不算')
+  assert.equal(runsSince(job.id, t('12:07', day)).length, 1)
+})
+
+test('--once 的时间：写错格式、已经过了的都不收；none 取消', () => {
+  const day = '2030-03-22'
+  assert.throws(() => setOnce(job.id, '25:00', t('10:00', day)), /HH:MM/)
+  assert.throws(() => setOnce(job.id, '09:00', t('10:00', day)), /已经过了/)
+  setOnce(job.id, '10:30', t('10:00', day))
+  assert.equal(onceOf(job, t('10:01', day))?.at, '10:30')
+  setOnce(job.id, 'none', t('10:02', day))
+  assert.equal(onceOf(job, t('10:03', day)), null)
+})
+
+test('“单次”和每天那一次分开算：单次成功不占每天那一次；单次连败 3 次也不挡每天那一次；手动跑的不算单次', async () => {
+  const day = '2030-03-25' // 每天 09:15（前面的测试改过）
+  fail = false
+  setOnce(job.id, '08:00', t('07:00', day))
+  await runJob(job, '手动', t('08:01', day)) // 手动跑成功：不算单次
+  assert.equal(onceOf(job, t('08:02', day))?.done, false)
+  // 手动成功算当天每天那一次已经跑过（原来的规矩）；换一天测“单次不占每天那一次”
+  const d2 = '2030-03-26'
+  setOnce(job.id, '08:00', t('07:00', d2))
+  assert.equal(dueTrigger(job, t('08:00', d2)), '单次')
+  await runJob(job, '单次', t('08:00', d2))
+  assert.equal(dueTrigger(job, t('09:16', d2)), '定时', '单次成功以后，每天那一次照常跑')
+  const d3 = '2030-03-27'
+  fail = true
+  setOnce(job.id, '08:00', t('07:00', d3))
+  await runJob(job, '单次', t('08:00', d3))
+  await runJob(job, '单次', t('08:16', d3))
+  await runJob(job, '单次', t('08:32', d3))
+  assert.equal(onceOf(job, t('08:50', d3))?.pending, false, '试满 3 次就不再试，也不再提示')
+  assert.equal(dueTrigger(job, t('08:50', d3)), null)
+  fail = false
+  assert.equal(dueTrigger(job, t('09:16', d3)), '定时', '单次连败 3 次，每天那一次照常跑')
 })

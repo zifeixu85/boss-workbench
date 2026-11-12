@@ -13,6 +13,7 @@ import { markInterrupted } from './assistant/service.ts'
 import { errorResponse } from './module-kit.ts'
 import { moduleApi, refreshModules } from './modules-live.ts'
 import { startJobs } from './jobs/service.ts'
+import { startCalendarSync } from './calendar/service.ts'
 
 const PORT = Number(process.env.PORT || 4517) // 默认 4517；被占用时启动加 PORT=4527 这样换一个
 const HOST = '127.0.0.1'
@@ -130,6 +131,8 @@ const server = serve({ fetch: app.fetch, port: PORT, hostname: HOST }, () => {
   })
   // 定时任务：模块登记的“每天几点跑一次”，没赶上的补跑（jobs/service.ts）
   startJobs((r) => broadcast({ reason: 'job', job: r.id, ok: r.ok }))
+  // 日历同步：启动时一次、之后每 10 分钟，从老板自己的日历只读拉未来两周（calendar/service.ts）
+  startCalendarSync(() => broadcast({ reason: 'calendar' }))
 })
 // 端口被占了（多半是工作台已经开着一个）：说清楚，正常退出。开机自启（Mac 登录项服务）按“出错才重启”配置，这样不会反复重启
 server.on('error', (err: NodeJS.ErrnoException) => {

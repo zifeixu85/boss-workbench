@@ -26,6 +26,7 @@ import { today, addDays, dayOf } from './services/common.ts'
 import { now as clockNow } from './clock.ts'
 import { REMIND_HELP, isRemindCommand, runRemindCli } from './reminders/cli.ts'
 import { JOBS_HELP, isJobCommand, runJobsCli } from './jobs/cli.ts'
+import { CALENDAR_HELP, isCalendarCommand, runCalendarCli } from './calendar/cli.ts'
 import { SERVER_MODULES } from './modules.gen.ts'
 
 const ACTOR = 'Codex' as const
@@ -37,14 +38,14 @@ const HELP = `用法：node 工作台/程序/server/cli.ts <命令> [参数] [--
   xhs                                小红书：今天发什么、今天的选题、近两周排期
   sources                            数据源状态（哪个没导进来、哪个超时）
   clients                            客户列表
-  client <客户>                      某个客户的全部信息（客户可写名字，如 澜拓科技、许国平）
+  client <客户>                      某个客户的全部信息（客户可写公司名，也可写联系人的名字）
   todos                              未完成的待办
   events [--from 日期] [--to 日期]    日程（默认今天起 7 天）
   projects                           项目和风险
   receivables                        应收款
 写入（进内容先拆再问：材料里的待办问清谁做、哪天前，答应的事、进展、里程碑都拆开写；一张清单确认后可以用 apply 一次写入）
   log <客户> <内容> [--date 日期] [--channel 微信] [--step 下一步] [--next 下次跟进日期]
-    例：log 澜拓科技 "电话聊了春节茶礼，人数下周给（待确认）" --next 2026-11-03 --step "出两版春节方案"
+    例：log 星禾科技 "电话聊了年底礼品，人数下周给（待确认）" --next 2026-11-03 --step "出两版方案"
   client-add <称呼> [--label 补充说明] [--stage 阶段] [--source 来源] [--next 下次跟进] [--kb 知识库里的客户文件] [--note 备注]
   project-add <名称> [--stage 筹备|进行中|收尾|已完成|暂停] [--due 截止] [--owner 负责人] [--goal 想达到什么] [--step 下一步]
               [--client 客户] [--kb 06-项目/某项目.md] [--milestone "2026-11-05 四平台上线" …（可写多个）]
@@ -64,6 +65,7 @@ const HELP = `用法：node 工作台/程序/server/cli.ts <命令> [参数] [--
   apply <清单.json> [--yes]          一张清单一次写入：不加 --yes 是预演（照样检查，什么都不留）；加 --yes 才写。中间哪步不行，整张都不写
                                      清单格式见 server/services/apply.ts 开头
   settings-set [--owner 称呼] [--business 店名或工作台名称] [--xhs 小红书账号名] [--theme jade|wood|navy|mono|night] [--nav simple|complex|dual|top]
+               [--kb-name 资料]                 “知识库”这一页在菜单和页面上叫什么；--kb-name "" 改回“知识库”
                [--modules clients,biz|all] [--home projects,inbox,clients]
                                      改设置（搭建时按知识库写老板的称呼、店名、小红书账号名、配色、导航）
                                      --modules 只打开这几个模块（基础版：今日、待办与日程、项目、收件箱、知识库、设置一定开着；打开经营或内容会自动带上数据源与导入）；all = 全部打开
@@ -73,6 +75,8 @@ const HELP = `用法：node 工作台/程序/server/cli.ts <命令> [参数] [--
   snapshot                           导出只读快照到 工作台/快照/
   backup                             改功能、换数据前先备份数据库：存到数据库旁边的 备份/workbench-日期时间.db
 ${REMIND_HELP}
+
+${CALENDAR_HELP}
 
 ${JOBS_HELP}
 大客户（客户详情加深，E5）
@@ -98,6 +102,11 @@ ${JOBS_HELP}
   import <文件.csv> --yes             导入（先 import-check 给老板看，确认后再加 --yes）；import-undo <批次ID> --yes 撤销
   import-rules / import-runs / import-samples   导入规则 / 导入记录 / 示例数据（clear、restore 清掉或恢复）
 规则：听不准的人名、金额先问老板，或在内容里标“（待确认）”；不要替老板编造金额和结论。`
+
+// 日历来源的命令（calendar- 开头）交给 calendar/cli.ts（公共，2026-10-27）
+if (isCalendarCommand(process.argv.slice(2))) {
+  try { process.exit(await runCalendarCli(process.argv.slice(2))) } catch (err) { console.error(`没办成：${(err as Error).message}`); process.exit(1) }
+}
 
 // 定时任务的命令（jobs、job- 开头）交给 jobs/cli.ts（公共，2026-10-18）
 if (isJobCommand(process.argv.slice(2))) {
@@ -150,7 +159,7 @@ function parseCli() {
         label: { type: 'string' }, source: { type: 'string' }, help: { type: 'boolean', short: 'h' },
         file: { type: 'string' }, by: { type: 'string' }, home: { type: 'string' },
         kb: { type: 'string' }, owner: { type: 'string' }, goal: { type: 'string' }, milestone: { type: 'string', multiple: true },
-        project: { type: 'string' }, business: { type: 'string' }, theme: { type: 'string' }, nav: { type: 'string' }, xhs: { type: 'string' },
+        project: { type: 'string' }, business: { type: 'string' }, theme: { type: 'string' }, nav: { type: 'string' }, xhs: { type: 'string' }, 'kb-name': { type: 'string' },
         time: { type: 'string' }, in: { type: 'string' }, modules: { type: 'string' }, on: { type: 'string' }, off: { type: 'string' },
         why: { type: 'string' }, suggest: { type: 'string' }, result: { type: 'string' }, waiting: { type: 'string' }, yes: { type: 'boolean' },
       },
@@ -321,7 +330,7 @@ function main() {
       return print(r, `已放进收件箱${o.why ? '（带上了判断）' : ''}`)
     }
     case 'inbox-done': {
-      if (!o.result) throw new Error('要写 --result：这条处理成什么了（比如“已拆进云杉物流的往来和待办”）')
+      if (!o.result) throw new Error('要写 --result：这条处理成什么了（比如“已拆进这个客户的往来和待办”）')
       return print(home.doneInbox(a1, o.result, ACTOR), `收件箱这条处理完了：${o.result}`)
     }
     case 'promise-add': {
@@ -355,13 +364,13 @@ function main() {
       // 搭建时把老板的称呼、店名（也是工作台名称）、小红书账号名、配色、导航写进设置（网页“设置”页同一套规则）。
       // 称呼、店名、账号名会用在网页文案、给 Codex 的提示词和小红书手机预览里；--xhs "" 清掉账号名，改用店名
       // --modules：只打开确认页里选中的模块（模块开关，见 shared/modules.ts）
-      if (![o.owner, o.business, o.xhs, o.theme, o.nav, o.modules, o.home].some((v) => v !== undefined)) throw new Error('要写改什么：--owner、--business、--xhs、--theme、--nav、--modules 或 --home')
+      if (![o.owner, o.business, o.xhs, o.theme, o.nav, o.modules, o.home, o['kb-name']].some((v) => v !== undefined)) throw new Error('要写改什么：--owner、--business、--xhs、--kb-name、--theme、--nav、--modules 或 --home')
       if (o.home !== undefined) { const h = checkHome(o.home); if (h.unknown.length) throw new Error(`首页没有这几张卡：${h.unknown.join('、')}（能用的：projects、inbox、clients、sales、xhs）`) }
       const m = o.modules !== undefined ? modules.setModules(o.modules.trim() === 'all' ? 'all' : o.modules, ACTOR) : null
-      const rest = [o.owner, o.business, o.xhs, o.theme, o.nav, o.home].some((v) => v !== undefined)
-      const r = rest ? home.saveSettings({ owner: o.owner, business: o.business, xhs_name: o.xhs, theme: o.theme, nav_mode: o.nav, home: o.home }, ACTOR) : home.getSettings()
+      const rest = [o.owner, o.business, o.xhs, o.theme, o.nav, o.home, o['kb-name']].some((v) => v !== undefined)
+      const r = rest ? home.saveSettings({ owner: o.owner, business: o.business, xhs_name: o.xhs, kb_name: o['kb-name'], theme: o.theme, nav_mode: o.nav, home: o.home }, ACTOR) : home.getSettings()
       const mText = m ? `\n${moduleText(m)}${m.added.length ? `\n（自动带上：${m.added.join('、')}）` : ''}` : ''
-      return print({ ...r, modules_detail: m }, `已改设置：称呼 ${r.owner}，店名 / 工作台 ${r.business}，小红书账号 ${r.xhs}${r.xhs_name ? '' : '（跟店名）'}，配色 ${r.theme}，导航 ${r.nav_mode}${mText}`)
+      return print({ ...r, modules_detail: m }, `已改设置：称呼 ${r.owner}，店名 / 工作台 ${r.business}，小红书账号 ${r.xhs}${r.xhs_name ? '' : '（跟店名）'}${r.kb_name ? `，“知识库”页叫“${r.kb}”` : ''}，配色 ${r.theme}，导航 ${r.nav_mode}${mText}`)
     }
     case 'modules': {
       const split = (v?: string) => (v ? v.split(/[\s,，、]+/).map((x) => x.trim()).filter(Boolean) : [])

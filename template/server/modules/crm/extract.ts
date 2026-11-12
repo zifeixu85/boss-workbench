@@ -1,7 +1,8 @@
 import { readKbTextFile as readFileSync, canReadKbPath } from '../../services/kb.ts'
 // 新材料提取：从知识库收件箱选一份（或粘贴），交给本机 Codex 提取“你答应的、对方的状态、顾虑、怎么定（谁拍板、哪天定）、下一步”。归属：大客户模块。
 // 真接 Codex（codex exec，工作目录是知识库根目录、只读、不读用户配置、按 JSON 格式回答），150 秒没做完就停，如实说。
-// Codex 回来后，工作台再按《判断规则》核对一遍价格（rules.ts）；和规则对不上的标黄，等老板定。
+// Codex 回来后，工作台再按知识库的判断规则和标价表核对一遍价格（rules.ts）；和规则对不上的标黄，等老板定。
+// 规则和标价表在哪按 05-方法与判断 的“方法选择表”找（services/kb-methods.ts）；知识库里还没有的，跳过那项核对、在提示词里如实说。
 // 写入、撤销在 extract-write.ts；预先跑好的备用结果在 prepared.ts。
 // 第二轮：提示词瘦身（客户档案只给要用的几节、规则和价格只给表格），超时放宽到 150 秒；显示前规整文字（tidy.ts）；
 //         结果里带上这位客户在谈的商机（金额要不要改由老板定）和还没发的关怀草稿（新材料让它过时了，可以顺手“不做”）。
@@ -16,7 +17,8 @@ import { findClientNote } from '../../services/kb.ts'
 import { assistantOf, identity } from '../../services/identity.ts'
 import { runCodex, findCodex } from './codex.ts'
 import { guessClient, readInbox } from './materials.ts'
-import { checkClosure, checkPromises, checkVisit, precheck, PRICE_FILE, RULE_FILE, type Conflict } from './rules.ts'
+import { checkClosure, checkPromises, checkVisit, precheck, samePriceConflict, type Conflict } from './rules.ts'
+import { methodFiles } from '../../services/kb-methods.ts'
 import { storeClosure } from './closure.ts'
 import { extractStart } from './schema.ts'
 import { tidy } from './tidy.ts'
@@ -72,6 +74,11 @@ function sections(md: string, keep: (title: string) => boolean) {
   return strip(md).split(/\n(?=## )/).filter((sec) => !sec.startsWith('## ') || keep(sec.split('\n')[0])).join('\n').trim()
 }
 
+/** 标价表只给有表格的几节（标价、套餐、下单规矩这类），去掉来源 */
+function priceSections(md: string) {
+  return strip(md).split(/\n(?=## )/).filter((sec) => !/^## .*来源/.test(sec) && (!sec.startsWith('## ') || /^\|/m.test(sec))).join('\n').trim()
+}
+
 export function buildPrompt(material: string, sourceLabel: string, clientId: string | null) {
   const t = today()
   let who = ''
@@ -84,12 +91,13 @@ export function buildPrompt(material: string, sourceLabel: string, clientId: str
     const clients = all<{ name: string; contact_name: string | null }>("SELECT name, contact_name FROM clients WHERE kind = '客户' ORDER BY key_account DESC, name")
     who = `## 工作台里的客户（名称｜联系人）——材料里没写是谁，对得上才填，对不上就说不知道\n${clients.map((c) => `${c.name}｜${c.contact_name ?? ''}`).join('\n')}`
   }
-  const rules = sections(readKb(RULE_FILE), (h) => !/来源|还没成规则/.test(h)).slice(0, 2200)
+  const files = methodFiles()
+  const rules = files.rules ? sections(readKb(files.rules), (h) => !/来源|还没成规则/.test(h)).slice(0, 2200) : ''
   const shut = storeClosure()
-  const price = sections(readKb(PRICE_FILE), (h) => /四款礼盒|下单规矩/.test(h)).slice(0, 1800)
+  const price = files.price ? priceSections(readKb(files.price)).slice(0, 1800) : ''
   const me = identity()
   return `${assistantOf(me)}。从下面这份新材料里，提取客户跟进要记的东西。今天是 ${t}。
-当前目录是${me.owner}的知识库（只读，不要改任何文件）。要用的档案、规则、价格下面都附上了，不用再去读别的文件，直接回答。
+当前目录是${me.owner}的知识库（只读，不要改任何文件）。要用的档案、规则、价格下面都附上了（知识库里还没有的会写明），不用再去读别的文件，直接回答。
 
 规矩：
 1. 只写材料里有的。不知道的写空字符串，不编。
@@ -97,11 +105,11 @@ export function buildPrompt(material: string, sourceLabel: string, clientId: str
    其他文字里的日期写成“10月28日”“1月10日”这样，不写 2026-10-28；数字和中文之间空一格（“约 80 份”“每份 300 以内”）。
 3. “我先考虑一下”“再看看”“可能”不算成交，也不算对方答应。照实写进 their_status，not_decided 填 true。
 4. my_promises 只写${me.owner}（或我们这边的人）亲口答应对方的事：谁答应、答应谁、答应什么、哪天前；text 里不要再写日期（日期放 due）；quote 抄原话。对方的要求不算我们答应。
-5. ${me.owner}答应的价格、交期、赠品，和下面《判断规则》对不上的，在那条 promise 的 conflict 写为什么对不上、rule 写规则编号和一句话；同时写进 conflicts。规则标“待确认”的也照样对照，但要说它是待确认的。
+5. ${me.owner}答应的价格、交期、赠品，和下面的判断规则、标价对不上的，在那条 promise 的 conflict 写为什么对不上、rule 写规则编号和一句话；同时写进 conflicts。规则标“待确认”的也照样对照，但要说它是待确认的。下面写着“还没有”的，那项不对照，conflict 留空。
 6. 说话人或客户对不上号的，client.sure 填 false，why 写为什么，name 留空，不要硬猜。
 7. facts 只记以后关怀、做方案用得上的：口味、包装、送礼对象、禁忌、顾虑、习惯、生日、重要日子（年会、开会定的日子）。不记手机号、住址。
 8. next_steps 只写我们这边下一步要做、有日子的事（2—3 条），不要把答应的事再抄一遍；next_follow 写建议哪天再联系、为什么。${shut ? `
-   门店 ${shut.from} 到 ${shut.to} 停业装修（${shut.source ?? '06-项目/门店改造.md'}）：约在门店见面、品鉴、喝茶、留包间的日子落在这几天的，写进 conflicts（rule 写“门店改造停业”），不要约在这几天。` : ''}
+   ${shut.from} 到 ${shut.to} 店里停业（${shut.label}${shut.source ? `，${shut.source}` : ''}）：约在店里见面、品鉴、喝茶、留包间的日子落在这几天的，写进 conflicts（rule 写“${shut.label}”），不要约在这几天。` : ''}
 9. deal_size：对方这次说的份数和每份价格（或上限），只写数字；没说写空字符串；why 一句话说依据。
 10. 用中文，短句，像${me.owner}自己记的笔记。只回 JSON。
 
@@ -110,11 +118,11 @@ ${material.slice(0, 8000)}
 
 ${who}
 
-## 判断规则（${RULE_FILE}）
-${rules}
+## 判断规则（${files.rules ?? '知识库里还没有报价规则'}）
+${rules || '还没有。这项不对照。'}
 
-## 礼盒和价格（${PRICE_FILE}）
-${price}
+## 标价和下单规矩（${files.price ?? '知识库里还没有标价表'}）
+${price || '还没有。这项不对照。'}
 `
 }
 
@@ -158,7 +166,13 @@ export function startExtraction(input: unknown, actor: Actor) {
   const prompt = buildPrompt(raw, path ?? `${identity().owner}粘贴的文字`, guess.client_id)
   running.add(id)
   const t0 = Date.now()
-  steps.set(id, [{ s: 0, text: `工作台把材料、${guess.client_id ? '这位客户的档案' : '客户名单（材料里没写是谁）'}、判断规则和礼盒价格交给 Codex` }])
+  const kb = methodFiles()
+  const given = [kb.rules ? '判断规则' : null, kb.price ? '标价表' : null].filter(Boolean).join('和')
+  const missing = [kb.rules ? null : '报价规则', kb.price ? null : '标价表'].filter(Boolean).join('、')
+  steps.set(id, [
+    { s: 0, text: `工作台把材料、${guess.client_id ? '这位客户的档案' : '客户名单（材料里没写是谁）'}${given ? `、${given}` : ''}交给 Codex` },
+    ...(missing ? [{ s: 0, text: `知识库里还没有${missing}，先跳过核对` }] : []),
+  ])
   const onProgress = (text: string) => steps.set(id, [...(steps.get(id) ?? []), { s: Math.round((Date.now() - t0) / 1000), text }])
   const job = runCodex({ prompt, schema: SCHEMA, cwd: ROOT, timeoutMs: EXTRACT_TIMEOUT_MS, onProgress }).then((r) => {
     running.delete(id)
@@ -230,7 +244,7 @@ export function getExtraction(id: string) {
   const client = clientId ? get<{ id: string; name: string; contact_name: string | null; next_follow: string | null; next_step: string | null; stage: string; kb_path: string | null }>('SELECT * FROM clients WHERE id = :id', { id: clientId }) ?? null : null
   const isNew = clientId ? !get("SELECT 1 FROM orders WHERE client_id = :id AND status = '已完成' AND amount > 0", { id: clientId }) : true
   const local = result ? checkPromises(result.my_promises, r.raw_text, isNew) : []
-  // 第三轮（README 线索 5）：答应的事落在门店停业那几天、又是在门店办的，也标黄；材料里对方说“下周来门店”撞上停业也标
+  // 答应的事落在停业那几天、又是在店里办的，也标黄；材料里对方说“下周来店里”撞上停业也标（没有停业的项目就不核对）
   const shut = storeClosure()
   const closed = result ? checkClosure(result.my_promises, shut) : []
   const materialDate = (result && /^\d{4}-\d{2}-\d{2}$/.test(result.date) ? result.date : null) ?? r.source_path?.split('/').pop()?.match(/^\d{4}-\d{2}-\d{2}/)?.[0] ?? null
@@ -244,7 +258,7 @@ export function getExtraction(id: string) {
   for (const m of [...local, ...closed, visit]) {
     if (!m) continue
     const store = /停业/.test(m.rule)
-    const same = conflicts.find((c) => (store ? /停业|装修|门店/.test(`${c.rule}${c.why}${c.about}`) : /规则\s*2|单价不降/.test(`${c.rule}${c.why}`)))
+    const same = conflicts.find((c) => (store ? /停业|装修|门店|闭店|歇业/.test(`${c.rule}${c.why}${c.about}`) : samePriceConflict(c, m)))
     if (same) same.by = [...new Set([...same.by, '工作台核对'])]
     else conflicts.push(m)
   }

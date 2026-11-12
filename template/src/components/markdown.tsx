@@ -3,14 +3,7 @@ import ReactMarkdown from 'react-markdown'
 import { Link } from 'react-router'
 import remarkGfm from 'remark-gfm'
 import { cn } from '@/lib/utils'
-
-/** 去掉开头的 --- frontmatter，单独显示成键值 */
-export function splitFrontmatter(md: string) {
-  const m = md.match(/^---\n([\s\S]*?)\n---\n?/)
-  if (!m) return { meta: [] as [string, string][], body: md }
-  const meta = m[1].split('\n').map((l) => l.split(/:\s?(.*)/s).slice(0, 2) as [string, string]).filter(([k]) => k.trim())
-  return { meta, body: md.slice(m[0].length) }
-}
+import { metaLabels, splitFrontmatter, type MetaLabel } from '@shared/frontmatter'
 
 /** 把知识库里的相对 .md 链接解析成知识库路径，例如 ../客户/澜拓科技.md → 生意/客户/澜拓科技.md */
 function resolveKb(href: string, basePath?: string) {
@@ -24,13 +17,10 @@ function resolveKb(href: string, basePath?: string) {
 
 export function Markdown({ source, className, basePath }: { source: string; className?: string; basePath?: string }) {
   const { meta, body } = splitFrontmatter(source)
+  const labels = metaLabels(meta)
   return (
     <div className={cn('text-[14.5px] leading-7', className)}>
-      {meta.length > 0 && (
-        <dl className="mb-4 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 rounded-lg bg-muted px-4 py-3 text-[13px]">
-          {meta.map(([k, v]) => <div key={k} className="contents"><dt className="text-muted-foreground">{k}</dt><dd>{v || '—'}</dd></div>)}
-        </dl>
-      )}
+      {labels.length > 0 && <MetaRow labels={labels} />}
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         components={{
@@ -54,6 +44,39 @@ export function Markdown({ source, className, basePath }: { source: string; clas
       >
         {body}
       </ReactMarkdown>
+    </div>
+  )
+}
+
+const TONE: Record<string, string> = {
+  已确认: 'border-ok/30 bg-ok-soft text-ok',
+  待确认: 'border-warn/30 bg-warn-soft text-warn',
+  已过期: 'bg-muted text-muted-foreground',
+  私密: 'border-danger/30 bg-danger-soft text-danger',
+  可公开: 'border-info/30 bg-info-soft text-info',
+}
+
+/** 文件开头那几行换成一小排标签：已确认 / 待确认 / 已过期、私密 / 可公开、来源（能打开的来源点了就去那份）。其余的键不显示 */
+function MetaRow({ labels }: { labels: MetaLabel[] }) {
+  return (
+    <div className="mb-4 flex flex-wrap items-center gap-x-2 gap-y-1.5 text-[12.5px] leading-5">
+      {labels.map((l) => l.kind === 'source' ? (
+        <span key="source" className="min-w-0 text-muted-foreground">
+          来源：{l.paths.map((p, i) => {
+            const name = (p.split('/').pop() ?? p).replace(/\.md$/, '')
+            return (
+              <span key={p}>
+                {i > 0 && '、'}
+                {p.endsWith('.md') && !p.startsWith('..') && !/^[a-z]+:/i.test(p)
+                  ? <Link className="underline decoration-muted-foreground/40 underline-offset-2 hover:text-foreground" title={p} to={`/kb?path=${encodeURIComponent(p)}`}>{name}</Link>
+                  : <span title={p}>{name}</span>}
+              </span>
+            )
+          })}
+        </span>
+      ) : (
+        <span key={l.kind} className={cn('inline-flex h-5 items-center rounded-md border border-transparent px-1.5 font-medium', TONE[l.text])}>{l.text}</span>
+      ))}
     </div>
   )
 }

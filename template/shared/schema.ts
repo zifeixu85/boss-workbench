@@ -18,6 +18,12 @@ export const DEAL_STAGES = ['需求确认', '方案中', '报价中', '待签约
 export const PROJECT_STAGES = ['筹备', '进行中', '收尾', '已完成', '暂停'] as const
 export const MILESTONE_STATUS = ['未开始', '进行中', '完成', '延期'] as const
 export const EVENT_KINDS = ['会面', '品鉴', '送货', '内部', '个人'] as const
+/** 从老板自己的日历（Mac 日历 / 飞书日历 / 订阅链接）同步来的日程：只读，类型固定是“日历”，不在新建表单里给人选（server/calendar/，迁移 021） */
+export const SYNCED_EVENT_SOURCE = '日历同步'
+export const SYNCED_EVENT_KIND = '日历'
+export const SYNCED_EVENT_READONLY = '这条来自你的日历，请在日历里改'
+export const CALENDAR_SOURCES = ['off', 'mac', 'lark', 'ics'] as const
+export type CalendarSource = (typeof CALENDAR_SOURCES)[number]
 export const TODO_STATUS = ['待办', '进行中', '等别人', '完成', '取消'] as const
 export const TODO_PRIORITY = ['紧急', '重要', '普通'] as const
 export const CHANNELS = ['微信', '电话', '面谈', '到店', '邮件', '其他'] as const
@@ -150,6 +156,8 @@ export const settingsInput = z.object({
   business: z.string().trim().max(40).optional(),
   /** 小红书账号名（手机预览、给 Codex 的提示词用）；空着就用店名 */
   xhs_name: z.string().trim().max(30).optional(),
+  /** “知识库”这一页在菜单和页面上叫什么（比如“资料”）；空着就叫“知识库” */
+  kb_name: z.string().trim().max(12).optional(),
   /** 今日页顶上的重点卡（shared/home.ts 的 id，逗号隔开；空 = 默认） */
   home: z.string().trim().max(80).optional(),
   /** AI 助手开关（设置页）：'0' 关；没设过 = 开（本机 Codex 能用时） */

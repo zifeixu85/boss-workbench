@@ -5,22 +5,19 @@
 //         同一个人的生日、纪念日排在普通关怀安排前面（提取出生日后，关怀页先显示生日）；“另外”去重。
 // 第三轮：类型用 4—6 个字的中性标签（tag）；依据拆成几小块、各带出处（basis_items）；约好的回访日子已经过了的，写“已过 X 天”（overdue），
 //         和客户列表、今日页对得上；企业客户的生日模板用“您”。
-import { existsSync, readFileSync } from 'node:fs'
-import { join } from 'node:path'
-import { all, ROOT } from '../../db.ts'
+import { all } from '../../db.ts'
 import { today, addDays, daysBetween } from '../../services/common.ts'
 import { nextOccurrence, quietDays } from './service.ts'
 import { authorKind, TEMPLATE_AUTHOR, type AuthorKind } from './authors.ts'
 import { identity } from '../../services/identity.ts'
+import { methodFiles, readMethod } from '../../services/kb-methods.ts'
 
-export const CARE_FILE = '05-方法与判断/大客户关怀.md'
-
-
-/** 老板的关怀规矩：从知识库《大客户关怀》读“<称呼>的几条”或“我的几条”（原话）和“别这样做”，老板改了知识库这里跟着变（第二轮修 #14） */
+/** 老板的关怀规矩：关怀做法那份文件按 05-方法与判断 的“方法选择表”找（不写死文件名）；
+ *  从里面读“<称呼>的几条”或“我的几条”（原话）和“别这样做”，老板改了知识库这里跟着变。知识库里还没有就 found: false、file: null */
 export function careRules() {
-  const abs = join(ROOT, CARE_FILE)
-  if (!existsSync(abs)) return { file: CARE_FILE, found: false as const, confirm: null, rules: [] as string[], donts: [] as string[] }
-  const text = readFileSync(abs, 'utf8')
+  const file = methodFiles().care
+  const text = readMethod(file)
+  if (!file || !text) return { file: null, found: false as const, confirm: null, rules: [] as string[], donts: [] as string[] }
   const confirm = text.match(/^确认:\s*(\S+)/m)?.[1] ?? null
   const section = (title: RegExp) => {
     const lines = text.split('\n')
@@ -38,7 +35,7 @@ export function careRules() {
   const quote = (x: string) => (x.match(/^“(.+?)”/)?.[1] ?? x).replace(/[。！]$/, '')
   const rules = section(/^##\s*\S{1,12}的几条/).map(quote)
   const donts = section(/^##\s*别这样做/).map((x) => x.replace(/（见.*?）/g, '').replace(/[。]$/, ''))
-  return { file: CARE_FILE, found: true as const, confirm, rules, donts }
+  return { file, found: true as const, confirm, rules, donts }
 }
 
 /** 节日：只放和茶、送礼有关的。立冬是节气，春节是企业茶礼最大的节点 */
@@ -94,7 +91,8 @@ function giftFor(traits: Trait[]) {
   const taste = traits.filter((t) => t.kind === '口味').map((t) => t.text).join(' ')
   const first = (list: [RegExp, string, string][]) => list.map(([re, gift, tea]) => ({ at: taste.search(re), gift, tea })).filter((x) => x.at >= 0).sort((a, b) => a.at - b.at)[0]
   const hit = first(GIFTS) ?? first(BROAD)
-  return hit ? { gift: `${hit.gift} + 手写卡`, item: hit.gift, tea: hit.tea } : { gift: '自家的茶一罐 + 手写卡', item: '一罐茶', tea: '' }
+  // 没记口味的不替老板定送什么：只出一句问候，送不送、送什么老板自己定
+  return hit ? { gift: `${hit.gift} + 手写卡`, item: hit.gift, tea: hit.tea } : { gift: null, item: '', tea: '' }
 }
 
 /** 工作台按模板拼的草稿（没用 AI） */
@@ -105,7 +103,7 @@ function template(kind: CareItem['kind'], c: C, traits: Trait[], extra: { label?
   const you = shop ? '你' : '您' // 企业客户用“您”，和知识库、Codex 写的一致
   switch (kind) {
     case '生日':
-      return { occasion: extra.label ?? '生日', gift: g.gift, message: `${n}生日快乐！给${you}留了${g.item}，写了张卡，哪天方便我让人送过去。` }
+      return { occasion: extra.label ?? '生日', gift: g.gift, message: g.item ? `${n}生日快乐！给${you}留了${g.item}，写了张卡，哪天方便我让人送过去。` : `${n}生日快乐！祝${you}新的一岁顺顺利利。` }
     case '纪念日':
       return { occasion: extra.label ?? '纪念日', gift: g.gift, message: `${n}，今天是${extra.label ?? '个好日子'}，谢谢一直以来的照顾。` }
     case '立冬':
@@ -118,7 +116,7 @@ function template(kind: CareItem['kind'], c: C, traits: Trait[], extra: { label?
     default:
       return shop
         ? { occasion: '好久没见', gift: null, message: `${n}，好久没见你来喝茶了，最近还好吗？到了几款新茶，有空来坐坐，提前跟我说给你留位置。` }
-        : { occasion: '好久没联系，问候一声', gift: '新包装的图', message: `${n}好，好久没联系，问候一声！今年春节的礼盒换了新包装，先发您看看，有需要随时跟我说。` }
+        : { occasion: '好久没联系，问候一声', gift: null, message: `${n}好，好久没联系，问候一声！最近还好吗？有需要随时跟我说。` }
   }
 }
 

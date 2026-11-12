@@ -10,7 +10,7 @@ import { analyze } from './recognize.ts'
 import { commitTable, type ImportResult } from './importer.ts'
 import { kbNow } from './service.ts'
 import { notesState, reimportNotes } from './notes.ts'
-import { md, stamp, whenText } from './time.ts'
+import { stamp, whenText } from './time.ts'
 
 type Src = { id: string; name: string; kind: string; channel_id: string | null; inbox_dir: string | null; schedule: string; owner: string | null; status: string; next_run_at: string | null }
 export type SyncResult = { kind: '导入了' | '没有新文件' | '失败' | '要手动' | '检查了'; message: string; imported?: ImportResult[]; next?: string }
@@ -41,7 +41,7 @@ function syncFolder(src: Src): SyncResult {
     const inFolder = new Set(files.map((f) => relative(ROOT, join(dir, f))))
     const last = all<{ file_name: string; started_at: string; b: string | null }>(`SELECT r.file_name, r.started_at, b.status AS b FROM import_runs r LEFT JOIN data_batches b ON b.id = r.batch_id
       WHERE r.source_id = :s AND r.file_name IS NOT NULL ORDER BY r.started_at DESC LIMIT 20`, { s: src.id }).find((r) => inFolder.has(r.file_name) && r.b !== '已撤销')
-    return { kind: '没有新文件', message: `${rel}/ 里没有新文件。${last ? `最近一份 ${last.file_name.split('/').pop()} 已在 ${whenText(last.started_at)} 导过。` : '示例里预置的导入记录没有放原件，文件夹是空的。'}平台导出的 CSV 放进去再点，或者直接拖到“导入”页` }
+    return { kind: '没有新文件', message: `${rel}/ 里没有新文件。${last ? `最近一份 ${last.file_name.split('/').pop()} 已在 ${whenText(last.started_at)} 导过。` : '文件夹是空的。'}平台导出的 CSV 放进去再点，或者直接拖到“导入”页` }
   }
   const imported: ImportResult[] = []
   const fails: string[] = []
@@ -85,7 +85,7 @@ export function syncSource(id: string): SyncResult {
   if (src.id === 'src_xhs_notes') {
     const st = notesState()
     if (st.pending) return { kind: '要手动', message: `先确认 ${st.pending} 列对照（${st.pending_cols.join('、')}）：平台改了列名，不确认就同步，还是会因为对不上而失败。在这个数据源的“等你确认”里点一下就行` }
-    if (!st.file) return { kind: '没有新文件', message: `${src.inbox_dir}/ 里没有笔记数据表：小艾从专业号后台导出“笔记数据”放进去再点` }
+    if (!st.file) return { kind: '没有新文件', message: `${src.inbox_dir}/ 里没有笔记数据表：从小红书专业号后台导出“笔记数据”放进去再点` }
     if (st.file.imported_at) return { kind: '没有新文件', message: `${st.file.name} 已在 ${whenText(st.file.imported_at)} 按新对照导过，没有新文件` }
     const r = reimportNotes('网页')
     return { kind: '导入了', message: r.message }
@@ -93,13 +93,13 @@ export function syncSource(id: string): SyncResult {
   switch (src.kind) {
     case '平台导出': return syncFolder(src)
     case '知识库文件夹': return syncKb(src)
-    case '飞书多维表格': return { kind: '要手动', message: `门店日报在飞书多维表格里，要用飞书命令行工具读。这份示例没有连真的飞书表格，现在拉不了；${src.owner ?? '负责的人'}填完后，${src.schedule.replace('每天 ', '今晚 ')} 的定时任务会读。真用的时候装好飞书命令行工具、把表格链接写进数据源，就能“立即同步”` }
+    case '飞书多维表格': return { kind: '要手动', message: `飞书多维表格要用飞书命令行工具读，网页上拉不了。装好飞书命令行工具、在数据源里写上表格链接，${src.schedule ? `${src.schedule} 的` : ''}定时任务就会读` }
     case '飞书日历与妙记': {
       const cal = get<{ at: string }>(`SELECT COALESCE(finished_at, started_at) AS at FROM import_runs WHERE source_id = :s AND status = '成功' ORDER BY started_at DESC LIMIT 1`, { s: src.id })?.at
-      return { kind: '要手动', message: `这份示例没有连真的飞书，现在拉不了；日历停在 ${cal ? whenText(cal) : '—'} 那次同步。${md('2026-10-26')} 周会的妙记飞书那边还没生成（可能没开录音转写），生成之前同步也拿不到，可以在飞书里打开那场会议看看` }
+      return { kind: '要手动', message: `飞书日历和妙记要用飞书命令行工具读，网页上拉不了；${cal ? `上次同步在 ${whenText(cal)}。` : '这个数据源还没同步过。'}会议妙记要等飞书那边生成（开了录音转写才有），生成之前同步也拿不到。只想在日程页看到飞书日历的安排：到 设置 → 日历来源 选“飞书日历”，每 10 分钟自动同步` }
     }
-    case 'RSS': return { kind: '要手动', message: '这份示例里的订阅地址是虚构的，现在拉不了；明早 06:30 的定时任务照常拉。真用的时候换成你自己的订阅地址' }
-    case 'Codex 定时任务': return { kind: '要手动', message: 'Codex 定时任务在 Codex 里按点跑（07:00 出选题、07:10 起草关怀、07:55 等平台数据导完写经营早报、每周二 07:30 写周复盘），网页上不能替它跑。要现在出一份，在 Codex 里说“写一份今天的经营早报”' }
+    case 'RSS': return { kind: '要手动', message: `订阅由定时任务去拉，网页上拉不了${src.schedule ? `；${src.schedule} 的定时任务会拉` : ''}。一直没拉到新内容的话，看看数据源里的订阅地址对不对` }
+    case 'Codex 定时任务': return { kind: '要手动', message: `Codex 定时任务在 Codex 里按点跑${src.schedule ? `（${src.schedule}）` : ''}，网页上不能替它跑。要现在出一份，在 Codex 里直接说要什么` }
     default: return { kind: '要手动', message: '这种数据源不能在网页上同步' }
   }
 }

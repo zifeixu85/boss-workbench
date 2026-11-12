@@ -9,7 +9,7 @@ import interactionPlugin from '@fullcalendar/interaction'
 import zhCnLocale from '@fullcalendar/core/locales/zh-cn'
 import type { DatesSetArg, EventClickArg, EventDropArg, EventInput } from '@fullcalendar/core'
 import type { DateClickArg, EventResizeDoneArg } from '@fullcalendar/interaction'
-import { CalendarPlus, CalendarDays, CalendarRange, ChevronLeft, ChevronRight, List, Rows3 } from 'lucide-react'
+import { CalendarPlus, CalendarDays, CalendarRange, CalendarSync, ChevronLeft, ChevronRight, List, Rows3 } from 'lucide-react'
 import { api, useApi, useWrite } from '@/lib/api'
 import type { CalEvent, Todo } from '@/lib/types'
 import { toDateStr } from '@/lib/format'
@@ -23,6 +23,8 @@ import { Switch } from '@/components/ui/switch'
 import { Label } from '@/components/ui/label'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { AgendaSide } from './AgendaSide'
+import { SyncBar } from './SyncBar'
+import { isSynced } from './sync'
 
 const VIEWS = { month: 'dayGridMonth', week: 'timeGridWeek', day: 'timeGridDay', list: 'listMonth' } as const
 type View = keyof typeof VIEWS
@@ -52,7 +54,9 @@ export default function CalendarPage() {
   const items = useMemo<EventInput[]>(() => [
     ...events.map((e) => {
       const c = EVENT_COLORS[e.kind] ?? EVENT_COLORS['内部']
-      return { id: e.id, title: e.client_name && !e.title.includes(e.client_name) ? `${e.title} · ${e.client_name}` : e.title, start: e.start, end: e.end ?? undefined, allDay: !!e.all_day, backgroundColor: c.bg, borderColor: c.border, textColor: c.text, extendedProps: { type: 'event' } }
+      // 从你的日历同步来的：只读，不能拖动改时间（到日历里改）
+      const synced = isSynced(e)
+      return { id: e.id, title: e.client_name && !e.title.includes(e.client_name) ? `${e.title} · ${e.client_name}` : e.title, start: e.start, end: e.end ?? undefined, allDay: !!e.all_day, backgroundColor: c.bg, borderColor: c.border, textColor: c.text, editable: !synced, extendedProps: { type: 'event', synced } }
     }),
     ...(showTodos ? todos.filter((t) => t.due).map((t) => ({
       id: `todo:${t.id}`, title: `☐ ${t.title}`, start: t.due!, allDay: true, startEditable: true, durationEditable: false,
@@ -74,7 +78,7 @@ export default function CalendarPage() {
 
   return (
     <>
-      <PageHeader eyebrow="今日" title="日程" desc="见客户、门店品鉴、送货、内部会和直播都在这里。点空白处新建，拖动可以改时间；勾选“显示待办”能看到每天到期的事。"
+      <PageHeader eyebrow="今日" title="日程" desc="见客户、送货、内部会这些安排都在这里。点空白处新建，拖动可以改时间；勾选“显示待办”能看到每天到期的事。从你自己的日历同步来的日程标着“日历”，要改到日历里改。"
         actions={<Button onClick={() => ov.openNew('event')}><CalendarPlus />新建日程</Button>} />
       <PageBody>
         <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_300px]">
@@ -89,6 +93,7 @@ export default function CalendarPage() {
               <div className="flex items-center gap-2 text-sm"><Switch id="todos" checked={showTodos} onCheckedChange={setShowTodos} /><Label htmlFor="todos" className="font-normal text-muted-foreground">显示待办</Label></div>
               <ViewTabs value={view} onChange={setView} items={VIEW_ITEMS} label="日历视图" />
             </div>
+            <div className="mb-3"><SyncBar /></div>
             <div className="wb-cal">
               <FullCalendar
                 ref={cal}
@@ -120,15 +125,16 @@ export default function CalendarPage() {
                 eventContent={(a) => {
                   if (a.view.type.startsWith('list')) return true
                   const grid = a.view.type.startsWith('timeGrid') && !a.event.allDay
+                  const mark = a.event.extendedProps.synced ? <CalendarSync className="mr-0.5 inline size-3 shrink-0 align-[-2px] opacity-70" aria-label="来自你的日历" /> : null
                   const mins = a.event.start && a.event.end ? (a.event.end.getTime() - a.event.start.getTime()) / 60000 : 60
                   // 半小时以内的短安排：时间和标题挤一行，不溢出格子
                   if (grid && mins < 45) {
-                    return <div className="flex h-full min-w-0 items-center gap-1 overflow-hidden px-1 text-[12px] leading-none"><span className="num shrink-0 opacity-75">{fmtHm(a.event.start)}</span><span className="truncate font-medium">{a.event.title}</span></div>
+                    return <div className="flex h-full min-w-0 items-center gap-1 overflow-hidden px-1 text-[12px] leading-none"><span className="num shrink-0 opacity-75">{fmtHm(a.event.start)}</span><span className="truncate font-medium">{mark}{a.event.title}</span></div>
                   }
                   return (
                     <div className={`min-w-0 overflow-hidden px-1 py-0.5 leading-tight ${grid ? 'h-full' : ''}`}>
                       {!a.event.allDay && <div className="num text-[12px] opacity-75">{grid ? a.timeText : fmtHm(a.event.start)}</div>}
-                      <div className={`text-[12px] font-medium break-all ${grid ? 'line-clamp-3' : 'line-clamp-2'}`}>{a.event.title}</div>
+                      <div className={`text-[12px] font-medium break-all ${grid ? 'line-clamp-3' : 'line-clamp-2'}`}>{mark}{a.event.title}</div>
                     </div>
                   )
                 }}

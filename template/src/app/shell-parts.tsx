@@ -4,7 +4,7 @@
 // 菜单一律经 useNav（nav-sections.ts）取：模块开关关掉的模块不出现在搜索、底栏、“更多”、汉堡菜单里
 import { useEffect, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router'
-import { CalendarPlus, ChevronDown, Inbox, ListPlus, Menu, MessageSquarePlus, Plus, Search, UserPlus, UserRound, Check, Settings as SettingsIcon } from 'lucide-react'
+import { BookOpen, CalendarPlus, ChevronDown, Inbox, ListPlus, Menu, MessageSquarePlus, Plus, Search, UserPlus, UserRound, Check, Settings as SettingsIcon } from 'lucide-react'
 import { api, useApi, useWrite, type LiveState } from '@/lib/api'
 import type { Overview, SearchHit, Settings } from '@/lib/types'
 import { activeTab, groupModule, mobileTabs, pageBadge, pageTrail, resolveNav, type NavItem } from './nav'
@@ -18,6 +18,7 @@ import { Command, CommandDialog, CommandEmpty, CommandGroup, CommandInput, Comma
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 import { Kbd } from '@/components/ui/kbd'
 import { cn } from '@/lib/utils'
+import { useIdentity } from '@/lib/identity'
 
 export function useShellData() {
   const settings = useApi<Settings>('/settings')
@@ -109,10 +110,11 @@ export function useHotkeys(openSearch: () => void) {
 }
 
 export function SearchButton({ onClick, wide }: { onClick: () => void; wide?: boolean }) {
+  const kb = useIdentity().kb
   if (!wide) return <Button variant="ghost" size="icon" aria-label="搜索" onClick={onClick}><Search /></Button>
   return (
     <button onClick={onClick} className="flex h-8 w-full max-w-[320px] items-center gap-2 rounded-lg border bg-card px-3 text-sm text-muted-foreground hover:border-primary/40">
-      <Search className="size-4" /><span className="flex-1 text-left">搜客户、项目、待办…</span><Kbd>⌘K</Kbd>
+      <Search className="size-4" /><span className="flex-1 text-left">搜客户、项目、待办、{kb}…</span><Kbd>⌘K</Kbd>
     </button>
   )
 }
@@ -120,18 +122,20 @@ export function SearchButton({ onClick, wide }: { onClick: () => void; wide?: bo
 export function SearchDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (o: boolean) => void }) {
   const [q, setQ] = useState('')
   const nav = useNavigate()
+  const kb = useIdentity().kb
   const ov = useOverlay()
   const { data: hits = [] } = useApi<SearchHit[]>(q.trim() ? `/search?q=${encodeURIComponent(q)}` : null)
   const { sections } = useNav()
   const go = (fn: () => void) => { onOpenChange(false); setQ(''); fn() }
   const LABEL = { client: '客户', project: '项目', todo: '待办', event: '日程' }
+  const kbHits = hits.filter((h) => h.type === 'kb')
   return (
-    <CommandDialog open={open} onOpenChange={onOpenChange} title="搜索" description="搜客户、项目、待办、日程，或跳转到某个页面">
+    <CommandDialog open={open} onOpenChange={onOpenChange} title="搜索" description={`搜客户、项目、待办、日程、${kb}，或跳转到某个页面`}>
       {/* CommandDialog 不自带 <Command>：输入框和列表要包在 Command 里，不然一打开搜索整页报错（reading 'subscribe'） */}
       <Command>
-        <CommandInput placeholder="输入客户名、项目、关键词…" value={q} onValueChange={setQ} />
+        <CommandInput placeholder={`输入客户名、项目、${kb}里的词…`} value={q} onValueChange={setQ} />
         <CommandList>
-          <CommandEmpty>没找到。试试客户名字或联系人，比如“澜拓”“周明远”。</CommandEmpty>
+          <CommandEmpty>没找到。试试客户名字、联系人，或{kb}里的一个词。</CommandEmpty>
           {(['client', 'project', 'todo', 'event'] as const).map((t) => {
             const xs = hits.filter((h) => h.type === t)
             return xs.length ? (
@@ -140,6 +144,15 @@ export function SearchDialog({ open, onOpenChange }: { open: boolean; onOpenChan
               </CommandGroup>
             ) : null
           })}
+          {kbHits.length > 0 && (
+            <CommandGroup heading={kb}>
+              {kbHits.map((h) => (
+                <CommandItem key={h.id} value={`${kb} ${h.title} ${h.id}`} keywords={[q]} onSelect={() => go(() => nav(`/kb?path=${encodeURIComponent(h.id)}`))}>
+                  <BookOpen /><span className="shrink-0">{h.title}</span><span className="ml-auto min-w-0 truncate pl-3 text-xs text-muted-foreground">{h.sub}</span>
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          )}
           <CommandGroup heading="页面">
             {sections.flatMap((s) => s.groups.flatMap((g) => g.pages.map((p) => (
               <CommandItem key={p.id} value={`页面 ${pageTrail(p)} ${g.label ?? ''} ${p.id}`} onSelect={() => go(() => nav(p.to))}>

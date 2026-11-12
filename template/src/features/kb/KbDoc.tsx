@@ -8,8 +8,10 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Breadcrumb, BreadcrumbItem, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from '@/components/ui/breadcrumb'
 import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyTitle } from '@/components/ui/empty'
 import { fileName, updatedText, type KbFile } from './kb-utils'
+import { useIdentity } from '@/lib/identity'
 
 export function KbDoc({ path, onHome }: { path: string; onHome: () => void }) {
+  const kb = useIdentity().kb
   const { data, isLoading, error } = useApi<KbFile>(`/kb/file?path=${encodeURIComponent(path)}`)
 
   if (error && !data) {
@@ -19,7 +21,7 @@ export function KbDoc({ path, onHome }: { path: string; onHome: () => void }) {
           <EmptyTitle>打不开这个文件</EmptyTitle>
           <EmptyDescription>{error.message}</EmptyDescription>
         </EmptyHeader>
-        <EmptyContent><Button variant="outline" onClick={onHome}>回到知识库首页</Button></EmptyContent>
+        <EmptyContent><Button variant="outline" onClick={onHome}>回到{kb}首页</Button></EmptyContent>
       </Empty>
     )
   }
@@ -44,7 +46,7 @@ export function KbDoc({ path, onHome }: { path: string; onHome: () => void }) {
           </article>
         )}
         <p className="mt-6 border-t pt-3 text-xs text-muted-foreground">
-          这里只能看。想改这篇，对 Codex 说：“改一下知识库里的 {path}：……”
+          这里只能看。想改这篇，对 Codex 说：“改一下{kb}里的 {path}：……”
         </p>
       </div>
     </Panel>
@@ -52,11 +54,12 @@ export function KbDoc({ path, onHome }: { path: string; onHome: () => void }) {
 }
 
 function PathCrumbs({ folders, name, onHome }: { folders: string[]; name: string; onHome: () => void }) {
+  const kb = useIdentity().kb
   return (
     <Breadcrumb>
       <BreadcrumbList className="text-[13px]">
         <BreadcrumbItem>
-          <button type="button" onClick={onHome} className="transition-colors hover:text-foreground">知识库</button>
+          <button type="button" onClick={onHome} className="transition-colors hover:text-foreground">{kb}</button>
         </BreadcrumbItem>
         {folders.map((f, i) => (
           <Fragment key={`${i}-${f}`}>

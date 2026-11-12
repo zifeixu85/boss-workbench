@@ -208,6 +208,40 @@ function allFiles(): Node[] {
   return out
 }
 
+/** 文件开头的“隐私”：私密，或写了不认识的值（拿不准从严，按私密）；没写不算私密 */
+export function isPrivateNote(body: string): boolean {
+  const head = body.replace(/^\uFEFF/, '').replace(/\r\n/g, '\n').match(/^---\n([\s\S]*?)\n---/)?.[1]
+  const v = head?.match(/^隐私[:：]\s*(.*)$/m)?.[1]?.trim()
+  if (!v) return false
+  return !['内部', '可公开'].includes(v)
+}
+
+export type KbHit = { path: string; name: string; line: string }
+
+/** 在知识库里按关键词找：先比文件名，再比正文（不比开头那几行元信息）。
+ *  “不读”的文件夹本来就不在目录里；工作台/ 是程序导出的快照，不算知识，跳过。
+ *  skipPrivate：全局搜索不列标“私密”的笔记（AI 助手照样能读，私密是给 AI 理解老板用的） */
+export function searchKb(query: string, opts: { limit?: number; skipPrivate?: boolean } = {}): KbHit[] {
+  const q = query.trim().toLowerCase()
+  if (!q) return []
+  const limit = opts.limit ?? 12
+  const named: KbHit[] = []
+  const inBody: KbHit[] = []
+  for (const f of allFiles()) {
+    if (named.length >= limit) break
+    if (f.path.startsWith('工作台/')) continue
+    let body = ''
+    try { body = readFileSync(kbPath(f.path), 'utf8') } catch { continue }
+    if (opts.skipPrivate && isPrivateNote(body)) continue
+    if (f.name.toLowerCase().includes(q) || f.path.toLowerCase().includes(q)) { named.push({ path: f.path, name: f.name, line: '（文件名）' }); continue }
+    if (inBody.length >= limit) continue
+    const text = body.replace(/^\uFEFF/, '').replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n?/, '')
+    const line = text.split('\n').find((l) => l.toLowerCase().includes(q))
+    if (line) inBody.push({ path: f.path, name: f.name, line: line.trim().replace(/^[#>*\-\s|]+/, '').slice(0, 200) })
+  }
+  return [...named, ...inBody].slice(0, limit)
+}
+
 /** 最近更新：不算 工作台/ 里自动导出的快照；同一天的按文件修改时间排 */
 export function recentKb(limit = 8) {
   const mtime = (p: string) => statSync(kbPath(p)).mtimeMs

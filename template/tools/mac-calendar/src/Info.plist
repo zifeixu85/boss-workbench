@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>CFBundleIdentifier</key><string>com.boss-workbench.calendar</string>
+  <key>CFBundleName</key><string>工作台日历</string>
+  <key>CFBundleDisplayName</key><string>老板工作台 · 日历</string>
+  <key>CFBundleExecutable</key><string>calendar-helper</string>
+  <key>CFBundlePackageType</key><string>APPL</string>
+  <key>CFBundleShortVersionString</key><string>1.0</string>
+  <key>CFBundleVersion</key><string>1</string>
+  <key>LSMinimumSystemVersion</key><string>13.0</string>
+  <key>LSUIElement</key><true/>
+  <key>NSCalendarsFullAccessUsageDescription</key><string>老板工作台只读取你未来两周的日程，显示在“今日”和“日程”页，不会修改或上传。</string>
+  <key>NSCalendarsUsageDescription</key><string>老板工作台只读取你未来两周的日程，显示在“今日”和“日程”页，不会修改或上传。</string>
+</dict>
+</plist>

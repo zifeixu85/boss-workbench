@@ -1,4 +1,4 @@
-// 设置：我的资料、风格、导航样式、模块开关、提醒、数据放在哪里、快捷键
+// 设置：我的资料、风格、导航样式、模块开关、提醒、日历来源、数据放在哪里、快捷键
 import type { Settings } from '@/lib/types'
 import { useApi } from '@/lib/api'
 import { fullDate } from '@/lib/format'
@@ -11,6 +11,7 @@ import { ProfilePanel } from './ProfilePanel'
 import { AssistantSettings } from './AssistantSettings'
 import { ReminderSettings } from './ReminderSettings'
 import { ModuleSettings } from './ModuleSettings'
+import { CalendarSettings } from './CalendarSettings'
 
 export default function SettingsPage() {
   const { data, error } = useApi<Settings>('/settings')
@@ -44,6 +45,9 @@ export default function SettingsPage() {
         </Panel>
         <Panel title="提醒" desc="待办到期前 1 小时、日程开始前 15 分钟、该跟进的客户、数据异常、每天看汇总。页面关着时由电脑系统通知提醒，电脑要开着、不合盖">
           {data ? <ReminderSettings key={JSON.stringify(data.reminders ?? {})} settings={data} /> : <Skeleton className="h-48" />}
+        </Panel>
+        <Panel title="日历来源" desc="把你自己日历里的安排只读地同步进“今日”和“日程”页：Mac 日历、飞书日历或订阅链接">
+          {data ? <CalendarSettings /> : <Skeleton className="h-48" />}
         </Panel>
         <div className="grid gap-5 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] lg:items-start">
           <Panel title="数据在哪里" desc="都是普通文件，放在你自己的电脑上">

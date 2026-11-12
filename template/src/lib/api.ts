@@ -14,10 +14,12 @@ export class ApiError extends Error {
 }
 
 async function request<T>(method: string, url: string, body?: unknown): Promise<T> {
+  // 写操作一律按 JSON 发（服务端只收 JSON 写请求，防跨站表单）；删除这类没有正文的也带一个空对象，不然会被拒（415）
+  const write = method !== 'GET'
   const res = await fetch(`/api${url}`, {
     method,
-    headers: body === undefined ? undefined : { 'content-type': 'application/json' },
-    body: body === undefined ? undefined : JSON.stringify(body),
+    headers: write ? { 'content-type': 'application/json' } : undefined,
+    body: write ? JSON.stringify(body ?? {}) : undefined,
   })
   const json = await res.json().catch(() => ({ ok: false, error: `本地服务没有响应（${res.status}）` }))
   if (!json.ok) throw new ApiError(json.error ?? '出错了', json.issues)

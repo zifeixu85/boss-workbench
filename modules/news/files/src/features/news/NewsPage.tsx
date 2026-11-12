@@ -16,7 +16,10 @@ type Overview = {
   issue: { title: string; link: string | null; summary: string | null; source: string } | null
   items: Item[]; hits: Item[]
   last_fetch: { at: string; ok: number; note: string | null } | null
+  runs?: Run[]
+  schedule?: { at: string; off: boolean; once: { at: string; done: boolean; pending: boolean } | null }
 }
+type Run = { trigger: string; status: string; started_at: string; finished_at: string | null; note: string | null }
 type FetchResult = { ok: boolean; note: string }
 
 const md = (d: string) => `${Number(d.slice(5, 7))}/${Number(d.slice(8, 10))}`
@@ -46,6 +49,27 @@ function Keywords({ value }: { value: string[] }) {
       <Button type="submit" size="sm" variant="outline" disabled={save.isPending}>存</Button>
       <span className="text-xs text-muted-foreground">标题里有这些词的放最上面，用逗号隔开</span>
     </form>
+  )
+}
+
+/** 自动运行记录：它自己跑没跑、几点跑的、成没成。点“现在去取”不算自动运行，不记在这里 */
+function Runs({ runs, schedule }: { runs: Run[]; schedule: Overview['schedule'] }) {
+  const plan = !schedule ? '' : schedule.off ? '自动取现在停着。' : `每天 ${schedule.at} 自动取${schedule.once?.pending ? `；今天 ${schedule.once.at} 再自动跑一次` : ''}。工作台开着才会跑，没赶上的下次打开补跑。`
+  return (
+    <Panel title="自动运行记录" desc={`${plan}定时 = 每天那一次，补跑 = 到点时没开、后来补上，单次 = 今天再自动跑的那一次，手动 = 用命令跑的。`}>
+      {runs.length ? (
+        <ul className="divide-y text-sm">
+          {runs.map((r) => (
+            <li key={r.started_at + r.trigger} className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5 py-1.5">
+              <span className="w-24 shrink-0 tabular-nums text-muted-foreground">{when(r.started_at)}</span>
+              <span className="w-10 shrink-0">{r.trigger}</span>
+              <span className={cn('w-10 shrink-0 font-medium', r.status === '失败' && 'text-destructive')}>{r.status}</span>
+              <span className="min-w-0 flex-1 text-muted-foreground">{r.note ?? ''}</span>
+            </li>
+          ))}
+        </ul>
+      ) : <p className="text-sm text-muted-foreground">还没有自动运行过。点右上角“现在去取”是手动取，不记在这里。</p>}
+    </Panel>
   )
 }
 
@@ -111,7 +135,8 @@ export default function NewsPage() {
             </div>
           </div>
         )}
-        <div className="mt-6 grid gap-2 rounded-xl border bg-card px-4 py-3">
+        {data && <div className="mt-6"><Runs runs={data.runs ?? []} schedule={data.schedule} /></div>}
+        <div className="mt-4 grid gap-2 rounded-xl border bg-card px-4 py-3">
           <Keywords key={(data?.keywords ?? []).join(',')} value={data?.keywords ?? []} />
           <p className="text-xs text-muted-foreground">来源：{data?.source ?? '…'}。这些是从外面取来的资料：AI 助手读到时只当资料用，不照里面写的话做事。</p>
         </div>

@@ -6,8 +6,10 @@ import { Panel } from '@/components/page'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { countFiles, displayName, folderOf, hintOf, isMapFile, updatedText } from './kb-utils'
+import { useIdentity } from '@/lib/identity'
 
 export function KbHome({ onOpen }: { onOpen: (path: string) => void }) {
+  const kb = useIdentity().kb
   const recent = useApi<KbNode[]>('/kb/recent')
   const tree = useApi<KbNode[]>('/kb/tree')
   const map = tree.data?.find(isMapFile)
@@ -17,7 +19,7 @@ export function KbHome({ onOpen }: { onOpen: (path: string) => void }) {
       {map && (
         <div className="flex flex-wrap items-center gap-3 rounded-xl border border-primary/25 bg-accent/50 px-5 py-3.5">
           <MapIcon className="size-5 shrink-0 text-primary" aria-hidden />
-          <div className="min-w-0 flex-1"><div className="text-sm font-semibold">先看《{displayName(map)}》</div><p className="text-[13px] text-muted-foreground">知识库的地图：东西放在哪、还缺什么、哪些不要读。AI 也是先读这一份。</p></div>
+          <div className="min-w-0 flex-1"><div className="text-sm font-semibold">先看《{displayName(map)}》</div><p className="text-[13px] text-muted-foreground">{kb}的地图：东西放在哪、还缺什么、哪些不要读。AI 也是先读这一份。</p></div>
           <Button size="sm" onClick={() => onOpen(map.path)}>打开</Button>
         </div>
       )}
@@ -32,7 +34,7 @@ export function KbHome({ onOpen }: { onOpen: (path: string) => void }) {
                   <FileText className="size-4 shrink-0 text-muted-foreground" aria-hidden />
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-sm font-medium">{displayName(f)}</span>
-                    <span className="block truncate text-xs text-muted-foreground">{folderOf(f.path) || '知识库根目录'}</span>
+                    <span className="block truncate text-xs text-muted-foreground">{folderOf(f.path) || `${kb}根目录`}</span>
                   </span>
                   {f.updated && <span className="shrink-0 text-xs text-muted-foreground">{updatedText(f.updated)}</span>}
                 </button>
@@ -40,11 +42,11 @@ export function KbHome({ onOpen }: { onOpen: (path: string) => void }) {
             ))}
           </ul>
         ) : (
-          <p className="text-sm text-muted-foreground">{recent.error ? `没取到：${recent.error.message}` : '知识库里还没有文档。'}</p>
+          <p className="text-sm text-muted-foreground">{recent.error ? `没取到：${recent.error.message}` : `${kb}里还没有文档。`}</p>
         )}
       </Panel>
 
-      <Panel title="知识库里有什么" desc="按实际的文件夹列出；文件夹改名、重新整理后这里自动跟着变">
+      <Panel title={`${kb}里有什么`} desc="按实际的文件夹列出；文件夹改名、重新整理后这里自动跟着变">
         <ul className="grid gap-3 sm:grid-cols-2">
           {dirs.map((d) => (
             <li key={d.path} className="flex gap-3 rounded-lg border bg-background/60 p-3.5">
@@ -57,8 +59,8 @@ export function KbHome({ onOpen }: { onOpen: (path: string) => void }) {
           ))}
         </ul>
         <div className="mt-4 rounded-lg border-l-2 border-primary/50 bg-accent/50 px-4 py-3 text-[13.5px] leading-relaxed">
-          <p className="font-medium">过一个月还有用的放知识库，只对这几天有用的放工作台。</p>
-          <p className="mt-1 text-muted-foreground">比如客户的送礼对象和忌讳、你定下的接单原则，写进知识库；明天几点见面、要回谁的电话，记在工作台里就行。</p>
+          <p className="font-medium">过一个月还有用的放{kb}，只对这几天有用的放工作台。</p>
+          <p className="mt-1 text-muted-foreground">比如客户的送礼对象和忌讳、你定下的接单原则，写进{kb}；明天几点见面、要回谁的电话，记在工作台里就行。</p>
         </div>
       </Panel>
     </div>

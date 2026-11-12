@@ -80,7 +80,7 @@ export function reimportNotes(actor: string) {
   const pending = pendingOf()
   if (pending.n) throw new BadRequest(`还有 ${pending.n} 列对照没确认（${pending.cols.join('、')}）：先在“等你确认”里定下来，再重新导入`)
   const file = notesFile()
-  if (!file) throw new BadRequest('导入文件夹里没有笔记数据表：小艾从专业号后台导出“笔记数据”，放进 工作台/导入/小红书笔记/ 再点')
+  if (!file) throw new BadRequest('导入文件夹里没有笔记数据表：从小红书专业号后台导出“笔记数据”，放进 工作台/导入/小红书笔记/ 再点')
   if (file.imported_at) throw new BadRequest(`这份 ${file.name} 已经在 ${file.imported_at.replace('T', ' ')} 导过了；要重来，先在运行记录里撤销那次导入`)
 
   const table = readTable(decode(readFileSync(join(ROOT, file.rel))))

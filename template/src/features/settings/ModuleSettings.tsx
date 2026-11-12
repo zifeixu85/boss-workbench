@@ -5,6 +5,8 @@ import { MODULES, moduleName } from '@/lib/modules'
 import { Switch } from '@/components/ui/switch'
 
 export function ModuleSettings({ settings }: { settings: Settings }) {
+  const kb = settings.kb || '知识库'
+  const nameOf = (m: { id: string; name: string }) => (m.id === 'kb' ? kb : m.name)
   const on = settings.modules ?? MODULES.map((m) => m.id)
   const save = useWrite(
     (p: { id: string; open: boolean }) => api.patch('/modules', p.open ? { on: [p.id] } : { off: [p.id] }),
@@ -18,10 +20,10 @@ export function ModuleSettings({ settings }: { settings: Settings }) {
         return (
           <label key={m.id} className="flex items-center gap-3 border-b py-3 last:border-b-0 sm:[&:nth-last-child(2)]:border-b-0">
             <div className="min-w-0 flex-1">
-              <div className="text-sm font-medium">{m.name}</div>
+              <div className="text-sm font-medium">{nameOf(m)}</div>
               {note && <div className="text-xs text-muted-foreground">{note}</div>}
             </div>
-            <Switch checked={checked} disabled={m.required || save.isPending} aria-label={m.name}
+            <Switch checked={checked} disabled={m.required || save.isPending} aria-label={nameOf(m)}
               onCheckedChange={(c) => save.mutate({ id: m.id, open: c })} />
           </label>
         )

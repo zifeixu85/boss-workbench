@@ -41,7 +41,7 @@ export type ClientDetail = { client: Client; interactions: Interaction[]; deals:
 export type NavMode = 'simple' | 'complex' | 'dual' | 'top'
 export type Theme = 'jade' | 'wood' | 'navy' | 'mono' | 'night'
 /** owner 称呼、business 工作台名称（也当店名）；shop、xhs 是服务端按设置算好的店名和小红书账号名（没设置时是“我的店”“我的账号”），xhs_name 是设置里存的原值 */
-export type Settings = { nav_mode: NavMode; theme: Theme; mobile_nav: 'tabs' | 'drawer'; owner: string; business: string; shop: string; xhs: string; xhs_name: string; today?: string; demo?: boolean; reminders?: RemindSettings
+export type Settings = { nav_mode: NavMode; theme: Theme; mobile_nav: 'tabs' | 'drawer'; owner: string; business: string; shop: string; xhs: string; xhs_name: string; kb?: string; kb_name?: string; today?: string; demo?: boolean; reminders?: RemindSettings
   /** 打开着的模块 id（shared/modules.ts）；老服务没有这个字段 = 全部打开 */
   modules?: string[]
   /** 今日页重点卡的设置原值（逗号隔开；空 = 默认） */
@@ -133,4 +133,5 @@ export type InboxItem = {
   kind?: string | null; judgement?: string | null; suggest?: string | null; origin?: string | null
   client_id?: string | null; client_name?: string | null; project_id?: string | null; project_name?: string | null
 }
-export type SearchHit = { type: 'client' | 'project' | 'todo' | 'event'; id: string; title: string; sub: string }
+/** kb：id 是知识库里的路径（04-客户/澜拓科技.md），sub 是所在文件夹或命中的那一行 */
+export type SearchHit = { type: 'client' | 'project' | 'todo' | 'event' | 'kb'; id: string; title: string; sub: string }

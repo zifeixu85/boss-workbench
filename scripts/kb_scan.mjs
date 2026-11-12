@@ -246,7 +246,7 @@ function warnSameName(link, same, picked, from, ctx) {
 // ───── 建库档案、入口 ─────
 /** 建库档案：格式、结构、示例；“目录对应”表（层 | 实际位置）；“启用的模块”表 */
 async function readArchive(root) {
-  const out = { exists: false, format: null, structure: '标准', sample: false, editor: 'plain', layerMap: {}, readonly: [], noread: [], enabled: [], planned: [], workbenchDraft: '' }
+  const out = { exists: false, format: null, structure: '标准', sample: false, editor: 'plain', build: null, layerMap: {}, readonly: [], noread: [], enabled: [], planned: [], workbenchDraft: '' }
   let text
   try { text = await readFile(join(root, '01-AI协作', '建库档案.md'), 'utf8') } catch { return out } // 旧格式或还没建库档案
   const meta = frontmatter(text)
@@ -256,6 +256,8 @@ async function readArchive(root) {
   out.sample = /^(是|yes|true)(?![A-Za-z0-9])/i.test((pick(meta, '示例', 'sample') || '').trim()) // 和 boss-kb 的库外读写一致：开头是“是”就算，例如“是（示例库）”
   // 编辑器：开头写着“编辑器: Obsidian”的库，文件之间的链接用双链 [[从库根写起的路径]]；没写就是普通写法（和 boss-kb 的 find_kb 一样认）
   out.editor = /^["'“]?obsidian(?![A-Za-z0-9])/i.test((pick(meta, '编辑器', 'editor') || '').trim()) ? 'obsidian' : 'plain'
+  // 建库方式：boss-kb 写的（快速版进行中、完整版……）。写着“短期上下文”的，是先放了这一周的日程、项目、待办起步的，还没跟老板讲到知识库
+  out.build = (pick(meta, '建库方式') || '').trim() || null
   readFolderMap(text, out)
   readModules(text, out)
   out.workbenchDraft = sectionText(text, '工作台结构草案')
@@ -576,8 +578,36 @@ async function readTodos(ctx) {
     t.open = todo.length
     t.doing = doing.length
     t.samples = [...todo, ...doing].slice(0, 15).map((l) => l.trim())
+    readEvents(ctx, rel, body)
     return
   }
+}
+
+const EVENT_HEAD = /^#{2,3}\s*(未来七天日程|近期日程|日程)\s*([（(].*[）)])?\s*$/
+// 日期后面可以跟时间（15:00、15：00、9:00），时间可以是一段（15:00-16:00，只取开始），时间和事项之间可以没有空格
+const EVENT_LINE = /^[-*]\s*(\d{4}-\d{2}-\d{2})(?:\s*(\d{1,2})[:：](\d{2})(?:\s*[-~～—–至到]\s*\d{1,2}[:：]\d{2})?)?\s*(.+)$/
+
+/**
+ * 近期要事里“## 未来七天日程”这一段（boss-kb 补全短期上下文时写的）：一行一条 `- YYYY-MM-DD HH:MM 事项 · 和谁或在哪`，
+ * 时间可以不写（全天）。没写清日期的行放进 skipped，由搭建的人问老板，不猜。
+ */
+function readEvents(ctx, rel, body) {
+  const at = body.findIndex((l) => EVENT_HEAD.test(l.trim()))
+  if (at < 0) return
+  const items = [], skipped = []
+  for (const raw of body.slice(at + 1)) {
+    const line = raw.trim()
+    if (/^#{1,3}\s/.test(line)) break
+    if (!/^[-*]/.test(line)) continue
+    const m = line.match(EVENT_LINE)
+    // 事项开头还是数字或冒号的（比如时间写得认不出）：读不准，交给人问
+    if (!m || /^[\d:：]/.test(m[4])) { skipped.push(line); continue }
+    const [title, ...rest] = m[4].split(/\s*·\s*/)
+    const where = rest.join(' · ').trim()
+    items.push({ date: m[1], time: m[2] ? `${m[2].padStart(2, '0')}:${m[3]}` : null, title: title.trim(), where: where && !/未知/.test(where) ? where : null })
+  }
+  items.sort((a, b) => `${a.date} ${a.time ?? ''}`.localeCompare(`${b.date} ${b.time ?? ''}`))
+  ctx.result.events = { files: [rel], items: items.slice(0, 60), skipped: skipped.slice(0, 20) }
 }
 
 /** 必读文件的开头。就地建图时 v2 的几份按目录对应换成实际位置；格式是 /2 时旧格式那几份不读 */
@@ -718,9 +748,10 @@ async function existingSummary(root, limit = 5000) {
 // ───── 主流程 ─────
 function emptyResult(root) {
   return {
-    kb: true, root, entry: null, entry_excerpt: '', legacy_map: false, legacy_ignored: false, format: null, sample: false, editor: 'plain', warnings: [],
+    kb: true, root, entry: null, build: null, short_context: false, entry_excerpt: '', legacy_map: false, legacy_ignored: false, format: null, sample: false, editor: 'plain', warnings: [],
     files: 0, truncated: false, layers: [], growth_modules: [], folder_guides: [], by_type: {},
     customers: [], creators: [], projects: [], todos: { files: [], open: 0, doing: 0, samples: [] },
+    events: { files: [], items: [], skipped: [] },
     works: { index: null, rows: 0, cards: 0 }, inbox: [], findings: [], unconfirmed: 0, privacy: {},
     unrecognized_files: [], skipped: { readonly_files: 0, raw_files: 0, template_files: 0, noread_folders: 0 },
     profile_files: {}, owner_aliases: [], structure: '标准', layer_map: {}, readonly_folders: [], noread_folders: [],
@@ -746,7 +777,7 @@ export async function scanKnowledgeBase(rootArg, { max = 3000 } = {}) {
     || (legacyText.match(/格式\s*[:：]\s*(\S+)/) || [])[1]
     || (entry.name ? '未标注' : null)
   const isV2 = result.format === FORMAT_V2
-  Object.assign(result, { entry: entry.name, entry_excerpt: entry.excerpt, legacy_map: legacyFile && !isV2, legacy_ignored: legacyFile && isV2, sample: archive.sample, editor: archive.editor })
+  Object.assign(result, { entry: entry.name, entry_excerpt: entry.excerpt, legacy_map: legacyFile && !isV2, legacy_ignored: legacyFile && isV2, sample: archive.sample, editor: archive.editor, build: archive.build, short_context: /短期上下文/.test(archive.build || '') })
   Object.assign(result, { structure: archive.structure, layer_map: archive.layerMap, readonly_folders: archive.readonly, noread_folders: archive.noread, enabled_modules: archive.enabled, planned_modules: archive.planned, workbench_draft: archive.workbenchDraft })
   result.skipped.noread_folders = archive.noread.length
 

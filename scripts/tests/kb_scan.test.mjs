@@ -202,6 +202,73 @@ test('同一件事写在好几处：待办只从近期要事算一次', async (t
   assert.equal(r.customers.length, 1)
 })
 
+test('近期要事里的“未来七天日程”：一行一条读成日程，没写清日期的不算，待办照旧只数打勾的行', async (t) => {
+  const root = kb(t, {
+    'AGENTS.md': AGENTS,
+    '01-AI协作/建库档案.md': archive(),
+    '06-项目/近期要事.md': note({ 类型: '待办' }, [
+      '## 本周', '- [ ] 给孙蕾寄样品 · 截止 2026-11-10 · 关联 春节茶礼',
+      '', '## 未来七天日程',
+      '- 2026-11-12 15:00 见孙蕾 · 在茶空间',
+      '- 2026-11-09 10:00 看新品样品 · 在供应商那边',
+      '- 2026-11-13 全天盘点',
+      '- 周会可能改到周六',
+      '', '日程范围：2026-11-06 至 2026-11-12。',
+      '', '## 以后', '- [ ] 订明年的包装 · 关联 春节茶礼',
+    ].join('\n')),
+  })
+  const r = await scanKnowledgeBase(root)
+  assert.equal(r.todos.open, 2)
+  assert.deepEqual(r.events.files, ['06-项目/近期要事.md'])
+  assert.deepEqual(r.events.items, [
+    { date: '2026-11-09', time: '10:00', title: '看新品样品', where: '在供应商那边' },
+    { date: '2026-11-12', time: '15:00', title: '见孙蕾', where: '在茶空间' },
+    { date: '2026-11-13', time: null, title: '全天盘点', where: null },
+  ])
+  assert.deepEqual(r.events.skipped, ['- 周会可能改到周六'])
+})
+
+test('建库方式写着“短期上下文”：short_context 是 true（搭工作台时页面先叫“资料”）；别的写法是 false', async (t) => {
+  const a = kb(t, { 'AGENTS.md': AGENTS, '01-AI协作/建库档案.md': archive({ fm: { 建库方式: '短期上下文' } }) })
+  const b = kb(t, { 'AGENTS.md': AGENTS, '01-AI协作/建库档案.md': archive({ fm: { 建库方式: '快速版完成' } }) })
+  const ra = await scanKnowledgeBase(a), rb = await scanKnowledgeBase(b)
+  assert.equal(ra.build, '短期上下文')
+  assert.equal(ra.short_context, true)
+  assert.equal(rb.short_context, false)
+})
+
+test('日程行写法不太规整也读得对：全角冒号、时间段、时间后没空格、标题带括号；读不准的进 skipped', async (t) => {
+  const root = kb(t, {
+    'AGENTS.md': AGENTS,
+    '01-AI协作/建库档案.md': archive(),
+    '06-项目/近期要事.md': note({ 类型: '待办' }, [
+      '## 未来七天日程（11/6—11/12）',
+      '- 2026-11-12 15：00 见孙蕾 · 在茶空间',
+      '- 2026-11-10 9:00-10:30 周会',
+      '- 2026-11-11 14:00看样品',
+      '-2026-11-09 全天盘点',
+      '- 2026-11-08 下午三点左右 15点 送货',
+      '- 2026-11-07 3:5 乱写的时间',
+      '- 下周找客户吃饭',
+    ].join('\n')),
+  })
+  const r = await scanKnowledgeBase(root)
+  assert.deepEqual(r.events.items.map((e) => `${e.date} ${e.time ?? '全天'} ${e.title}`), [
+    '2026-11-08 全天 下午三点左右 15点 送货',
+    '2026-11-09 全天 全天盘点',
+    '2026-11-10 09:00 周会',
+    '2026-11-11 14:00 看样品',
+    '2026-11-12 15:00 见孙蕾',
+  ])
+  assert.deepEqual(r.events.skipped, ['- 2026-11-07 3:5 乱写的时间', '- 下周找客户吃饭'])
+})
+
+test('近期要事里没有“未来七天日程”这一段：events 是空的，不报错', async (t) => {
+  const root = kb(t, { 'AGENTS.md': AGENTS, '01-AI协作/建库档案.md': archive(), '06-项目/近期要事.md': note({ 类型: '待办' }, '- [ ] 一件事') })
+  const r = await scanKnowledgeBase(root)
+  assert.deepEqual(r.events, { files: [], items: [], skipped: [] })
+})
+
 test('格式是 /2、根目录残留旧版 知识库说明.md：旧格式的必读文件和待办都不读', async (t) => {
   const root = kb(t, {
     'AGENTS.md': AGENTS,

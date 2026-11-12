@@ -1,0 +1,2 @@
+# Mac 日历助手是编好的成品，签名覆盖每个字节：不做换行转换
+template/tools/mac-calendar/*.app/** -text -diff

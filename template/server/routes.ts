@@ -14,12 +14,17 @@ import { contentRoutes } from './modules/content/routes.ts'
 import { dataRoutes } from './modules/data/routes.ts'
 import { reminderRoutes } from './reminders/routes.ts'
 import * as assistant from './assistant/service.ts'
+import { calendarRoutes } from './calendar/routes.ts'
+import { maybeSync } from './calendar/service.ts'
 
 const WEB = '网页' as const
 export const routes = new Hono()
 const ok = <T>(data: T) => ({ ok: true as const, data })
 const body = async (c: { req: { json: () => Promise<unknown> } }) => c.req.json().catch(() => ({}))
 
+// 日历同步（2026-10-27）：打开今日、日程页时，离上次同步超过 2 分钟就在后台再同步一次（不等结果，同步完推送刷新）
+routes.use('/overview', async (_c, next) => { maybeSync(); await next() })
+routes.use('/events', async (c, next) => { if (c.req.method === 'GET') maybeSync(); await next() })
 routes.get('/overview', (c) => c.json(ok(home.overview())))
 routes.get('/follow', (c) => c.json(ok(home.followUps())))
 routes.get('/changes', (c) => c.json(ok(home.recentChanges(50))))
@@ -90,3 +95,4 @@ routes.route('/biz', bizRoutes)
 routes.route('/content', contentRoutes)
 routes.route('/data', dataRoutes)
 routes.route('/reminders', reminderRoutes) // 提醒（公共，2026-10-12）
+routes.route('/calendar', calendarRoutes) // 日历来源与同步（公共，2026-10-27）

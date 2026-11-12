@@ -1,8 +1,8 @@
 // 日程、待办、项目的详情抽屉。默认只读排版，点“编辑”后字段才变成输入框（失焦或选择即保存）
 import { useState } from 'react'
 import { useNavigate } from 'react-router'
-import { FolderKanban, MapPin, CheckCircle2 } from 'lucide-react'
-import { EVENT_KINDS, MILESTONE_STATUS, PROJECT_STAGES, TODO_PRIORITY, TODO_STATUS } from '@shared/schema'
+import { FolderKanban, MapPin, CheckCircle2, CalendarSync } from 'lucide-react'
+import { EVENT_KINDS, MILESTONE_STATUS, PROJECT_STAGES, SYNCED_EVENT_SOURCE, TODO_PRIORITY, TODO_STATUS } from '@shared/schema'
 import { api, useApi, useWrite } from '@/lib/api'
 import type { CalEvent, KbNote, Milestone, Project, Receivable, Todo } from '@/lib/types'
 import { dueText, fullDate, relDay, shortDate, timeOf, wan } from '@/lib/format'
@@ -13,6 +13,7 @@ import { Choice, ClientChoice, DatePicker, DateTimePicker, ProjectChoice, FormFi
 import { Button } from '@/components/ui/button'
 import { FieldGroup } from '@/components/ui/field'
 import { DeleteButton, EditToggle, HeroFact, InlineText, LinkChip, Prose, ReadRow } from '@/components/detail-parts'
+import { useIdentity } from '@/lib/identity'
 
 function duration(start: string, end: string | null) {
   if (!end || !start.includes('T')) return null
@@ -27,24 +28,32 @@ export function EventSheet({ id }: { id: string }) {
   const patch = useWrite((b: Record<string, unknown>) => api.patch(`/events/${id}`, b), '日程已更新')
   const del = useWrite(() => api.del(`/events/${id}`), '已删除日程')
   const color = e ? EVENT_COLORS[e.kind] : undefined
+  // 从老板自己的日历同步来的：只读，不给编辑、删除（服务端也会拒绝）
+  const synced = e?.source === SYNCED_EVENT_SOURCE
   return (
     <DetailSheet open onClose={() => ov.closeDetail('event')} eyebrow="日程" title={e?.title}
-      meta={e && <><span className="inline-flex h-5 items-center rounded-md px-1.5 text-[12px] font-medium" style={{ background: color?.bg, color: color?.text }}>{e.kind}</span>{e.source !== '手动' && <span>来自 {e.source}</span>}</>}
-      actions={e && <><EditToggle editing={editing} onChange={setEditing} />{e.client_id && <Button size="sm" variant="outline" onClick={() => ov.openNew('log', { for: e.client_id! })}>会后记一笔跟进</Button>}</>}>
-      {e && !editing && (
+      meta={e && <><span className="inline-flex h-5 items-center rounded-md px-1.5 text-[12px] font-medium" style={{ background: color?.bg, color: color?.text }}>{e.kind}</span>{e.source !== '手动' && !synced && <span>来自 {e.source}</span>}</>}
+      actions={e && <>{!synced && <EditToggle editing={editing} onChange={setEditing} />}{e.client_id && <Button size="sm" variant="outline" onClick={() => ov.openNew('log', { for: e.client_id! })}>会后记一笔跟进</Button>}</>}>
+      {e && (synced || !editing) && (
         <div className="grid gap-5">
+          {synced && (
+            <p className="flex items-start gap-2 rounded-lg border bg-muted/50 px-3 py-2.5 text-[13px] leading-relaxed text-muted-foreground">
+              <CalendarSync className="mt-0.5 size-4 shrink-0" aria-hidden />
+              <span>{e.note ? `${e.note}。` : ''}这条来自你的日历，工作台里只能看；要改时间、地点或删掉，请在日历里改，工作台每 10 分钟同步一次。</span>
+            </p>
+          )}
           <div className="grid grid-cols-2 gap-3">
             <HeroFact label={fullDate(e.start)} value={e.all_day ? '全天' : e.end ? `${timeOf(e.start)}–${timeOf(e.end)}` : timeOf(e.start)} sub={duration(e.start, e.end) ?? relDay(e.start)} />
-            <HeroFact label="地点" value={<span className="text-base">{e.location || '未填'}</span>} sub={e.location ? <span className="inline-flex items-center gap-1"><MapPin className="size-3" />到场前确认</span> : '可以点“编辑”补上'} />
+            <HeroFact label="地点" value={<span className="text-base">{e.location || '未填'}</span>} sub={e.location ? <span className="inline-flex items-center gap-1"><MapPin className="size-3" />到场前确认</span> : synced ? '日历里没写地点' : '可以点“编辑”补上'} />
           </div>
           <dl>
             <ReadRow label="和谁">{e.client_id ? <LinkChip label={e.client_name ?? '客户'} onClick={() => ov.openDetail('client', e.client_id!)} /> : <span className="text-muted-foreground">没有关联客户</span>}</ReadRow>
             <ReadRow label="项目">{e.project_id ? <LinkChip icon={FolderKanban} label={e.project_name ?? '项目'} onClick={() => ov.openDetail('project', e.project_id!)} /> : <span className="text-muted-foreground">—</span>}</ReadRow>
           </dl>
-          <SheetSection title="备注"><Prose text={e.note} empty="还没有备注。会前要准备什么、会上谈了什么，点“编辑”写在这里。" /></SheetSection>
+          {!synced && <SheetSection title="备注"><Prose text={e.note} empty="还没有备注。会前要准备什么、会上谈了什么，点“编辑”写在这里。" /></SheetSection>}
         </div>
       )}
-      {e && editing && (
+      {e && editing && !synced && (
         <FieldGroup className="gap-4">
           <FormField label="标题"><InlineText value={e.title} onSave={(v) => patch.mutate({ title: v })} /></FormField>
           <FormField label="类型"><Choice value={e.kind} onChange={(v) => v && patch.mutate({ kind: v })} options={EVENT_KINDS} /></FormField>
@@ -127,6 +136,7 @@ export function TodoSheet({ id }: { id: string }) {
 
 type ProjectDetail = { project: Project; milestones: Milestone[]; todos: Todo[]; events: CalEvent[]; receivables: Receivable[]; kb_note: KbNote }
 export function ProjectSheet({ id }: { id: string }) {
+  const kb = useIdentity().kb
   const ov = useOverlay()
   const navigate = useNavigate()
   const [editing, setEditing] = useState(false)
@@ -157,7 +167,7 @@ export function ProjectSheet({ id }: { id: string }) {
                 <ReadRow label="想达到">{p.goal || <span className="text-muted-foreground">没写</span>}</ReadRow>
                 <ReadRow label="下一步">{p.next_step || <span className="text-muted-foreground">没写</span>}</ReadRow>
                 <ReadRow label="在等谁">{p.waiting_on || <span className="text-muted-foreground">不用等人</span>}</ReadRow>
-                <ReadRow label="知识库">{data.kb_note.path ? <LinkChip icon={FolderKanban} label={data.kb_note.path} onClick={() => navigate(`/kb?path=${encodeURIComponent(data.kb_note.path!)}`)} /> : <span className="text-muted-foreground">{data.kb_note.expected ? `还没有（预期 ${data.kb_note.expected}）` : '—'}</span>}</ReadRow>
+                <ReadRow label={kb}>{data.kb_note.path ? <LinkChip icon={FolderKanban} label={data.kb_note.path} onClick={() => navigate(`/kb?path=${encodeURIComponent(data.kb_note.path!)}`)} /> : <span className="text-muted-foreground">{data.kb_note.expected ? `还没有（预期 ${data.kb_note.expected}）` : '—'}</span>}</ReadRow>
                 <ReadRow label="更新">{relDay(p.updated_at)}</ReadRow>
               </dl>
             </>
@@ -186,7 +196,7 @@ export function ProjectSheet({ id }: { id: string }) {
                   </li>
                 )
               })}
-              {!data.milestones.length && <p className="px-2 text-sm text-muted-foreground">还没设里程碑。让 Codex 按知识库里的项目说明加上。</p>}
+              {!data.milestones.length && <p className="px-2 text-sm text-muted-foreground">还没设里程碑。让 Codex 按{kb}里的项目说明加上。</p>}
             </ol>
           </SheetSection>
           <SheetSection title="待办">

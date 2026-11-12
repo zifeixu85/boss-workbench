@@ -12,6 +12,7 @@ import { BadRequest, NotFound } from '../../services/common.ts'
 import { backupKbFile, findClientNote, kbPath } from '../../services/kb.ts'
 import { preparedFor } from './prepared.ts'
 import { identity } from '../../services/identity.ts'
+import { methodFiles } from '../../services/kb-methods.ts'
 
 export const INBOX_DIR = '00-收件箱'
 
@@ -384,7 +385,8 @@ export const FINDINGS_FILE = '90-持续生长/待确认的发现.md'
 /** 工作台加的发现卡末尾的标记：写的时候带老板的称呼，认的时候不管称呼 */
 const findingMark = () => `工作台“答应过的事”里${identity().owner}点了“规则该改了”`
 const FINDING_MARK_RE = /工作台“答应过的事”里\S{0,20}点了“规则该改了”/
-const RULE_FILE_REL = '../05-方法与判断/企业茶礼报价与接单/判断规则.md'
+/** 发现卡里链到判断规则：按方法选择表找到的那份（从 90-持续生长/ 起的相对路径）；知识库里还没有就只写“判断规则”，不放链接 */
+const ruleLink = () => { const f = methodFiles().rules; return f ? `[判断规则](../${f})` : '判断规则' }
 
 export type FindingInput = { client: string; promise: string; said: string; source: string | null; conflict: string; note: string; today: string }
 
@@ -397,12 +399,12 @@ function findingSection(x: FindingInput, n: number) {
   return [
     `## 发现 ${n}｜${x.client}“${short}”和${rule}${/\d$/.test(rule) ? ' ' : ''}对不上，${owner}说规则该改`,
     `- 看到的：${x.said}，${owner}答应${x.client}：${x.promise}。${why ? `${why}。` : ''}`,
-    `- 原来的做法：[判断规则](${RULE_FILE_REL}) ${ruleText ?? rule}。`,
+    `- 原来的做法：${ruleLink()} ${ruleText ?? rule}。`,
     `- 可能的规律或建议：${owner}说“${x.note.replace(/[。\s]+$/, '')}”。可以考虑把这种情况写成规则的例外条件。（工作台记下的，待确认）`,
     `- 想问你：${rule}${/\d$/.test(rule) ? ' ' : ''}要不要改、怎么改？改之前这一单按“例外”算。`,
     `- 证据强度：1 次（这一单），是事实不是推测${x.source ? `；原件 ${x.source}` : ''}。`,
     // 知识库的发现卡格式：“采纳后写到”放在状态前面，这一行里不出现“状态：”（2026-10-13 补）
-    `- 采纳后写到：[判断规则](${RULE_FILE_REL}) 的${rule}加一条例外条件，或按${owner}的说法改写这一条；不采纳就照原规则，这一单按例外记。`,
+    `- 采纳后写到：${ruleLink()} 的${rule}加一条例外条件，或按${owner}的说法改写这一条；不采纳就照原规则，这一单按例外记。`,
     '- 状态：待确认',
     `- 提出：${x.today}，${findingMark()}`,
     '',

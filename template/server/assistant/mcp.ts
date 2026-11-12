@@ -12,10 +12,10 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { createInterface } from 'node:readline'
 import { APP_DIR } from '../db.ts'
-import { kbTree, readKb } from '../services/kb.ts'
+import { kbTree, readKb, searchKb } from '../services/kb.ts'
 import { SERVER_MODULES } from '../modules.gen.ts'
 
-const CORE_READ = ['today', 'todos', 'events', 'projects', 'clients', 'client', 'receivables', 'modules', 'materials', 'care', 'biz', 'xhs', 'sources', 'biz-report', 'biz-anomalies', 'reminders', 'jobs'] as const
+const CORE_READ = ['today', 'todos', 'events', 'projects', 'clients', 'client', 'receivables', 'modules', 'materials', 'care', 'biz', 'xhs', 'sources', 'biz-report', 'biz-anomalies', 'reminders', 'jobs', 'calendar-status'] as const
 /** 能读的命令：核心的 + 装进来的模块在 module.json 里写明只读的（server/modules.gen.ts 的 read）。写的命令不开放给模块 */
 export const READ_COMMANDS: readonly string[] = [...CORE_READ, ...SERVER_MODULES.flatMap((m) => m.read ?? []).filter((c) => !(CORE_READ as readonly string[]).includes(c))]
 export const WRITE_COMMANDS = ['todo-add', 'todo-set', 'event-add', 'project-add', 'project-set', 'milestone-add', 'inbox', 'inbox-done', 'log', 'client-add', 'client-set', 'follow', 'stage', 'promise-add', 'promise-done', 'care-add', 'care-set', 'xhs-topics-add'] as const
@@ -29,12 +29,12 @@ export const TOOLS = [
   },
   {
     name: 'workbench_read',
-    description: `读工作台：${READ_COMMANDS.join('、')}。args 是命令后面的参数（字符串数组），例如 command="client", args=["澜拓科技"]。返回 JSON。`,
+    description: `读工作台：${READ_COMMANDS.join('、')}。args 是命令后面的参数（字符串数组），例如 command="client", args=["客户名"]。返回 JSON。`,
     inputSchema: { type: 'object', properties: { command: { type: 'string', enum: [...READ_COMMANDS] }, args: { type: 'array', items: { type: 'string' } } }, required: ['command'], additionalProperties: false },
   },
   {
     name: 'workbench_write',
-    description: `写工作台（和网页同一套规则，记进“最近改动”，操作人是 Codex）：${WRITE_COMMANDS.join('、')}。args 例：command="todo-add", args=["给衡言出效果图","--due","2026-10-28","--owner","小艾"]。改阶段（stage）要带 --reason。`,
+    description: `写工作台（和网页同一套规则，记进“最近改动”，操作人是 Codex）：${WRITE_COMMANDS.join('、')}。args 例：command="todo-add", args=["给客户出报价单","--due","2026-10-28","--owner","负责人名字"]。改阶段（stage）要带 --reason。`,
     inputSchema: { type: 'object', properties: { command: { type: 'string', enum: [...WRITE_COMMANDS] }, args: { type: 'array', items: { type: 'string' } } }, required: ['command'], additionalProperties: false },
   },
   {
@@ -89,19 +89,8 @@ function kbList(folder?: string) {
 }
 
 function kbSearch(query: string) {
-  const q = query.trim().toLowerCase()
-  if (!q) throw new Error('要写找什么')
-  const hits: { path: string; line: string }[] = []
-  for (const f of flatFiles(kbTree() as Node[])) {
-    if (hits.length >= 12) break
-    if (f.path.startsWith('工作台/')) continue
-    if (f.path.toLowerCase().includes(q)) { hits.push({ path: f.path, line: '（文件名）' }); continue }
-    let body = ''
-    try { body = readKb(f.path).body } catch { continue }
-    const line = body.split('\n').find((l) => l.toLowerCase().includes(q))
-    if (line) hits.push({ path: f.path, line: line.trim().slice(0, 200) })
-  }
-  return hits
+  if (!query.trim()) throw new Error('要写找什么')
+  return searchKb(query, { limit: 12 }).map((h) => ({ path: h.path, line: h.line }))
 }
 
 /** 调一个工具，返回给 Codex 的文字；出错抛异常（变成 isError） */

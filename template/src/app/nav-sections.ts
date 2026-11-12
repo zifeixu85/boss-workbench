@@ -4,14 +4,17 @@
 import { useMemo } from 'react'
 import { navWithModules, sectionsOf, type NavItem, type NavSection } from './nav'
 import { useModules } from '@/lib/modules'
+import { useIdentity } from '@/lib/identity'
 
 export type NavState = { nav: NavItem[]; sections: NavSection[]; top: NavSection[] }
 
 export function useNav(): NavState {
   const { list } = useModules()
+  const kb = useIdentity().kb
   return useMemo(() => {
-    const nav = navWithModules((id) => list.includes(id))
+    // “知识库”这一页的名字跟设置走（settings-set --kb-name 资料）
+    const nav = navWithModules((id) => list.includes(id)).map((n) => (n.key === 'kb' ? { ...n, label: kb } : n))
     const sections = sectionsOf(nav)
     return { nav, sections, top: sections.filter((s) => !s.hidden) }
-  }, [list])
+  }, [list, kb])
 }

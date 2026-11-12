@@ -65,7 +65,7 @@ export function KeyMark({ className }: { className?: string }) {
   )
 }
 
-const FLAG_TONE: Record<Flag, 'warn' | 'info' | 'primary'> = { 久未联系: 'warn', 有新材料: 'info', 生日临近: 'primary', 有冲突待定: 'warn', 撞上门店停业: 'warn' }
+const FLAG_TONE: Record<Flag, 'warn' | 'info' | 'primary'> = { 久未联系: 'warn', 有新材料: 'info', 生日临近: 'primary', 有冲突待定: 'warn', 撞上停业: 'warn' }
 export function FlagChips({ flags, className }: { flags: Flag[]; className?: string }) {
   if (!flags.length) return null
   return <span className={cn('flex flex-wrap gap-1', className)}>{flags.map((f) => <StatusBadge key={f} value={f} tone={FLAG_TONE[f]} />)}</span>
@@ -126,7 +126,7 @@ export function CopyButton({ text, label = '复制', done = '已复制', size = 
 
 /** 给 Codex 的一段话：带上客户档案和关怀做法的位置，到 Codex 对话里粘贴就能接着改 */
 export function codexEditPrompt(clientName: string, kbPath: string | null | undefined, occasion: string, draft: string) {
-  return `帮我改一下给${clientName}的“${occasion}”消息草稿。先读${kbPath ? ` ${kbPath} 和` : ''} 05-方法与判断/大客户关怀.md、02-关于我/说话方式.md。
+  return `帮我改一下给${clientName}的“${occasion}”消息草稿。先读${kbPath ? ` ${kbPath}、` : ''}05-方法与判断 里关怀的做法（按它 README 的方法选择表找）、02-关于我/说话方式.md。
 现在的草稿：「${draft}」
 要求：话短，像我平常发微信；送礼和问候里不提单子、不报价；还没上线的新品不提名字；只出草稿，我自己发。改好后用工作台命令存回去（care-set），或者直接给我看。`
 }

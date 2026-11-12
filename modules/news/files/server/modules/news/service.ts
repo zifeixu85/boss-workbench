@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url'
 import { all, get, run, tx, uid, nowIso, logChange } from '../../db.ts'
 import { today, BadRequest, type Actor } from '../../services/common.ts'
 import { parseRss, matches, type ParsedIssue } from './rss.ts'
+import { onceOf } from '../../jobs/service.ts'
 
 export const AIHOT_DAILY = 'https://aihot.news/feed/daily.xml'
 const MAX_BYTES = 2 * 1024 * 1024
@@ -14,6 +15,9 @@ const DAY = /^\d{4}-\d{2}-\d{2}$/
 
 export type Issue = { id: string; source: string; guid: string; day: string | null; title: string; link: string | null; summary: string | null; published_at: string | null; fetched_at: string }
 export type Item = { id: string; issue_id: string; category: string | null; title: string; link: string | null; position: number }
+/** 公共调度记的一次自动运行（job_runs）：定时、补跑，或命令 job-run 的手动 */
+export type Run = { trigger: string; status: string; started_at: string; finished_at: string | null; note: string | null }
+export const JOB_ID = 'news.daily'
 export type Fetch = { id: number; at: string; source: string; ok: number; added: number; note: string | null }
 
 const setting = (key: string) => get<{ value: string }>('SELECT value FROM settings WHERE key = :key', { key })?.value
@@ -110,5 +114,9 @@ export function overview(day?: string) {
   const keywords = keywordsOf()
   const items = issue ? all<Item>('SELECT * FROM news_items WHERE issue_id = :id ORDER BY position', { id: issue.id }).map((x) => ({ ...x, hit: matches(x.title, keywords) })) : []
   const last = get<Fetch>('SELECT * FROM news_fetches ORDER BY id DESC LIMIT 1') ?? null
-  return { today: d, day: pick, has_today: days.includes(d), issue, items, hits: items.filter((x) => x.hit), keywords, source: sourceOf(), last_fetch: last, days }
+  // 自动运行的记录：最近 6 次；每天几点、停没停、今天要不要再自动跑一次（job-set news.daily --once）
+  const runs = all<Run>('SELECT trigger, status, started_at, finished_at, note FROM job_runs WHERE job_id = :id ORDER BY id DESC LIMIT 6', { id: JOB_ID })
+  const set = (k: string) => get<{ value: string }>('SELECT value FROM settings WHERE key = :k', { k })?.value
+  const schedule = { at: set(`job_at:${JOB_ID}`) || '08:30', off: set(`job_off:${JOB_ID}`) === '1', once: onceOf({ id: JOB_ID }) }
+  return { today: d, day: pick, has_today: days.includes(d), issue, items, hits: items.filter((x) => x.hit), keywords, source: sourceOf(), last_fetch: last, days, runs, schedule }
 }

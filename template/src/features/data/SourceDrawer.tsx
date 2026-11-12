@@ -125,7 +125,7 @@ function MappingReview({ s, items, pending }: { s: SourceDetail; items: Mapping[
               action={<Button size="sm" disabled={reimport.isPending} onClick={() => reimport.mutate(undefined, { onSuccess: () => toast('今日页的提醒会跟着消失', { description: '笔记数据写进了小红书模块，能撤销' }) })}>{reimport.isPending ? <Loader2 className="animate-spin" /> : <Upload />}按新规则重新导入</Button>}>
               这份是平台改版后第一份笔记数据表（{notes.file.rel}）。按刚确认的对照导进小红书模块的笔记数据，同一次导出的粉丝数据也一起补上；写之前记下原来的数，导错了能撤销。
             </Note>
-          ) : <p className="text-[13px] text-muted-foreground">导入文件夹里没有笔记数据表：小艾从专业号后台导出放进去，再点“立即同步”。</p>}
+          ) : <p className="text-[13px] text-muted-foreground">导入文件夹里没有笔记数据表：从小红书专业号后台导出“笔记数据”放进去，再点“立即同步”。</p>}
         </SheetSection>
       )}
       {decided.length > 0 && (

@@ -17,6 +17,7 @@ import { autostart } from './autostart.mjs'
 import { checkShell } from './shell-check.mjs'
 import { findCodex } from './codex-check.mjs'
 import { checkModules } from './module.mjs'
+import { installCalendarHelper, installedHelper } from './mac-calendar.mjs'
 
 const APP = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 // 知识库根目录和数据库位置：默认 程序/../.. 和 <知识库>/工作台/数据/workbench.db；
@@ -142,6 +143,16 @@ function initDb() {
   return false
 }
 
+/** Mac 日历助手（只复制文件，不启动、不问权限；接日历在搭建时另跑 calendar-connect mac）。装不上不算问题：还能用飞书日历或订阅链接 */
+function calendarHelper() {
+  if (process.platform !== 'darwin') return
+  say(C.b('\n⑥ 日历助手（Mac）'))
+  try {
+    const r = installCalendarHelper({ app: APP })
+    r.ok ? ok(r.note) : warn(r.note, '接日历时可以换飞书日历或订阅链接')
+  } catch (err) { warn(`日历助手没装上：${err.message}`, '接日历时可以换飞书日历或订阅链接') }
+}
+
 async function checkInstalled() {
   say(C.b('\n② 检查安装结果'))
   existsSync(join(APP, 'node_modules')) ? ok('依赖已安装') : bad('还没装依赖', '双击“安装工作台”')
@@ -165,6 +176,7 @@ async function checkInstalled() {
   say(C.b('\n⑤ AI 助手（本机 Codex，只报告，不算问题）'))
   const codex = await findCodex()
   codex.ready ? ok(`本机 Codex 能用：${codex.version}`) : warn(codex.detail, codex.fix)
+  if (process.platform === 'darwin') say(C.dim(`  日历助手（只报告，不算问题）：${existsSync(installedHelper()) ? '已装好' : '还没装（接 Mac 日历时会自动装）'}`))
   say(C.dim('  开机自启（只报告，不算问题）：'))
   await autostart('status', { app: APP, root: ROOT, db: DB, port: PORT, say: (x) => say(C.dim(`    ${x}`)) })
 }
@@ -187,6 +199,7 @@ async function main() {
   if (!installDeps(reg)) return finish()
   if (!build()) return finish()
   initDb()
+  calendarHelper()
   finish()
 }
 

@@ -1,4 +1,4 @@
-// 老板怎么称呼、店名（品牌名）、小红书账号名：都从设置读（settings 表的 owner、business、xhs_name）。
+// 老板怎么称呼、店名（品牌名）、小红书账号名、“知识库”这一页叫什么：都从设置读（settings 表的 owner、business、xhs_name、kb_name）。
 // 搭建时用命令 settings-set --owner --business --xhs 按知识库写入，网页“设置”页也能改。
 // 网页文案、命令行输出、给 Codex 的提示词、写回知识库的话都用这里的值；没设置时用中性说法。
 import { all } from '../db.ts'
@@ -12,18 +12,21 @@ export type Identity = {
   xhs: string
   /** 设置里真写了的店名（没写是 null）：提示词里要不要带店名看它 */
   brand: string | null
+  /** “知识库”这一页在菜单和页面上叫什么；没设置时“知识库”。还没跟老板讲到知识库时可以先设成“资料”（settings-set --kb-name 资料） */
+  kb: string
 }
 
-export const DEFAULT_IDENTITY: Identity = { owner: '老板', shop: '我的店', xhs: '我的账号', brand: null }
+export const DEFAULT_IDENTITY: Identity = { owner: '老板', shop: '我的店', xhs: '我的账号', brand: null, kb: '知识库' }
 
 export function identity(): Identity {
-  const rows = all<{ key: string; value: string }>("SELECT key, value FROM settings WHERE key IN ('owner', 'business', 'xhs_name')")
+  const rows = all<{ key: string; value: string }>("SELECT key, value FROM settings WHERE key IN ('owner', 'business', 'xhs_name', 'kb_name')")
   const s: Record<string, string> = Object.fromEntries(rows.map((r) => [r.key, String(r.value ?? '').trim()]))
   return {
     owner: s.owner || DEFAULT_IDENTITY.owner,
     shop: s.business || DEFAULT_IDENTITY.shop,
     xhs: s.xhs_name || s.business || DEFAULT_IDENTITY.xhs,
     brand: s.business || null,
+    kb: s.kb_name || DEFAULT_IDENTITY.kb,
   }
 }
 

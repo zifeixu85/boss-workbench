@@ -4,7 +4,8 @@ import type { Hono } from 'hono'
 
 /** 每天几点跑一次的事（定时任务，见 server/jobs/）。run 返回一句话写进运行记录，出错就抛 */
 export type JobContext = { day: string; trigger: JobTrigger }
-export type JobTrigger = '定时' | '补跑' | '手动'
+/** 单次 = 今天再自动跑一次（job-set --once）：和每天那一次分开记账，互不影响 */
+export type JobTrigger = '定时' | '补跑' | '手动' | '单次'
 export type Job = {
   /** 全局唯一，写成 模块编号.名字，比如 news.daily */
   id: string

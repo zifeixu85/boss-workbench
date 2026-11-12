@@ -3,7 +3,7 @@
 // 金额：订单是“元”；商机、应收沿用公共表的“万元”。
 // 消费口径（E5 修 #3，列表和档案同一套）：只算“已完成”、日期不晚于今天的订单；“上次下单”不算 0 元的补发单。
 // 第三轮：门店包间费不是商品，不算消费、不算一单（和经营模块同一个口径），订单表里照样列出来、标“包间费，不算消费”。
-// 第三轮：等级只看近 12 个月买了多少和“报价中 / 待签约”的单（方案中、需求确认的金额还没谈实，不算）；门店停业撞日子的标“撞上门店停业”。
+// 第三轮：等级只看近 12 个月买了多少和“报价中 / 待签约”的单（方案中、需求确认的金额还没谈实，不算）；停业撞日子的标“撞上停业”。
 import { all, get } from '../../db.ts'
 import { today, addDays, daysBetween } from '../../services/common.ts'
 import { clientDetail } from '../../services/clients.ts'
@@ -105,7 +105,7 @@ export function clientList() {
     if (materials.length) flags.push('有新材料')
     if (bday) flags.push('生日临近')
     if (r.conflict_promises > 0) flags.push('有冲突待定')
-    if (clash.get(r.id)?.length) flags.push('撞上门店停业')
+    if (clash.get(r.id)?.length) flags.push('撞上停业')
     const level = levelOf(r.spent_12m, r.firm_amount)
     const [concernText, concernSrc] = (r.concern ?? '').split('｜')
     return {

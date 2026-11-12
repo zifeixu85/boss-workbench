@@ -2,13 +2,14 @@
 // 每条提醒有一个 key：同一件事同一个时刻只有一条，记进 reminders 表后就不再提醒（只弹一次）。
 //
 //   待办   填了到期时间的：到期前 1 小时内（过了 30 分钟还没做也提醒一次）      todo:<ID>:<日期>T<时间>
-//   日程   不是全天的：开始前 15 分钟内（开始后 10 分钟内也算）                    event:<ID>:<开始时间>
+//   日程   不是全天的、不是从日历同步来的：开始前 15 分钟内（开始后 10 分钟内也算）  event:<ID>:<开始时间>
 //   跟进   “下次跟进”是今天的客户：早上（免打扰结束时，默认 8:00）以后            follow:<客户ID>:<日期>
 //   异常   经营异常新出现（连着几天都在只提醒一次，消失两天以上又出现再提醒）    alert:<异常ID>#<第一次出现那天>
 //   数据源 没按时更新、导入失败（每个来源每天最多一次）                            alert:<来源ID>:<日期>
 //   汇总   每天“看汇总”的时间（没设：工作台开了 5 分钟后）一次；免打扰时不补        summary:<日期>
 // 只有日期、没有时间的待办不单独弹，算进汇总里。
 import type { RemindSettings } from './settings.ts'
+import { SYNCED_EVENT_SOURCE } from '../../shared/schema.ts'
 
 export type Kind = '待办' | '日程' | '跟进' | '异常' | '数据源' | '汇总' | '测试'
 export type Candidate = {
@@ -20,7 +21,7 @@ export type Candidate = {
 }
 
 export type TodoRow = { id: string; title: string; due: string | null; due_time: string | null; status: string; client_name: string | null }
-export type EventRow = { id: string; title: string; start: string; all_day: number; location: string | null }
+export type EventRow = { id: string; title: string; start: string; all_day: number; location: string | null; source?: string }
 export type FollowRow = { id: string; name: string; label: string | null; next_follow: string | null; next_step: string | null }
 export type AlertRow = { id: string; module: 'biz' | 'data'; title: string; detail: string; since: string | null; link: string }
 export type SummaryCounts = { events: number; todos_today: number; todos_overdue: number; follows: number; alerts: number }
@@ -89,7 +90,8 @@ export function todoCandidates(todos: TodoRow[], now: Date): Candidate[] {
 export function eventCandidates(events: EventRow[], now: Date): Candidate[] {
   const out: Candidate[] = []
   for (const e of events) {
-    if (e.all_day || e.start.length < 16) continue
+    // 从老板自己的日历同步来的不提醒：日历 App 自己会提醒，工作台再弹就重复了（每天的汇总里照样数它）
+    if (e.all_day || e.start.length < 16 || e.source === SYNCED_EVENT_SOURCE) continue
     const n = left(at(e.start.slice(0, 16)), now)
     if (n > EVENT_BEFORE_MIN || n < -EVENT_AFTER_MIN) continue
     const tail = e.location ? ` · ${e.location}` : ''

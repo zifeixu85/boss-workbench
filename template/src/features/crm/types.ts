@@ -2,7 +2,7 @@
 import type { CalEvent, Client, Deal, Interaction, KbNote, Project, Receivable, Todo } from '@/lib/types'
 
 export type Level = 'A' | 'B' | 'C'
-export type Flag = '久未联系' | '有新材料' | '生日临近' | '有冲突待定' | '撞上门店停业'
+export type Flag = '久未联系' | '有新材料' | '生日临近' | '有冲突待定' | '撞上停业'
 export type Material = { path: string; title: string; date: string | null }
 
 /** 客户列表的一行：公共字段 + 消费、等级、四个关键数、标签 */
@@ -68,7 +68,7 @@ export type ClientProfile = {
     units: number
   }
   kb_note: KbNote
-  /** 撞上门店停业的事（答应的、重要日子、日程、下次跟进） */
+  /** 撞上停业的事（答应的、重要日子、日程、下次跟进） */
   clashes: Clash[]
   closure: Closure | null
 }
@@ -89,7 +89,7 @@ export type SpringClient = {
   bought: { occasion: string; date: string; item: string; qty: number; unit: string; amount: number }[]
   deal: { title: string; stage: string; amount: number | null; estimated?: number } | null
 }
-export type CareRules = { file: string; found: boolean; confirm: string | null; rules: string[]; donts: string[] }
+export type CareRules = { file: string | null; found: boolean; confirm: string | null; rules: string[]; donts: string[] }
 export type CareData = { items: CareItem[]; spring: { date: string; days_left: number; presale: string; hint: string; clients: SpringClient[] }; rules: CareRules }
 
 export type InboxFile = {

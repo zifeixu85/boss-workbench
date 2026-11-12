@@ -1,6 +1,7 @@
 // 定时任务（公共，2026-10-18）：模块登记“每天几点跑一次”的事（server/module-types.ts 的 Job），工作台开着就按时跑；
 // 到点时电脑没开、睡着了、工作台没开，下次打开工作台补跑当天这一次。每跑一次记一行 job_runs。
 // 失败了隔 15 分钟再试，一天最多 3 次；“在跑”超过 10 分钟当作没跑完（进程被关了），也算一次失败。
+// 今天再自动跑一次（2026-11-12，job-set --once 12:07）：只管当天，到点自己跑一次，不看当天的每日任务跑没跑过；用来在当场看一次真的自动触发。
 // 时间以 clock.ts 的 now() 为准（演示模式按演示日）。老板改时间、停掉：设置里的 job_at:<编号>、job_off:<编号>（命令 job-set）。
 // 提醒不走这里，还是 reminders/ 每 30 秒算一遍。
 import { all, get, run, localDate } from '../db.ts'
@@ -36,22 +37,70 @@ const setting = (key: string) => get<{ value: string }>('SELECT value FROM setti
 /** 实际几点跑：老板改过的优先 */
 export const atOf = (j: Job) => { const v = setting(`job_at:${j.id}`); return v && HM.test(v) ? v : j.at }
 export const isOff = (j: Job) => setting(`job_off:${j.id}`) === '1'
+const ONCE: JobTrigger = '单次'
+/** 今天再自动跑一次的那几条记录：只算当天、这个时刻以后、记成“单次”的（每天那一次、手动跑的都不算） */
+export const runsSince = (id: string, since: Date) => all<JobRun>("SELECT * FROM job_runs WHERE job_id = :id AND day = :day AND trigger = '单次' AND started_at >= :since ORDER BY id", { id, day: localDate(since), since: since.toISOString() })
+
+const onceMoment = (hm: string, at: Date) => { const [h, m] = hm.split(':').map(Number); const d = new Date(at); d.setHours(h, m, 0, 0); return d }
+
+/**
+ * 今天再自动跑一次的那个时间（设置 job_once:<编号> = "YYYY-MM-DD HH:MM"）；不是今天的不算。
+ * done = 到点以后已经成功跑过；pending = 还会跑（没成功、也没试满 3 次）
+ */
+export function onceOf(j: Pick<Job, 'id'>, at: Date = now()): { day: string; at: string; done: boolean; pending: boolean } | null {
+  const v = setting(`job_once:${j.id}`)
+  const m = v?.match(/^(\d{4}-\d{2}-\d{2}) (\d{2}:\d{2})$/)
+  if (!m || m[1] !== localDate(at)) return null
+  const runs = runsSince(j.id, onceMoment(m[2], at))
+  const done = runs.some((r) => r.status === '成功')
+  return { day: m[1], at: m[2], done, pending: !done && runs.filter((r) => r.status === '失败').length < MAX_TRIES }
+}
+
+/** 时间写得对不对：格式、要晚于现在（不然就成了马上跑，看不到“到点自己跑”）。不写库 */
+function checkOnce(hm: string, at: Date) {
+  if (hm === 'none') return
+  if (!HM.test(hm)) throw new Error(`时间写成 24 小时制的 HH:MM，比如 12:07；收到的是“${hm}”`)
+  if (onceMoment(hm, at).getTime() <= at.getTime()) throw new Error(`${hm} 已经过了。写一个比现在晚几分钟的时间`)
+}
+
+/** 定下（或取消）今天再自动跑一次的时间 */
+export function setOnce(id: string, hm: string, at: Date = now()) {
+  checkOnce(hm, at)
+  if (hm === 'none') { run('DELETE FROM settings WHERE key = :k', { k: `job_once:${id}` }); return null }
+  const v = `${localDate(at)} ${hm}`
+  run('INSERT INTO settings (key, value) VALUES (:k, :v) ON CONFLICT(key) DO UPDATE SET value = :v', { k: `job_once:${id}`, v })
+  return { day: localDate(at), at: hm, done: false, pending: true }
+}
+
+/** 这一轮（从 since 起）该不该再试：成功过、正在跑、试满了、离上次失败太近，都不跑 */
+function canTry(runs: JobRun[], at: Date) {
+  if (runs.some((r) => r.status === '成功')) return false
+  if (runs.some((r) => r.status === '在跑' && at.getTime() - Date.parse(r.started_at) < STALE_MS)) return false
+  const tried = runs.filter((r) => r.status !== '成功')
+  if (tried.length >= MAX_TRIES) return false
+  const last = tried[tried.length - 1]
+  return !(last && at.getTime() - Date.parse(last.finished_at ?? last.started_at) < RETRY_MS)
+}
+
 const runsOf = (id: string, day: string) => all<JobRun>('SELECT * FROM job_runs WHERE job_id = :id AND day = :day ORDER BY id', { id, day })
 
 /** 现在该不该跑：不该跑返回 null，该跑返回记成什么（定时 / 补跑） */
 export function dueTrigger(j: Job, at: Date = now()): JobTrigger | null {
   if (isOff(j) || (j.module && !isOn(j.module))) return null
+  // 今天再自动跑一次：到点了、这一次还没成功，就跑（不看当天的每日任务）
+  const once = onceOf(j, at)
+  if (once?.pending) {
+    const moment = onceMoment(once.at, at)
+    if (at.getTime() >= moment.getTime() && canTry(runsSince(j.id, moment), at)) return ONCE
+  }
   const [h, m] = atOf(j).split(':').map(Number)
   const planned = new Date(at)
   planned.setHours(h, m, 0, 0)
   if (at.getTime() < planned.getTime()) return null
-  const runs = runsOf(j.id, localDate(at))
-  if (runs.some((r) => r.status === '成功')) return null
-  if (runs.some((r) => r.status === '在跑' && at.getTime() - Date.parse(r.started_at) < STALE_MS)) return null
+  // 每天那一次只看自己的记录：“单次”跑成功、跑失败都不占它的名额
+  const runs = runsOf(j.id, localDate(at)).filter((r) => r.trigger !== ONCE)
+  if (!canTry(runs, at)) return null
   const tried = runs.filter((r) => r.status !== '成功')
-  if (tried.length >= MAX_TRIES) return null
-  const last = tried[tried.length - 1]
-  if (last && at.getTime() - Date.parse(last.finished_at ?? last.started_at) < RETRY_MS) return null
   return tried.length || at.getTime() - planned.getTime() > LATE_MS ? '补跑' : '定时'
 }
 
@@ -112,19 +161,22 @@ export async function jobList(at: Date = now()) {
   return (await allJobs()).map((j) => {
     const today = runsOf(j.id, day)
     const last = get<JobRun>('SELECT * FROM job_runs WHERE job_id = :id ORDER BY id DESC LIMIT 1', { id: j.id }) ?? null
-    return { id: j.id, name: j.name, module: j.module ?? null, at: atOf(j), off: isOff(j), module_on: !j.module || isOn(j.module), today: today[today.length - 1] ?? null, last }
+    return { id: j.id, name: j.name, module: j.module ?? null, at: atOf(j), off: isOff(j), module_on: !j.module || isOn(j.module), once: onceOf(j, at), today: today[today.length - 1] ?? null, last }
   })
 }
 
 /** 改时间、停掉 / 打开（写设置）；at 写 none = 回到模块默认的时间 */
-export async function setJob(id: string, o: { at?: string; off?: boolean }) {
+export async function setJob(id: string, o: { at?: string; off?: boolean; once?: string }) {
   const j = (await allJobs()).find((x) => x.id === id)
   if (!j) throw new Error(`没有“${id}”这个定时任务。运行 jobs 看有哪些`)
+  // 先把要改的都检查一遍再写：不留“改了一半”
+  if (o.at !== undefined && o.at !== 'none' && !HM.test(o.at)) throw new Error(`时间写成 24 小时制的 HH:MM，比如 08:30；收到的是“${o.at}”`)
+  if (o.once !== undefined) checkOnce(o.once, now())
   if (o.at !== undefined) {
     if (o.at === 'none') run('DELETE FROM settings WHERE key = :k', { k: `job_at:${id}` })
-    else if (!HM.test(o.at)) throw new Error(`时间写成 24 小时制的 HH:MM，比如 08:30；收到的是“${o.at}”`)
     else run('INSERT INTO settings (key, value) VALUES (:k, :v) ON CONFLICT(key) DO UPDATE SET value = :v', { k: `job_at:${id}`, v: o.at })
   }
+  if (o.once !== undefined) setOnce(id, o.once)
   if (o.off !== undefined) {
     if (o.off) run("INSERT INTO settings (key, value) VALUES (:k, '1') ON CONFLICT(key) DO UPDATE SET value = '1'", { k: `job_off:${id}` })
     else run('DELETE FROM settings WHERE key = :k', { k: `job_off:${id}` })

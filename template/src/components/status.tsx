@@ -51,4 +51,6 @@ export const EVENT_COLORS: Record<string, { bg: string; border: string; text: st
   送货: { bg: 'var(--info-soft)', border: 'var(--info)', text: 'var(--info)' },
   内部: { bg: 'var(--muted)', border: 'var(--muted-foreground)', text: 'var(--foreground)' },
   个人: { bg: 'var(--danger-soft)', border: 'var(--danger)', text: 'var(--danger)' },
+  // 从老板自己的日历同步来的（只读）：白底细边，和工作台里建的几种一眼分开
+  日历: { bg: 'var(--card)', border: 'var(--muted-foreground)', text: 'var(--foreground)' },
 }

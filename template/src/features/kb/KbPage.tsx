@@ -11,8 +11,10 @@ import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '
 import { KbTree } from './KbTree'
 import { KbDoc } from './KbDoc'
 import { KbHome } from './KbHome'
+import { useIdentity } from '@/lib/identity'
 
 export default function KbPage() {
+  const kb = useIdentity().kb
   const [sp, setSp] = useSearchParams()
   const path = sp.get('path')
   const tree = useApi<KbNode[]>('/kb/tree')
@@ -40,12 +42,12 @@ export default function KbPage() {
     <>
       <PageHeader
         eyebrow="资料"
-        title="知识库"
-        desc="关于我、生意、客户、项目、资料……知识库里的笔记都在这里。这里只能看；要新增或修改，直接跟 Codex 说。"
+        title={kb}
+        desc={`关于我、生意、客户、项目……${kb}里的笔记都在这里。这里只能看；要新增或修改，直接跟 Codex 说。`}
         actions={
           <>
             <Button variant="outline" className="md:hidden" onClick={() => setDrawer(true)}><PanelLeft />目录</Button>
-            {path && <Button variant="ghost" onClick={() => open(null)}><Home />知识库首页</Button>}
+            {path && <Button variant="ghost" onClick={() => open(null)}><Home />{kb}首页</Button>}
           </>
         }
       />
@@ -61,7 +63,7 @@ export default function KbPage() {
       <Sheet open={drawer} onOpenChange={setDrawer}>
         <SheetContent side="left" className="w-[86vw] max-w-sm gap-0 bg-card p-0">
           <SheetHeader className="border-b px-4 pt-4 pb-3">
-            <SheetTitle>知识库目录</SheetTitle>
+            <SheetTitle>{kb}目录</SheetTitle>
             <SheetDescription>点文件名打开，可以按名字筛选</SheetDescription>
           </SheetHeader>
           <div className="min-h-0 flex-1 overflow-y-auto p-3">{treeView}</div>
