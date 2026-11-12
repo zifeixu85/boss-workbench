@@ -8,15 +8,18 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Kbd, KbdGroup } from '@/components/ui/kbd'
 
-const LIMITS = { owner: 20, business: 40, xhs: 30 } as const
+const LIMITS = { owner: 20, business: 40 } as const
 
 export function BasicInfoForm({ settings }: { settings: Settings }) {
   const [owner, setOwner] = useState(settings.owner)
   const [business, setBusiness] = useState(settings.business)
-  const [xhs, setXhs] = useState(settings.xhs_name ?? '')
+  // 装进来的模块登记的设置项（module.json 的 settings）：有几项就多几个输入框，核心不写模块的名字
+  const defs = settings.module_settings ?? []
+  const [extra, setExtra] = useState<Record<string, string>>(() => Object.fromEntries(defs.map((d) => [d.key, d.value])))
   const [errors, setErrors] = useState<Record<string, string>>({})
-  const save = useWrite((b: Pick<Settings, 'owner' | 'business' | 'xhs_name'>) => api.patch<Settings>('/settings', b), '基本信息已保存')
-  const dirty = owner.trim() !== settings.owner || business.trim() !== settings.business || xhs.trim() !== (settings.xhs_name ?? '')
+  const save = useWrite((b: Pick<Settings, 'owner' | 'business'> & { module_settings?: Record<string, string> }) => api.patch<Settings>('/settings', b), '基本信息已保存')
+  const changed = defs.filter((d) => (extra[d.key] ?? '').trim() !== d.value)
+  const dirty = owner.trim() !== settings.owner || business.trim() !== settings.business || changed.length > 0
 
   const submit = () => {
     const o = owner.trim()
@@ -26,7 +29,7 @@ export function BasicInfoForm({ settings }: { settings: Settings }) {
     if (!b) next.business = '写店名，或者给工作台起个名字'
     setErrors(next)
     if (Object.keys(next).length) return
-    save.mutate({ owner: o, business: b, xhs_name: xhs.trim() }, { onError: (e) => setErrors(issuesToErrors(e)) })
+    save.mutate({ owner: o, business: b, ...(changed.length ? { module_settings: Object.fromEntries(changed.map((d) => [d.key, (extra[d.key] ?? '').trim()])) } : {}) }, { onError: (e) => setErrors(issuesToErrors(e)) })
   }
 
   return (
@@ -37,9 +40,11 @@ export function BasicInfoForm({ settings }: { settings: Settings }) {
       <FormField label="店名 / 工作台名称" error={errors.business} hint="显示在左上角；给 Codex 的提示词里当店名用">
         <Input aria-label="店名 / 工作台名称" value={business} maxLength={LIMITS.business} aria-invalid={!!errors.business} onChange={(e) => { setBusiness(e.target.value); setErrors((x) => ({ ...x, business: '' })) }} placeholder="张记花店" />
       </FormField>
-      {(!settings.modules || settings.modules.includes('content')) && <FormField label="小红书账号名" error={errors.xhs_name} hint={`小红书手机预览、选题和写稿时用；空着就用店名（现在是“${settings.xhs}”）`}>
-        <Input aria-label="小红书账号名" value={xhs} maxLength={LIMITS.xhs} aria-invalid={!!errors.xhs_name} onChange={(e) => { setXhs(e.target.value); setErrors((x) => ({ ...x, xhs_name: '' })) }} placeholder={settings.business} />
-      </FormField>}
+      {defs.map((d) => (
+        <FormField key={d.key} label={d.label} hint={d.hint}>
+          <Input aria-label={d.label} value={extra[d.key] ?? ''} maxLength={d.max} onChange={(e) => setExtra((x) => ({ ...x, [d.key]: e.target.value }))} placeholder={d.placeholder ?? settings.business} />
+        </FormField>
+      ))}
       <div className="flex justify-end sm:col-span-2">
         <Button type="submit" disabled={!dirty || save.isPending}>{save.isPending ? '保存中…' : '保存'}</Button>
       </div>

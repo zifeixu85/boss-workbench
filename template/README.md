@@ -42,7 +42,7 @@ node server/cli.ts today             # 今天的情况
 搭建时先写设置，再从知识库导入（和网页走同一套规则，都记进“最近改动”；不要直接写数据库）。下面的名字都是举例：
 
 ```bash
-node server/cli.ts settings-set --owner 张总 --business 张记花店 --xhs 张记花事 --theme jade --nav simple   # 称呼、店名、小红书账号名、配色、导航（simple 简单 / complex 复杂：侧栏三级 / dual 双层 / top 顶部）
+node server/cli.ts settings-set --owner 张总 --business 张记花店 --theme jade --nav simple   # 称呼、店名、配色、导航（simple 简单 / complex 复杂：侧栏三级 / dual 双层 / top 顶部）；装进来的模块自己的设置项用 --set 设置项=值
 node server/cli.ts client-add 星禾科技 --label "科技公司 · 年节礼品" --stage 待复购 --next 2026-11-20 --kb 04-客户/企业客户/星禾科技.md
 node server/cli.ts client-set 星禾科技 --note "喜欢素雅包装；送礼对象是员工；去年 120 份"
 node server/cli.ts project-add "新店开业" --stage 进行中 --due 2026-12-15 --owner "店长小王" --kb 06-项目/新店开业.md \
@@ -59,7 +59,7 @@ node server/cli.ts remind-set --at 8:30 --quiet 22:00-08:00 # 每天几点提醒
 node server/cli.ts reminders                                # 最近的提醒、怎么弹的、读没读；remind-check 看这一刻会提醒什么
 ```
 
-**称呼、店名、小红书账号名**：网页文案、给 Codex 的提示词、小红书手机预览、写回知识库的话里，老板的称呼、店名和小红书账号名都从设置读（`settings` 表的 `owner`、`business`、`xhs_name`；代码在 `server/services/identity.ts`、`src/lib/identity.ts`）。搭建时用上面的 `settings-set` 按知识库写进去（称呼看 `02-关于我/`，店名看 `03-生意/`，账号名看 `11-内容与作品/` 的小红书账号定位）；网页“设置 → 基本信息”也能改。没写时用中性说法：“老板”“我的店”，小红书账号名没写就跟店名。改功能时不要在代码里写死某位老板的称呼或店名。
+**称呼、店名**：网页文案、给 Codex 的提示词、写回知识库的话里，老板的称呼和店名都从设置读（`settings` 表的 `owner`、`business`；代码在 `server/services/identity.ts`、`src/lib/identity.ts`）。搭建时用上面的 `settings-set` 按知识库写进去（称呼看 `02-关于我/`，店名看 `03-生意/`）；网页“设置 → 基本信息”也能改。没写时用中性说法：“老板”“我的店”。改功能时不要在代码里写死某位老板的称呼或店名。装进来的模块自己的设置项（比如小红书内容中心的账号名）由模块在 `module.json` 的 `settings` 里登记，设置页“基本信息”里自动多出一个输入框，命令行用 `settings-set --set 设置项=值`。
 
 **备份**：都放在数据库旁边的 `备份/`（默认 `<知识库>/工作台/数据/备份/`；程序和数据库放在知识库外面时，就在库外那份数据库旁边，不随知识库同步）。`node server/cli.ts backup` 把数据库存成 `备份/workbench-<日期>T<时分秒>.db`（工作台开着也能备份）；工作台往知识库文件里写之前，原文件先存到 `备份/知识库/<日期时间>-<文件名>`。要回到某个备份：先停掉工作台，把现在的 `workbench.db` 挪开（旁边的 `workbench.db-wal`、`workbench.db-shm` 一起挪），再把那份备份复制回去、改名成 `workbench.db`，然后启动。
 
@@ -97,13 +97,13 @@ Mac 写 `~/Library/LaunchAgents/com.boss-workbench.<短名>.plist` 并用 `launc
 ```bash
 node scripts/install.mjs --demo      # 装好后写入示例数据
 npm run seed                         # = node server/seed/index.ts --demo --reset：删掉数据库，从零重灌示例数据
-node server/seed/index.ts --only biz # 只重灌一个模块（biz、content、data、crm-follow）
+node server/seed/index.ts --only biz # 只重灌一个模块（biz、data、crm-follow，或装进来的、自带示例数据的模块的编号）
 ```
 
 - 不加 `--demo`，种子脚本不会写示例数据；`--only` 只在示例库上能用。已经有老板自己的数据库时，`install.mjs --demo` 会停下，请你先把数据库挪走备份，不会覆盖。
 - 示例库的“今天”固定在 2026-10-27（存在数据库 `settings` 的 `demo_today`），网页、命令行都按这一天算。启动时加 `DEMO_TODAY=off` 换回真实日期，`DEMO_TODAY=2026-11-01` 换成别的一天。老板自己的数据库没有这个设置，按真实日期。
-- 示例数据是一家虚构的茶社（老板、客户、团队、数字都是编的），写在 `server/seed/`，只有加 `--demo` 才写进数据库；称呼、店名、小红书账号名也由种子写进设置。
-- 有几处演示要配合示例知识库里的文件：客户档案、`00-收件箱` 里的新材料、小红书创作 Skill（`.agents/skills/xhs-creator/`）。没有示例知识库时，这些地方提示“找不到原文”，不会报错。
+- 示例数据是一家虚构的茶社（老板、客户、团队、数字都是编的），写在 `server/seed/`，只有加 `--demo` 才写进数据库；称呼、店名也由种子写进设置。
+- 有几处演示要配合示例知识库里的文件：客户档案、`00-收件箱` 里的新材料（装了小红书内容中心的，还有小红书创作 Skill `.agents/skills/xhs-creator/`）。没有示例知识库时，这些地方提示“找不到原文”，不会报错。
 
 ## 模块
 
@@ -114,7 +114,7 @@ node server/seed/index.ts --only biz # 只重灌一个模块（biz、content、d
 | 公共：提醒（规则、浏览器通知、电脑系统通知） | `/reminders`；设置页“提醒” | `src/features/reminders`、`src/lib/reminders.ts` | `server/reminders/` | `016_reminders.sql` |
 | 客户与跟进（大客户：客户列表、跟进看板、关怀与回访、新材料提取、跟进清单、应收款） | `/clients…` | `src/features/clients`、`src/features/crm` | `server/modules/crm` | `002_crm.sql`、`015_crm_*.sql` |
 | 经营（汇总 + 每个渠道一页、经营早报、异常） | `/biz`、`/channel/<渠道>` | `src/features/biz` | `server/modules/biz` | `003_biz.sql`、`012_biz_reports.sql` |
-| 小红书内容中心（今天、内容、创作、数据、复盘） | `/content…` | `src/features/content` | `server/modules/content` | `004_content.sql`、`013_content_center*.sql` |
+| 装进来的模块（模块包，`node scripts/module.mjs add <编号>`）：行业资讯 `news` 在 Skill 的 `modules/` 里；小红书内容中心 `xhs` 是进阶模块，模块包要另外拿（2026-11-12 起不在基础模板里） | 模块自己定（`xhs` 是 `/content…`） | `src/features/<编号>` | `server/modules/<编号>`，接口在 `/api/m/<编号>/` | `m-<编号>-*.sql` |
 | 数据源与导入（导入文件、对字段、导入记录、导入规则） | `/sources`、`/imports…` | `src/features/data` | `server/modules/data` | `005_data.sql`、`014_data_import*.sql` |
 | 公共：日历同步（只读、单向：Mac 日历 / 飞书日历 / 订阅链接，每 10 分钟拉未来两周进 `events`，source = 日历同步、不能改；命令 `calendar-connect`、`calendar-status`、`calendar-sync`、`calendar-off`） | `/calendar` 顶上的来源条；设置页“日历来源” | `src/features/calendar/sync.ts`、`SyncBar.tsx`、`src/features/settings/CalendarSettings.tsx` | `server/calendar/`；Mac 助手 `tools/mac-calendar/`（编好的 工作台日历.app，不在老板电脑上重编）、`scripts/mac-calendar.mjs` | `021_日历同步.sql` |
 | 公共：定时任务（模块登记“每天几点跑一次”，没赶上补跑，失败了隔 15 分钟再试） | 命令 `jobs`、`job-run`、`job-set` | — | `server/jobs/` | `020_定时任务.sql` |
@@ -129,10 +129,24 @@ node server/seed/index.ts --only biz # 只重灌一个模块（biz、content、d
 - 今日页顶上的重点卡（最多 3 张）按设置 `home` 排：`node server/cli.ts settings-set --home projects,inbox`（卡片 id 见 `shared/home.ts`）。
 - 检查：`npm run build`（网页）、`npm run lint`、`npm run check:server`（服务端严格类型检查）、`npm test`（提醒规则、开机自启、自动跟进待办、菜单、外壳、AI 助手、定时任务、装模块）、`npm run doctor`（含外壳检查、装进来的模块和本机 Codex 检查）。
 
+装进来的模块怎么接进核心（核心不写任何一个模块的名字，只读 `scripts/module.mjs` 生成的四份清单和模块登记的接入点）：
+
+| 模块要什么 | 在 `module.json` 里写 | 核心在哪里接 |
+|---|---|---|
+| 菜单、页面、接口、定时任务、命令行、Codex 能读能写的命令 | `nav`、`pages`、`server.api / jobs / cli / read / write`、`open` | `src/app/modules.*.gen.*`、`server/modules.gen.ts`、`server/modules-live.ts` |
+| 今日页顶上一张重点卡 | `home`（卡片 id、名字、组件文件）+ `server.hooks` 的 `home` 给数 | `shared/home.ts`、`server/services/today.ts` 的 `cards`、`src/features/today/TodayPage.tsx` |
+| 今日概况里的一段（命令行 `today`、快照、页头那句话） | `server.hooks` 的 `today` | `server/services/today.ts` 的 `module_today` |
+| 自己的设置项（设置页“基本信息”里多一个输入框） | `settings`（key 用 `<编号>_` 开头） | `server/services/today.ts` 的 `module_settings`、`settings-set --set` |
+| 用“数据源与导入”往自己的表里导数（对照、规则、记录、撤销都用现成的） | `needs: ["data"]` + `server.hooks` 的 `importTargets` | `server/modules/data/targets.ts` |
+| 自带示例数据（只在示例库里写） | `server.hooks` 的 `seed` | `server/seed/index.ts`（`--only <编号>`） |
+| 接手以前模板自带时建的表和文件（老工作台升级） | 迁移第一行 `-- 接手：旧文件名.sql`；`replaces.files` | `server/db.ts`、`scripts/module.mjs add`、`scripts/upgrade.mjs` |
+
+类型都在 `server/module-types.ts`（`ModuleHooks`）；接入点文件启动时就加载（`server/module-hooks.ts`），所以要小。写法和规矩见 Skill 的 `modules/README.md`。
+
 ## 和示例数据（--demo）的关系
 
 - 模板和带示例数据的那份工作台是同一套代码；默认端口 4517，不带数据库、依赖包、构建好的网页和截图。
-- 经营、客户、小红书、数据源四个模块是照着示例里那家茶社做出来的：称呼、店名、小红书账号名已经从设置读，但有些用词还是茶社的（茶礼、门店品鉴、礼盒……）。给别的行业的老板搭时，按他的行业改这些说法，改法按 Skill 的 `references/加减模块.md`。
+- 经营、客户、数据源三个模块是照着示例里那家茶社做出来的：称呼、店名已经从设置读，但有些用词还是茶社的（茶礼、门店品鉴、礼盒……）。给别的行业的老板搭时，按他的行业改这些说法，改法按 Skill 的 `references/加减模块.md`。
 - 经营模块要先有渠道：空库里没有渠道时，渠道页显示“没有这个渠道”。渠道、商品和每天的数，按 Skill 的 `references/需求文档-多平台经营.md` 和 `references/配方-数据导入与对字段.md` 接。
 
 <!-- 由 导出工作台模板.mjs 生成 -->

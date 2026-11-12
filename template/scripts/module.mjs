@@ -3,9 +3,12 @@
 // 这个脚本把 files/ 里的代码按原来的相对位置拷进程序，登记在 modules.lock.json（每个文件的指纹），
 // 再生成四份清单（shared/modules.gen.ts、server/modules.gen.ts、src/app/modules.nav.gen.ts、src/app/modules.routes.gen.tsx），
 // 核心只读这四份，不写模块的名字。装完打开模块开关、重新构建网页；工作台开着也不用重开，刷新页面就有。
+// 模块在 module.json 里登记的页面（nav）、能打开的对象（open）、Codex 能读能写的命令（server.read / server.write）
+// 会自动出现在 Codex 插件的 workbench_capabilities / workbench_open / workbench_read / workbench_write 里，不用改插件。
 //
 //   node scripts/module.mjs list                       有哪些模块包可以装、装了哪些
-//   node scripts/module.mjs add <编号> [--from <包>]    装（--no-build 不重新构建网页）
+//   node scripts/module.mjs add <编号> [--from <包>]    装（--no-build 不重新构建网页）；<包> 可以是文件夹或 .zip。
+//                                                       进阶模块的模块包不在 Skill 里：放进知识库的 工作台/模块包/，或用 --from 指过去
 //   node scripts/module.mjs update <编号> [--from <包>] [--force]   换成包里的新版；老板改过的文件默认不覆盖
 //   node scripts/module.mjs remove <编号>               拿掉代码和菜单，数据留着；改过的文件挪进备份
 //   node scripts/module.mjs status                     装了哪些、哪些文件改过
@@ -29,6 +32,8 @@ const LOCK = 'modules.lock.json'
 const MOD_DIR = 'modules'
 const ID = /^[a-z][a-z0-9-]{1,30}$/
 const ICON = /^[A-Z][A-Za-z0-9]+$/
+const CMD = /^[a-z][a-z0-9-]{1,40}$/
+const OPEN_KEY = /^[a-z][a-z0-9-]{1,40}$/
 const SECTIONS = ['今日', '客户', '经营', '内容', '数据', '资料', '系统']
 const ROOTS = ['src/', 'server/', 'shared/', 'public/']
 const GEN = {
@@ -60,22 +65,70 @@ function walk(dir, rel = '') {
 
 // ───────────────────────────── 模块包
 
-/** 去哪找模块包：--from 指的文件夹；BOSS_WORKBENCH_SKILL；装在 Codex / Claude Code 里的老板工作台 Skill；模板旁边（开发时） */
+const AGENT_HOMES = ['.agents', '.claude', '.codex']
+/** 进阶模块包放哪：老板拿到的模块包（文件夹或 .zip）放进知识库的 工作台/模块包/ */
+export const dropDir = (app = APP) => join(ROOT_OF(app), '工作台', '模块包')
+
+/** 去哪找模块包（按顺序，前面的优先）：
+ *  老板放模块包的文件夹（知识库的 工作台/模块包/）；BOSS_WORKBENCH_MODULES（另外指的一个模块包文件夹）；
+ *  进阶模块包 Skill（boss-workbench-modules，拿到授权的人装在 Codex / Claude Code 里）；
+ *  老板工作台 Skill 自带的 modules/（BOSS_WORKBENCH_SKILL、Codex / Claude Code 里装的）；模板旁边（开发时） */
 export function packDirs(app = APP) {
-  const skills = [process.env.BOSS_WORKBENCH_SKILL, join(homedir(), '.agents', 'skills', 'boss-workbench'), join(homedir(), '.claude', 'skills', 'boss-workbench'),
-    join(homedir(), '.codex', 'skills', 'boss-workbench'), resolve(app, '..')].filter(Boolean)
-  return [...new Set(skills.map((s) => join(s, MOD_DIR)))].filter((d) => existsSync(d))
+  const direct = [dropDir(app), process.env.BOSS_WORKBENCH_MODULES, ...AGENT_HOMES.map((h) => join(homedir(), h, 'skills', 'boss-workbench-modules'))]
+  const skills = [process.env.BOSS_WORKBENCH_SKILL, ...AGENT_HOMES.map((h) => join(homedir(), h, 'skills', 'boss-workbench')), resolve(app, '..')].filter(Boolean)
+  return [...new Set([...direct.filter(Boolean), ...skills.map((s) => join(s, MOD_DIR))].map((d) => resolve(d)))].filter((d) => existsSync(d))
+}
+
+/** 模块目录（modules/catalog.json）：有哪些模块、哪些是进阶的（模块包不在公开的 Skill 里，要另外拿）。几处的目录合在一起，前面的优先 */
+export function catalog(app = APP) {
+  const out = []
+  for (const base of packDirs(app)) {
+    const list = readJson(join(base, 'catalog.json'), null)
+    for (const x of Array.isArray(list?.modules) ? list.modules : []) if (x?.id && !out.some((y) => y.id === x.id)) out.push(x)
+  }
+  return out
+}
+
+/** 压缩包解到旁边同名的文件夹里（已经解过就不再解）。Mac / Linux 用 unzip，Windows 用系统自带的 tar */
+function unzip(zip) {
+  const to = zip.replace(/\.zip$/i, '')
+  if (existsSync(to)) return to
+  mkdirSync(to, { recursive: true })
+  const r = process.platform === 'win32' ? spawnSync('tar', ['-xf', zip, '-C', to], { encoding: 'utf8' }) : spawnSync('unzip', ['-q', '-o', zip, '-d', to], { encoding: 'utf8' })
+  if (r.status !== 0) { rmSync(to, { recursive: true, force: true }); fail(`${zip} 解不开：${`${r.stderr ?? ''}${r.error?.message ?? ''}`.trim() || '不是 zip 压缩包？'}。手动解压后，用 --from 指解出来的文件夹`) }
+  return to
+}
+
+/** 在一个文件夹里找某个模块包：它自己就是、它下面的 <编号>/、再往下一层（压缩包解出来常多套一层文件夹） */
+function packIn(dir, id) {
+  const has = (d) => existsSync(join(d, 'module.json')) && readJson(join(d, 'module.json'), {}).id === id
+  if (has(dir)) return dir
+  if (has(join(dir, id))) return join(dir, id)
+  for (const sub of existsSync(dir) && statSync(dir).isDirectory() ? readdirSync(dir) : []) {
+    const d = join(dir, sub)
+    if (sub.startsWith('.') || !statSync(d).isDirectory()) continue
+    if (has(d)) return d
+    if (has(join(d, id))) return join(d, id)
+  }
+  return null
 }
 
 export function findPack(id, from, app = APP) {
   if (from) {
-    const d = resolve(from)
-    if (existsSync(join(d, 'module.json'))) return d
-    if (existsSync(join(d, id, 'module.json'))) return join(d, id)
-    fail(`${from} 里没有 module.json，不是模块包`)
+    let d = resolve(from)
+    if (!existsSync(d)) fail(`找不到 ${from}`)
+    if (/\.zip$/i.test(d)) d = unzip(d)
+    return packIn(d, id) ?? fail(`${from} 里没有“${id}”的模块包（要有 module.json，里面的 id 是 ${id}）`)
   }
-  for (const base of packDirs(app)) if (existsSync(join(base, id, 'module.json'))) return join(base, id)
-  fail(`找不到“${id}”这个模块包。看了：${packDirs(app).join('、') || '（一个模块包文件夹都没找到）'}。用 --from 指定模块包的文件夹`)
+  // 老板放模块包的文件夹里的压缩包先解开
+  const drop = dropDir(app)
+  if (existsSync(drop)) for (const f of readdirSync(drop)) if (/\.zip$/i.test(f)) { try { unzip(join(drop, f)) } catch { /* 解不开的跳过，下面照常找 */ } }
+  for (const base of packDirs(app)) { const hit = packIn(base, id); if (hit) return hit }
+  const known = catalog(app).find((x) => x.id === id)
+  if (known?.tier === '进阶') {
+    fail(`“${known.name}”是进阶模块，模块包不在老板工作台 Skill 里，这台电脑上还没有。\n${known.get ?? '向课程方要模块包。'}\n拿到以后把文件夹或压缩包放进 ${drop}，再说一次“工作台装上${known.name}”；放在别处就用 --from 指过去。`)
+  }
+  fail(`找不到“${id}”这个模块包。看了：${packDirs(app).join('、') || '（一个模块包文件夹都没找到）'}。用 --from 指定模块包的文件夹或压缩包`)
 }
 
 /** 读 module.json 并检查。coreIds：核心模块的编号（不能和它们重名） */
@@ -101,8 +154,65 @@ export function readManifest(dir, coreIds = []) {
   const s = m.server ?? {}
   for (const k of ['api', 'jobs']) if (s[k] && !/^server\/.+\.ts#\w+$/.test(s[k])) fail(`${where}：server.${k} 写成 server/…/文件.ts#导出名`)
   if (s.cli && (!/^server\/.+\.ts#\w+$/.test(s.cli.file ?? '') || !Array.isArray(s.cli.commands) || !s.cli.commands.length)) fail(`${where}：server.cli 写 { file: "server/…/cli.ts#导出名", commands: ["命令名"] }`)
+  // read / write：Codex 能用的命令。每项写命令名，或 { command, what }（what 是一句话：这个命令做什么）
+  const about = {}
+  for (const k of ['read', 'write']) {
+    if (s[k] === undefined) continue
+    if (!Array.isArray(s[k])) fail(`${where}：server.${k} 是一个命令列表`)
+    s[k] = s[k].map((x) => {
+      const c = typeof x === 'string' ? { command: x } : x
+      if (!c || typeof c.command !== 'string' || !CMD.test(c.command)) fail(`${where}：server.${k} 每一项写命令名，或 { "command": "命令名", "what": "一句话说它做什么" }`)
+      if (!s.cli?.commands.some((p) => c.command === p || c.command.startsWith(`${p}-`))) fail(`${where}：server.${k} 里的 ${c.command} 不是这个模块的命令（server.cli.commands 写了 ${(s.cli?.commands ?? []).join('、') || '空'}，只认它们和它们加 - 开头的）`)
+      if (c.what) about[c.command] = String(c.what)
+      return c.command
+    })
+  }
+  const both = (s.read ?? []).filter((c) => (s.write ?? []).includes(c))
+  if (both.length) fail(`${where}：${both.join('、')} 同时写在 server.read 和 server.write 里，只能放一边（会改数据的放 write）`)
+  s.about = about
   m.server = s
+  // open：菜单以外能让 Codex 打开的对象或页面
+  m.open = m.open ?? []
+  if (!Array.isArray(m.open)) fail(`${where}：open 是一个列表`)
+  for (const x of m.open) {
+    if (!x || !OPEN_KEY.test(x.key ?? '') || !x.label || typeof x.to !== 'string' || !x.to.startsWith('/')) fail(`${where}：open 每一项要写 key（小写英文、数字、短横线）、label、to（/ 开头）`)
+    if (/[?&]embed=/.test(x.to)) fail(`${where}：open 的 to 不用写 embed，打开时会自动带上（${x.to}）`)
+    if (x.to.includes('{id}') && !x.id) fail(`${where}：open 的 ${x.key} 地址里有 {id}，要再写一个 id 说清它是什么（比如 "日期，如 2026-11-12"）`)
+    if (m.open.filter((y) => y.key === x.key).length > 1) fail(`${where}：open 里 ${x.key} 写了两次`)
+  }
+  readHooks(m, where)
   return m
+}
+
+// 2026-11-12 加的接入点：今日页重点卡（home）、模块自带的设置项（settings）、服务端接入点（server.hooks）、接手旧版自带的文件（replaces）
+const HOME_ID = /^[a-z][a-z0-9-]{1,30}$/
+const SETTING_KEY = /^[a-z][a-z0-9_]{1,40}$/
+function readHooks(m, where) {
+  const s = m.server
+  if (s.hooks !== undefined && !/^server\/.+\.ts#\w+$/.test(s.hooks ?? '')) fail(`${where}：server.hooks 写成 server/…/hooks.ts#导出名`)
+  m.home = m.home ?? []
+  if (!Array.isArray(m.home)) fail(`${where}：home 是一个列表`)
+  for (const h of m.home) {
+    if (!h || !HOME_ID.test(h.id ?? '') || !h.name || !/^src\/.+\.tsx$/.test(h.file ?? '')) fail(`${where}：home 每一项要写 id（小写英文、数字、短横线）、name（卡片叫什么）、file（src/ 下的 .tsx，默认导出一个收 data 的组件）`)
+    if (['sales', 'clients', 'projects', 'inbox'].includes(h.id)) fail(`${where}：home 的 ${h.id} 和核心的重点卡重名`)
+    if (m.home.filter((y) => y.id === h.id).length > 1) fail(`${where}：home 里 ${h.id} 写了两次`)
+  }
+  if (m.home.length && !s.hooks) fail(`${where}：登记了今日页重点卡（home），还要有 server.hooks 给卡片的数`)
+  m.settings = m.settings ?? []
+  if (!Array.isArray(m.settings)) fail(`${where}：settings 是一个列表`)
+  const prefix = `${m.id.replace(/-/g, '_')}_`
+  for (const d of m.settings) {
+    if (!d || !SETTING_KEY.test(d.key ?? '') || !d.label) fail(`${where}：settings 每一项要写 key（小写英文、数字、下划线）和 label（设置页上叫什么）`)
+    if (!d.key.startsWith(prefix)) fail(`${where}：settings 的 key 要用 ${prefix} 开头（${d.key}），免得和核心、别的模块的设置撞名`)
+    if (m.settings.filter((y) => y.key === d.key).length > 1) fail(`${where}：settings 里 ${d.key} 写了两次`)
+    d.max = d.max ?? 30
+    if (!Number.isInteger(d.max) || d.max < 1 || d.max > 200) fail(`${where}：settings 的 max 写 1—200 的整数（最多几个字）`)
+  }
+  if (m.replaces !== undefined) {
+    const r = m.replaces
+    if (!r || !Array.isArray(r.files) || !r.files.length) fail(`${where}：replaces 写 { "module": "旧的模块编号（可不写）", "files": ["以前模板自带时的文件或文件夹（文件夹以 / 结尾）"] }`)
+    for (const f of r.files) if (typeof f !== 'string' || posix.normalize(f) !== f || f.startsWith('..') || !ROOTS.some((x) => f.startsWith(x))) fail(`${where}：replaces.files 里的 ${f} 不在允许的位置（只能是 ${ROOTS.join('、')} 下的）`)
+  }
 }
 
 /** 模块包要拷进程序的文件：files/ 下的全部，路径要在允许的位置 */
@@ -145,10 +255,14 @@ export function programModules(app = APP) {
 const q = (s) => JSON.stringify(s)
 const importPath = (file, fromDir) => { const r = posix.relative(fromDir, file); return r.startsWith('.') ? r : `./${r}` }
 const splitRef = (ref) => { const [file, name] = ref.split('#'); return { file, name } }
+const settingDef = ({ key, label, hint, placeholder, max }) => ({ key, label, ...(hint ? { hint } : {}), ...(placeholder ? { placeholder } : {}), max })
 
 export function genSources(mods) {
   const head = (what) => `// ${what}（scripts/module.mjs 生成，不要手改；改了模块的 module.json 运行 node scripts/module.mjs gen）\n`
-  const shared = `${head('装进来的模块：模块开关用的编号、名字、依赖。网页、服务端、命令行共用')}import type { ModuleDef } from './modules.ts'\n\nexport const INSTALLED_MODULES: ModuleDef[] = [${mods.map((m) => `\n  { id: ${q(m.id)}, name: ${q(m.name)}, needs: ${q(m.needs)} },`).join('')}${mods.length ? '\n' : ''}]\n`
+  const list = (rows) => `[${rows.map((r) => `\n  ${r},`).join('')}${rows.length ? '\n' : ''}]`
+  const homes = mods.flatMap((m) => (m.home ?? []).map((h) => `{ id: ${q(h.id)}, name: ${q(h.name)}, module: ${q(m.id)} }`))
+  const sets = mods.flatMap((m) => (m.settings ?? []).map((d) => q({ module: m.id, ...settingDef(d) })))
+  const shared = `${head('装进来的模块：模块开关用的编号、名字、依赖，今日页重点卡，模块自带的设置项。网页、服务端、命令行共用')}import type { ModuleDef, ModuleSettingDef } from './modules.ts'\nimport type { HomeCardDef } from './home.ts'\n\nexport const INSTALLED_MODULES: ModuleDef[] = ${list(mods.map((m) => `{ id: ${q(m.id)}, name: ${q(m.name)}, needs: ${q(m.needs)} }`))}\n\nexport const INSTALLED_HOME: HomeCardDef[] = ${list(homes)}\n\nexport const INSTALLED_SETTINGS: ModuleSettingDef[] = ${list(sets)}\n`
 
   const icons = [...new Set(mods.flatMap((m) => m.nav.flatMap((n) => [n.icon, ...(n.children ?? []).map((c) => c.icon).filter(Boolean)])))].sort()
   const navItem = (m, n) => {
@@ -160,14 +274,23 @@ export function genSources(mods) {
   const nav = `${head('装进来的模块的菜单项')}${icons.length ? `import { ${icons.join(', ')} } from 'lucide-react'\n` : ''}import type { NavItem } from './nav.ts'\n\nexport const MODULE_NAV: NavItem[] = [${mods.flatMap((m) => m.nav.map((n) => navItem(m, n))).join('')}${mods.some((m) => m.nav.length) ? '\n' : ''}]\n`
 
   const pages = mods.flatMap((m) => m.pages.map((p, i) => ({ m, p, v: `Page_${m.id.replace(/-/g, '_')}_${i}` })))
-  const routes = `${head('装进来的模块的页面')}import type { RouteObject } from 'react-router'\n${pages.length ? "import { page, gate } from './pages'\n" : ''}\n${pages.map(({ p, v }) => `const ${v} = page(() => import(${q(`@/${p.file.replace(/^src\//, '').replace(/\.tsx$/, '')}`)}))\n`).join('')}${pages.length ? '\n' : ''}export const MODULE_ROUTES: RouteObject[] = [${pages.map(({ m, p, v }) => `\n  { path: ${q(p.path)}, element: gate(${q(m.id)}, <${v} />) },`).join('')}${pages.length ? '\n' : ''}]\n`
+  const cards = mods.flatMap((m) => (m.home ?? []).map((h) => ({ h, v: `Card_${h.id.replace(/-/g, '_')}` })))
+  const srcOf = (file) => q(`@/${file.replace(/^src\//, '').replace(/\.tsx$/, '')}`)
+  const uses = [...(pages.length ? ['page', 'gate'] : []), ...(cards.length ? ['card'] : [])]
+  const routes = `${head('装进来的模块的页面和今日页重点卡')}import type { RouteObject } from 'react-router'\nimport type { HomeCardComponent } from './pages'\n${uses.length ? `import { ${uses.join(', ')} } from './pages'\n` : ''}\n${pages.map(({ p, v }) => `const ${v} = page(() => import(${srcOf(p.file)}))\n`).join('')}${cards.map(({ h, v }) => `const ${v} = card(() => import(${srcOf(h.file)}))\n`).join('')}${pages.length || cards.length ? '\n' : ''}export const MODULE_ROUTES: RouteObject[] = [${pages.map(({ m, p, v }) => `\n  { path: ${q(p.path)}, element: gate(${q(m.id)}, <${v} />) },`).join('')}${pages.length ? '\n' : ''}]\n\n/** 今日页重点卡：卡片 id → 组件（收 data：模块的 server.hooks 给的数） */\nexport const MODULE_HOME_CARDS: Record<string, HomeCardComponent> = {${cards.map(({ h, v }) => `\n  ${q(h.id)}: ${v},`).join('')}${cards.length ? '\n' : ''}}\n`
 
   const lazy = (ref) => { const { file, name } = splitRef(ref); return `() => import(${q(importPath(file, 'server'))}).then((x) => x.${name})` }
   const serverItem = (m) => {
     const s = m.server
     const parts = [`id: ${q(m.id)}`, `name: ${q(m.name)}`, `needs: ${q(m.needs)}`, `version: ${q(m.version)}`,
       ...(s.api ? [`api: ${lazy(s.api)}`] : []), ...(s.jobs ? [`jobs: ${lazy(s.jobs)}`] : []),
-      ...(s.cli ? [`commands: ${q(s.cli.commands)}`, `cli: ${lazy(s.cli.file)}`] : []), ...(s.read?.length ? [`read: ${q(s.read)}`] : [])]
+      ...(s.cli ? [`commands: ${q(s.cli.commands)}`, `cli: ${lazy(s.cli.file)}`] : []), ...(s.read?.length ? [`read: ${q(s.read)}`] : []),
+      ...(s.write?.length ? [`write: ${q(s.write)}`] : []), ...(Object.keys(s.about ?? {}).length ? [`about: ${q(s.about)}`] : []),
+      ...(m.open?.length ? [`open: ${q(m.open.map(({ key, label, to, id }) => ({ key, label, to, ...(id ? { id } : {}) })))}`] : [])]
+    // 今日页重点卡、设置项、接入点（2026-11-12）
+    if (m.home?.length) parts.push(`home: ${q(m.home.map(({ id, name }) => ({ id, name })))}`)
+    if (m.settings?.length) parts.push(`settings: ${q(m.settings.map(settingDef))}`)
+    if (s.hooks) parts.push(`hooks: ${lazy(s.hooks)}`)
     return `\n  {\n    ${parts.join(',\n    ')},\n  },`
   }
   const server = `${head('装进来的模块')}import type { ServerModule } from './module-types.ts'\n\nexport const SERVER_MODULES: ServerModule[] = [${mods.map(serverItem).join('')}${mods.length ? '\n' : ''}]\n`
@@ -238,6 +361,11 @@ export async function addModule(id, o = {}) {
   const missing = m.needs.filter((n) => !have.has(n))
   if (missing.length) fail(`“${m.name}”要先有：${missing.join('、')}。先装它们`)
   const files = packFiles(pack, m)
+  // 接手旧版自带的（module.json 的 replaces）：这个功能以前是模板自带的，老工作台的程序里还留着那批文件。
+  // 先挪进备份（不删），再放模块包里的；数据库里的表和数据不动（模块的迁移用“-- 接手：”认旧表，见 server/db.ts）
+  const old = legacyFiles(app, m)
+  const bkOld = old.length ? join(backupDir(app, id), '旧版自带') : null
+  for (const f of old) { moveTo(join(app, f), join(bkOld, f)); pruneDirs(app, f) }
   const clash = files.filter((f) => existsSync(join(app, f)) && sha(join(app, f)) !== sha(join(pack, 'files', f)))
   if (clash.length) fail(`这些文件程序里已经有了、和模块包里的不一样，为了不弄坏，这次不装：\n${clash.map((f) => `  - ${f}`).join('\n')}\n多半是以前手工装过或者改过：先把它们挪走，或者找 Codex 看看`)
   const fp = {}
@@ -247,8 +375,31 @@ export async function addModule(id, o = {}) {
   saveLock(app, lock)
   writeGen(app)
   const on = cliRun(app, ['modules', '--on', id]) // 打开模块开关；顺带跑模块的数据库迁移
+  // 示例库（演示用的 ABC茶社）：模块自带示例数据、它的表又都还空着，就顺手写进去；老板自己的库不写
+  const seeded = on.ok && m.server.hooks && isDemoDb(app) ? seedRun(app, id) : null
   if (!o.noBuild) build(app)
-  return { module: m, files: files.length, switched: on }
+  return { module: m, files: files.length, switched: on, adopted: old.length ? { files: old.length, backup: bkOld } : null, seeded }
+}
+
+/** 程序里还留着的、这个模块以前由模板自带时的文件（replaces.files；文件夹以 / 结尾） */
+function legacyFiles(app, m) {
+  const out = []
+  for (const f of m.replaces?.files ?? []) {
+    const p = join(app, f)
+    if (!existsSync(p)) continue
+    if (f.endsWith('/')) out.push(...walk(p).map((x) => `${f}${x}`))
+    else if (statSync(p).isFile()) out.push(f)
+  }
+  return out
+}
+
+function isDemoDb(app) {
+  const r = spawnSync(process.execPath, ['-e', "const{DatabaseSync}=require('node:sqlite');const d=new DatabaseSync(process.argv[1],{readOnly:true});try{process.stdout.write(d.prepare(\"SELECT value FROM settings WHERE key='demo_today'\").get()?.value?'1':'0')}catch{process.stdout.write('0')}", DB_OF(app)], { encoding: 'utf8' })
+  return r.stdout === '1'
+}
+function seedRun(app, id) {
+  const r = spawnSync(process.execPath, ['server/seed/index.ts', '--only', id, '--if-empty'], { cwd: app, encoding: 'utf8' })
+  return { ok: r.status === 0, out: `${r.stdout ?? ''}${r.stderr ?? ''}`.trim() }
 }
 
 export async function updateModule(id, o = {}) {
@@ -337,13 +488,26 @@ export function checkModules(app = APP) {
 /** 有哪些模块包可以装 */
 export function listPacks(app = APP) {
   const out = []
+  const take = (dir) => {
+    if (!existsSync(join(dir, 'module.json'))) return
+    try { const m = readManifest(dir); if (!out.some((x) => x.id === m.id)) out.push({ id: m.id, name: m.name, version: m.version, summary: m.summary ?? '', from: dir }) } catch { /* 坏的包不列 */ }
+  }
   for (const base of packDirs(app)) {
-    for (const id of readdirSync(base)) {
-      if (id.startsWith('_') || out.some((x) => x.id === id) || !existsSync(join(base, id, 'module.json'))) continue
-      try { const m = readManifest(join(base, id)); out.push({ id, name: m.name, version: m.version, summary: m.summary ?? '', from: join(base, id) }) } catch { /* 坏的包不列 */ }
+    for (const name of readdirSync(base)) {
+      const d = join(base, name)
+      if (name.startsWith('_') || name.startsWith('.') || !statSync(d).isDirectory()) continue
+      take(d)
+      // 压缩包解出来常多套一层文件夹：再往下看一层
+      for (const sub of readdirSync(d)) if (!sub.startsWith('.') && statSync(join(d, sub)).isDirectory()) take(join(d, sub))
     }
   }
   return out
+}
+
+/** 目录里有、这台电脑上还没有模块包的进阶模块 */
+export function missingPacks(app = APP) {
+  const have = new Set(listPacks(app).map((p) => p.id))
+  return catalog(app).filter((x) => x.tier === '进阶' && !have.has(x.id))
 }
 
 // ───────────────────────────── 命令行
@@ -363,6 +527,8 @@ async function main(argv) {
       const installed = lockOf(APP).modules
       const packs = listPacks()
       say(packs.length ? `可以装的模块包：\n${packs.map((p) => `- ${p.name}（${p.id} ${p.version}）${installed[p.id] ? `：已装 ${installed[p.id].version}` : ''}${p.summary ? `\n    ${p.summary}` : ''}`).join('\n')}` : '没找到模块包（老板工作台 Skill 的 modules/ 文件夹）')
+      const more = missingPacks()
+      if (more.length) say(`\n进阶模块（模块包要另外拿，拿到后放进 ${dropDir()} 就能装）：\n${more.map((x) => `- ${x.name}（${x.id}）${x.summary ? `\n    ${x.summary}` : ''}${x.get ? `\n    怎么拿：${x.get}` : ''}`).join('\n')}`)
       return 0
     }
     case 'status': {
@@ -375,6 +541,8 @@ async function main(argv) {
       const up = await serverUp()
       const r = await addModule(id, o)
       say(`装好了：${r.module.name} ${r.module.version}（${r.files} 个文件）。`)
+      if (r.adopted) say(`这个工作台以前自带过它：旧的 ${r.adopted.files} 个文件挪进了 ${r.adopted.backup}，原来的数据接着用。`)
+      if (r.seeded?.ok && !/没重灌/.test(r.seeded.out)) say('这是示例库：模块的示例数据（ABC茶社，虚构）也写进去了。')
       if (r.switched.skipped) say('数据库还没建：装好工作台以后模块会一起出现')
       else if (!r.switched.ok) say(`打开模块开关没成功：${r.switched.out}`)
       if (o.noBuild) say('还没重新构建网页：运行 npm run build')
@@ -407,7 +575,7 @@ async function main(argv) {
       return r.problems.length ? 1 : 0
     }
     default:
-      say('用法：node scripts/module.mjs list | add <编号> [--from 包] [--no-build] | update <编号> [--force] | remove <编号> | status | gen | check')
+      say('用法：node scripts/module.mjs list | add <编号> [--from 模块包文件夹或.zip] [--no-build] | update <编号> [--force] | remove <编号> | status | gen | check')
       return cmd ? 2 : 0
   }
 }

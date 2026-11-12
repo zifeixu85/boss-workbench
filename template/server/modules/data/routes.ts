@@ -9,7 +9,7 @@ import * as batches from './batches.ts'
 import * as rules from './rules.ts'
 import { syncSource } from './sync.ts'
 import { codexSuggest } from './codex.ts'
-import { reimportNotes, notesState } from './notes.ts'
+import { runTarget, targetState } from './service.ts'
 import { CHANNELS, DATE_FMT_LABEL, FIELDS } from './fields.ts'
 import { SAMPLE_DIR, sampleMeta } from './origin.ts'
 
@@ -31,9 +31,9 @@ dataRoutes.get('/mapping-targets', (c) => c.json(ok(data.mappingTargets())))
 dataRoutes.post('/mappings/:id', async (c) => c.json(ok(data.decideMapping(c.req.param('id'), await body(c), WEB))))
 dataRoutes.get('/issues', (c) => c.json(ok(data.issues())))
 
-// 小红书笔记数据：对照确认完以后，按新对照重新导入（写内容模块的笔记数据，能撤销）
-dataRoutes.get('/notes', (c) => c.json(ok(notesState())))
-dataRoutes.post('/notes/reimport', (c) => c.json(ok(reimportNotes(WEB))))
+// 别的模块登记的导入目标（targets.ts）：对照确认完以后，按对照导入（写那个模块的表，能撤销）
+dataRoutes.get('/sources/:id/target', (c) => c.json(ok(targetState(c.req.param('id')))))
+dataRoutes.post('/sources/:id/target/import', (c) => c.json(ok(runTarget(c.req.param('id'), WEB))))
 
 // 导入：字典、草稿（拖进来的文件）、预览、让 Codex 看看、导入、放弃
 dataRoutes.get('/meta', (c) => c.json(ok({

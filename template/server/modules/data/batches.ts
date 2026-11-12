@@ -1,12 +1,13 @@
 // 一批数据：每次导入写进去的行算一批。写之前先记下原来的样子，所以能整批撤销。
-// 写的表：经营每天的数（channel_daily）；小红书笔记数据（xhs_note_stats 累计数、xhs_note_daily 发布后每天的累计、xhs_followers_daily 粉丝数）。
+// 写的表：经营每天的数（channel_daily）；别的模块登记的导入目标带来的表（targets.ts）。
 // 预置的示例数据也按渠道记成批（ID 以 batch_sample_ 开头），能按渠道清掉、也能恢复；你导的数都不动。归属：数据源与导入模块。
 import { all, get, run, tx, uid, logChange } from '../../db.ts'
 import { BadRequest, NotFound } from '../../services/common.ts'
 import { CHANNELS, NUMERIC } from './fields.ts'
 import type { DailyValues, FieldState } from './preview.ts'
 import { isPresetBatch, provenance } from './origin.ts'
-import { md, span, stamp } from './time.ts'
+import { span, stamp } from './time.ts'
+import { targetOfTable, targetTable, type TableSpec } from './targets.ts'
 
 export type Batch = {
   id: string; origin: '示例' | '自己的'; source_id: string | null; rule_id: string | null; run_id: string | null; channel_id: string | null
@@ -14,30 +15,32 @@ export type Batch = {
   status: '有效' | '已撤销' | '已清除'; created_at: string; created_by: string; undone_at: string | null; undone_by: string | null; note: string | null
 }
 
-/** 能写、能撤销的表：主键列 + 值列 */
-export const TABLES = {
-  channel_daily: { keys: ['date', 'channel_id'], cols: NUMERIC as string[] },
-  xhs_note_stats: { keys: ['note_id', 'traffic'], cols: ['impressions', 'reads', 'likes', 'saves', 'comments', 'shares', 'new_followers', 'spend', 'stats_date'] },
-  xhs_note_daily: { keys: ['note_id', 'traffic', 'day'], cols: ['date', 'impressions', 'reads', 'likes', 'saves', 'comments', 'new_followers', 'spend'] },
-  xhs_followers_daily: { keys: ['date'], cols: ['followers', 'gained', 'lost'] },
-} as const
-/** 只算“附带”写进去的行，不算进一批的行数（每天的累计、粉丝数） */
-const SIDE: Tbl[] = ['xhs_note_daily', 'xhs_followers_daily']
-export type Tbl = keyof typeof TABLES
+/** 能写、能撤销的表：主键列 + 值列。自带的只有 channel_daily；别的由模块登记（targets.ts 的 tables） */
+const DAILY: TableSpec = { keys: ['date', 'channel_id'], cols: NUMERIC as string[] }
+/** 表名：channel_daily，或某个导入目标登记的表 */
+export type Tbl = string
+const specOf = (tbl: Tbl): TableSpec | null => (tbl === 'channel_daily' ? DAILY : targetTable(tbl))
+function spec(tbl: Tbl): TableSpec {
+  const s = specOf(tbl)
+  if (!s) throw new BadRequest(`不认识 ${tbl} 这张表：写它的模块现在没装（装回来再试）`)
+  return s
+}
+/** 只算“附带”写进去的行，不算进一批的行数 */
+const isSide = (tbl: Tbl) => !!specOf(tbl)?.side
 type Vals = Record<string, string | number | null>
 
-const splitKey = (tbl: Tbl, k: string): Vals => Object.fromEntries(TABLES[tbl].keys.map((c, i) => [c, c === 'day' ? Number(k.split('|')[i]) : k.split('|')[i]]))
-const where = (tbl: Tbl) => TABLES[tbl].keys.map((c) => `${c} = :k_${c}`).join(' AND ')
+const splitKey = (tbl: Tbl, k: string): Vals => Object.fromEntries(spec(tbl).keys.map((c, i) => [c, spec(tbl).numeric?.includes(c) ? Number(k.split('|')[i]) : k.split('|')[i]]))
+const where = (tbl: Tbl) => spec(tbl).keys.map((c) => `${c} = :k_${c}`).join(' AND ')
 const keyParams = (tbl: Tbl, k: string) => Object.fromEntries(Object.entries(splitKey(tbl, k)).map(([c, v]) => [`k_${c}`, v]))
 
 export function currentOf(tbl: Tbl, key: string): Vals | null {
   const r = get<Vals>(`SELECT * FROM ${tbl} WHERE ${where(tbl)}`, keyParams(tbl, key))
   if (!r) return null
-  return Object.fromEntries(TABLES[tbl].cols.map((c) => [c, r[c] === null ? null : typeof r[c] === 'string' ? r[c] : Number(r[c])]))
+  return Object.fromEntries(spec(tbl).cols.map((c) => [c, r[c] === null ? null : typeof r[c] === 'string' ? r[c] : Number(r[c])]))
 }
 
 function upsertRow(tbl: Tbl, key: string, v: Vals) {
-  const { keys, cols } = TABLES[tbl]
+  const { keys, cols } = spec(tbl)
   const all = [...keys, ...cols]
   run(`INSERT INTO ${tbl} (${all.join(', ')}) VALUES (${all.map((c) => `:${c}`).join(', ')})
     ON CONFLICT(${keys.join(', ')}) DO UPDATE SET ${cols.map((c) => `${c} = excluded.${c}`).join(', ')}`, { ...splitKey(tbl, key), ...Object.fromEntries(cols.map((c) => [c, tbl === 'channel_daily' ? v[c] ?? null : v[c] ?? 0])) })
@@ -58,7 +61,7 @@ export function writeRows(meta: NewBatch, rows: { tbl: Tbl; key: string; values:
   run(`INSERT INTO data_batches (id, origin, source_id, rule_id, channel_id, label, file_name, target, date_from, date_to, rows, status, created_at, created_by, note)
     VALUES (:id, :origin, :source_id, :rule_id, :channel_id, :label, :file_name, :target, :date_from, :date_to, :rows, '有效', :at, :by, :note)`, {
     id, origin: meta.origin, source_id: meta.source_id, rule_id: meta.rule_id, channel_id: meta.channel_id, label: meta.label, file_name: meta.file_name,
-    target: meta.target ?? 'channel_daily', date_from: meta.date_from, date_to: meta.date_to, rows: rows.filter((r) => !SIDE.includes(r.tbl)).length,
+    target: meta.target ?? 'channel_daily', date_from: meta.date_from, date_to: meta.date_to, rows: rows.filter((r) => !isSide(r.tbl)).length,
     at: meta.created_at ?? stamp(), by: meta.created_by, note: meta.note ?? null,
   })
   for (const r of rows) {
@@ -96,20 +99,6 @@ export function refreshSourceTimes(sourceIds: (string | null | undefined)[]) {
 
 /** 某个渠道的预置示例数据现在清掉了几行（在回收区里，能放回去） */
 export const sampleTrashRows = (channelId: string) => get<{ n: number }>('SELECT COUNT(*) AS n FROM data_sample_trash WHERE batch_id = :b', { b: `batch_sample_${channelId}` })?.n ?? 0
-
-/** 小红书笔记数据撤销之后：数据截至按笔记数据算；最近一次没撤销的运行是失败，就回到“读取失败” */
-export function refreshNotesSource(sourceId = 'src_xhs_notes') {
-  const through = get<{ d: string | null }>('SELECT MAX(stats_date) AS d FROM xhs_note_stats')?.d ?? null
-  const last = get<{ status: string; message: string | null; started_at: string }>(`SELECT r.status, r.message, r.started_at FROM import_runs r LEFT JOIN data_batches b ON b.id = r.batch_id
-    WHERE r.source_id = :s AND (b.id IS NULL OR b.status = '有效') ORDER BY r.started_at DESC, r.rowid DESC LIMIT 1`, { s: sourceId })
-  const failed = last?.status === '失败'
-  const pending = get<{ n: number }>("SELECT COUNT(*) AS n FROM field_mappings WHERE source_id = :s AND status IN ('AI 建议','未匹配')", { s: sourceId })?.n ?? 0
-  const note = !failed ? null : pending
-    ? `${md(last!.started_at.slice(0, 10))} ${last!.started_at.slice(11, 16)} 那次导入失败：${last!.message ?? ''}`
-    : `重新导入撤销了，笔记数据回到 ${md(through)}；对照已经确认过，可以再点“按新规则重新导入”`
-  run(`UPDATE data_sources SET data_through = :d, status = CASE WHEN :f THEN '失败' ELSE status END,
-      note = CASE WHEN :f THEN :n ELSE note END WHERE id = :s`, { d: through, f: failed ? 1 : 0, n: note, s: sourceId })
-}
 
 export function getBatch(id: string): Batch {
   const b = get<Batch>('SELECT * FROM data_batches WHERE id = :id', { id })
@@ -160,10 +149,10 @@ export function undoBatch(id: string, actor: string) {
   const chans: string[] = []
   tx(() => {
     for (const r of rows) {
-      if (!(r.tbl in TABLES)) continue
-      if (ownerOf(r.tbl, r.row_key) !== id) { if (!SIDE.includes(r.tbl)) kept++; continue }
+      spec(r.tbl) // 写这张表的模块没装：整批不动，说清原因
+      if (ownerOf(r.tbl, r.row_key) !== id) { if (!isSide(r.tbl)) kept++; continue }
       const back = undoValue(id, r)
-      const counts = !SIDE.includes(r.tbl)
+      const counts = !isSide(r.tbl)
       if (back) { upsertRow(r.tbl, r.row_key, JSON.parse(back)); if (counts) restored++ }
       else { deleteRow(r.tbl, r.row_key); if (counts) removed++ }
       if (r.tbl === 'channel_daily') chans.push(String(splitKey('channel_daily', r.row_key).channel_id))
@@ -172,7 +161,8 @@ export function undoBatch(id: string, actor: string) {
     run("UPDATE import_drafts SET status = '对字段', run_id = NULL, batch_id = NULL WHERE batch_id = :id", { id })
     refreshThrough(chans)
     refreshSourceTimes([b.source_id, ...all<{ s: string }>('SELECT DISTINCT source_id AS s FROM import_runs WHERE batch_id = :b', { b: id }).map((x) => x.s)])
-    if (rows.some((r) => r.tbl === 'xhs_note_stats')) refreshNotesSource(b.source_id ?? undefined)
+    // 别的模块的导入目标：撤销之后它自己把数据源的“数据截至”、状态改回去
+    for (const t of new Set(rows.map((r) => targetOfTable(r.tbl)).filter((x) => !!x))) t!.afterUndo?.(b.source_id ?? undefined)
     logChange('网页', 'data', id, '撤销', `撤销了导入「${b.label}」：恢复 ${restored} 行${removed ? `、删掉新增的 ${removed} 行` : ''}${kept ? `；${kept} 行后来又被别的导入改过，没动` : ''}`)
   })
   // 撤销后这个渠道一行数都没有了、示例数据又是清掉的：告诉网页，可以把示例数据放回去

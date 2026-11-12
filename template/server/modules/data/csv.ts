@@ -1,5 +1,5 @@
 // 读 CSV：支持引号里的逗号和换行、Excel 加的 BOM；平台导出表开头常有几行说明，表头不一定在第 1 行。归属：数据源与导入模块。
-import { guessByName, normHeader, PROFILES } from './fields.ts'
+import { guessByName, normHeader, profiles } from './fields.ts'
 
 /** 按 RFC 4180 拆 CSV（也认制表符分隔的表） */
 export function parseCsv(text: string): string[][] {
@@ -33,7 +33,7 @@ const filled = (r: string[]) => r.filter((c) => c !== '').length
 
 /** 找表头：前 15 行里，非空格子最多、而且认得的叫法最多的那一行 */
 export function findHeaderRow(rows: string[][]): number {
-  const known = new Set(PROFILES.flatMap((p) => p.markers.map(normHeader)))
+  const known = new Set(profiles().flatMap((p) => p.markers.map(normHeader)))
   let best = 0
   let bestScore = -1
   rows.slice(0, 15).forEach((r, i) => {

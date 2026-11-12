@@ -13,7 +13,7 @@ import { undoBatch, listBatches, sampleStatus, clearSamples, restoreSamples, cha
 import { listRules } from './rules.ts'
 import { sources, runs } from './service.ts'
 import { syncSource, decodeFile } from './sync.ts'
-import { reimportNotes } from './notes.ts'
+import { runTarget } from './service.ts'
 import { resetDemo } from './reset.ts'
 import { CHANNELS, FIELD, type FieldKey } from './fields.ts'
 import { span } from './time.ts'
@@ -32,7 +32,7 @@ const HELP = `用法：node 工作台/程序/server/cli.ts import-<命令> [参�
   import-undo <批次ID> --yes          撤销一次导入
   import-sync <数据源ID> --yes         立即同步一个数据源（去它的导入文件夹找新文件）
   import-samples [clear|restore] [--channel tmall] [--yes]   看 / 清掉 / 恢复预置的示例数据（只动预置批次，你导的不动；--channel 只动一个渠道）
-  import-notes --yes                  小红书笔记数据：对照确认完后，按新对照重新导入导入文件夹里那份笔记数据表
+  import-target <数据源ID> --yes       别的模块登记的导入目标：对照确认完后，按对照把导入文件夹里最新的一份导进去
   import-reset --yes                  彩排后复原：撤销现场导过的每一批、放回示例数据、本模块的表重灌示例（演示的人用）
 规则：拿不准的列不要替老板选；缺列不能当 0；对照和知识库《数据口径》对不上时，以知识库为准并告诉老板。`
 
@@ -110,7 +110,7 @@ function main() {
       return out(r, `已撤销「${r.batch.label}」：恢复 ${r.restored} 行，删掉 ${r.removed} 行${r.kept ? `，${r.kept} 行后来又被改过没动` : ''}${empty.length ? `。${empty.map((c) => c.name).join('、')}现在没有数了（示例数据之前清掉了），要放回：import-samples restore --channel ${empty[0].id} --yes` : ''}`)
     }
     case 'sync': { need(); const r = syncSource(a1); return out(r, `${r.kind}：${r.message}`) }
-    case 'notes': { need(); const r = reimportNotes('Codex'); return out(r, r.message) }
+    case 'target': { need(); const r = runTarget(a1, 'Codex'); return out(r, r.message) }
     case 'reset': {
       need()
       const r = resetDemo()

@@ -1,7 +1,7 @@
 // 今日页重点卡的排法（shared/home.ts）：npm test 会跑
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { checkHome, homeFocus } from './home.ts'
+import { checkHome, homeFocus, setInstalledHome } from './home.ts'
 
 const BASE = ['today', 'tasks', 'projects', 'inbox', 'kb', 'settings']
 
@@ -11,7 +11,18 @@ test('没设过：基础版放项目、收件箱', () => {
 
 test('没设过：开着的业务模块在前，最多 3 张', () => {
   assert.deepEqual(homeFocus('', [...BASE, 'clients']), ['clients', 'projects'])
-  assert.deepEqual(homeFocus('', [...BASE, 'clients', 'biz', 'content', 'data']), ['sales', 'clients', 'xhs'])
+  assert.deepEqual(homeFocus('', [...BASE, 'clients', 'biz', 'data']), ['sales', 'clients'])
+})
+
+test('装进来的模块登记的重点卡：算业务卡，排在经营、客户后面；模块没开就不放；基础版里没有它', () => {
+  assert.deepEqual(checkHome('memo-today').unknown, ['memo-today'])
+  setInstalledHome([{ id: 'memo-today', name: '今天的备忘', module: 'memo' }])
+  try {
+    assert.deepEqual(homeFocus('', [...BASE, 'clients', 'biz', 'memo', 'data']), ['sales', 'clients', 'memo-today'])
+    assert.deepEqual(homeFocus('', [...BASE, 'memo']), ['memo-today', 'projects'])
+    assert.deepEqual(homeFocus('memo-today,inbox', BASE), ['inbox'])
+    assert.deepEqual(checkHome('memo-today,projects'), { ids: ['memo-today', 'projects'], unknown: [] })
+  } finally { setInstalledHome([]) }
 })
 
 test('老板定了顺序就按他的；模块没开的卡片跳过', () => {

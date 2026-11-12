@@ -148,7 +148,8 @@ function RunSheet({ run: r, loading, onClose }: { run?: Run; loading: boolean; o
     (u) => `已撤销：${u.restored ? `恢复 ${u.restored} 行` : ''}${u.removed ? `${u.restored ? '、' : ''}删掉新增的 ${u.removed} 行` : ''}${u.kept ? `；${u.kept} 行后来又被改过，没动` : ''}`)
   // 只有你导进来的那一批能撤销；预置的示例数据用上面的“清掉示例数据”
   const canUndo = !!r?.batch_id && r.batch_status === '有效' && !r.preset
-  const daily = !!r?.batch_id && !r.preset && r.source_id !== 'src_xhs_notes'
+  // 经营每天的数才有“导了哪些渠道哪几天”的结果；别的模块的导入目标写的批次没有
+  const daily = !!r?.batch_id && !r.preset && (r.batch_target ?? 'channel_daily') === 'channel_daily'
   const { data: result } = useApi<ImportResult>(daily ? `/data/batches/${r!.batch_id}/result` : null)
   const empty = (undone?.empty_channels ?? []).filter((c) => c.sample_rows > 0)
   const one = result?.channels.length === 1 ? result.channels[0] : null

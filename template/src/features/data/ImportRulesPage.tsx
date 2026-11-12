@@ -18,21 +18,18 @@ import { shortDate } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { Badge, GoneNote, HowChip, KindIcon, Note } from './parts'
 import { IMPORT_TABS, CHANNEL_NAME, FIELD_LABEL, confirmedBy, rulePath, when } from './labels'
-import type { FieldKey, Meta, Rule, RuleMap } from './types'
+import type { FieldKey, MappingTargets, Meta, Rule, RuleMap } from './types'
 
 const TABS = [{ value: 'all', label: '全部' }, { value: '在用', label: '在用' }, { value: '停用', label: '停用' }] as const
 type Tab = (typeof TABS)[number]['value']
-const NOTE_LABEL: Record<string, string> = {
-  'xhs_notes.title': '笔记标题', 'xhs_notes.published_at': '发布时间', 'xhs_notes.kind': '笔记类型', 'xhs_note_stats.impressions': '曝光', 'xhs_note_stats.reads': '阅读',
-  'xhs_note_stats.likes': '点赞', 'xhs_note_stats.saves': '收藏', 'xhs_note_stats.comments': '评论', 'xhs_note_stats.shares': '分享', 'xhs_note_stats.new_followers': '涨粉', 'xhs_note_stats.traffic': '流量来源（自然 / 投流）',
-}
-const fieldName = (f: string | null) => (!f ? '不导' : FIELD_LABEL[f as FieldKey] ?? NOTE_LABEL[f] ?? f)
-const target = (r: Rule) => (r.target === 'xhs_note_stats' ? '小红书 · 笔记数据' : `经营 · ${r.channel_id ? CHANNEL_NAME[r.channel_id] ?? r.channel_id : '按表里的渠道列'}`)
+/** 一列对到哪个工作台字段：经营的字段用自带的叫法；别的模块登记的导入目标的字段，叫法由服务端带在 label 里 */
+const fieldName = (m: Pick<RuleMap, 'field' | 'label'>) => (!m.field ? '不导' : FIELD_LABEL[m.field as FieldKey] ?? m.label ?? m.field)
+const target = (r: Rule) => (r.target !== 'channel_daily' ? r.writes ?? r.target : `经营 · ${r.channel_id ? CHANNEL_NAME[r.channel_id] ?? r.channel_id : '按表里的渠道列'}`)
 const norm = (s: string) => s.replace(/[（(][^）)]*[）)]/g, '').replace(/\s/g, '')
 /** 叫法和工作台字段名有多像：0 = 一个字都不沾（最值得写在卡片上），1 = 一样 */
 function likeness(m: RuleMap) {
   const a = norm(m.col)
-  const b = norm(fieldName(m.field)).replace(/（.*$/, '')
+  const b = norm(fieldName(m)).replace(/（.*$/, '')
   if (a === b || a.includes(b) || b.includes(a)) return 1
   const common = [...new Set(b)].filter((ch) => a.includes(ch)).length
   return common / new Set(b).size
@@ -113,7 +110,7 @@ function RuleCard({ r, onOpen }: { r: Rule; onOpen: () => void }) {
       ) : (
         <ul className="mt-3 grid gap-1 text-[13px]">
           {diff.slice(0, 3).map((m) => (
-            <li key={m.col} className="flex min-w-0 items-center gap-1.5"><span className="truncate">{m.col}</span><ArrowRight className="size-3 shrink-0 text-muted-foreground" /><span className="shrink-0 font-medium">{fieldName(m.field)}</span></li>
+            <li key={m.col} className="flex min-w-0 items-center gap-1.5"><span className="truncate">{m.col}</span><ArrowRight className="size-3 shrink-0 text-muted-foreground" /><span className="shrink-0 font-medium">{fieldName(m)}</span></li>
           ))}
           {!diff.length && <li className="text-muted-foreground">表头和工作台的叫法一样</li>}
           <li className="pb-2.5 text-xs text-muted-foreground">{diff.length > 3 ? `还有 ${diff.length - 3} 列叫法不一样，` : ''}{same ? `另 ${same} 列名字差不多` : ''}{r.mapping.some((m) => !m.field) ? `${same ? '，' : ''}${r.mapping.filter((m) => !m.field).length} 列不导` : ''}</li>
@@ -133,11 +130,11 @@ function RuleCard({ r, onOpen }: { r: Rule; onOpen: () => void }) {
 function RuleSheet({ id, onClose }: { id: string; onClose: () => void }) {
   const { data: r, error } = useApi<Rule>(`/data/rules/${id}`)
   const { data: meta } = useApi<Meta>('/data/meta')
-  const { data: targets } = useApi<{ notes: { value: string; label: string }[] }>('/data/mapping-targets')
+  const { data: targets } = useApi<MappingTargets>('/data/mapping-targets')
   const [editing, setEditing] = useState(false)
   const patch = useWrite((b: Record<string, unknown>) => api.patch<Rule>(`/data/rules/${id}`, b), '规则已更新')
   const daily = r?.target === 'channel_daily'
-  const options = daily ? (meta?.fields ?? []).map((f) => ({ value: f.key, label: f.label })) : targets?.notes ?? []
+  const options = daily ? (meta?.fields ?? []).map((f) => ({ value: f.key, label: f.label })) : targets?.by_target[r?.target ?? '']?.fields ?? []
   const used = r?.mapping.filter((m) => m.field) ?? []
   const unused = r?.mapping.filter((m) => !m.field) ?? []
   const row = (m: RuleMap) => <MapRow key={m.col} m={m} editing={editing} options={options} onChange={(f) => patch.mutate({ mapping: [{ col: m.col, field: f }] })} />
@@ -193,7 +190,7 @@ function MapRow({ m, editing, options, onChange }: { m: RuleMap; editing: boolea
         <Choice className="h-8" value={m.field} allowEmpty emptyLabel="不导（用不上）" options={options} onChange={onChange} />
       ) : (
         <span className={cn('flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5', !m.field && 'text-muted-foreground')}>
-          <span className="truncate">{fieldName(m.field)}</span>
+          <span className="truncate">{fieldName(m)}</span>
           {confirmedBy(m.by, m.at) ? <span className="text-[12px] text-muted-foreground">{confirmedBy(m.by, m.at)}</span> : m.how && <HowChip how={m.how} />}
         </span>
       )}

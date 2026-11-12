@@ -1,5 +1,5 @@
 // /api 下的接口。统一返回 { ok, data } 或 { ok:false, error }
-// 公共接口写在这里；4 个业务模块各自的接口在 modules/<模块>/routes.ts，挂在 /api/crm、/api/biz、/api/content、/api/data 下。
+// 公共接口写在这里；3 个业务模块各自的接口在 modules/<模块>/routes.ts，挂在 /api/crm、/api/biz、/api/data 下；装进来的模块的接口挂在 /api/m/<模块编号>/ 下（index.ts）。
 import { Hono } from 'hono'
 import * as clients from './services/clients.ts'
 import * as schedule from './services/schedule.ts'
@@ -10,7 +10,6 @@ import * as home from './services/today.ts'
 import * as modules from './services/modules.ts'
 import { crmRoutes } from './modules/crm/routes.ts'
 import { bizRoutes } from './modules/biz/routes.ts'
-import { contentRoutes } from './modules/content/routes.ts'
 import { dataRoutes } from './modules/data/routes.ts'
 import { reminderRoutes } from './reminders/routes.ts'
 import * as assistant from './assistant/service.ts'
@@ -92,7 +91,6 @@ routes.post('/inbox/:id/done', async (c) => c.json(ok(home.doneInbox(c.req.param
 // 业务模块（各自的文件夹，见 README“后续模块开发者须知”）
 routes.route('/crm', crmRoutes)
 routes.route('/biz', bizRoutes)
-routes.route('/content', contentRoutes)
 routes.route('/data', dataRoutes)
 routes.route('/reminders', reminderRoutes) // 提醒（公共，2026-10-12）
 routes.route('/calendar', calendarRoutes) // 日历来源与同步（公共，2026-10-27）

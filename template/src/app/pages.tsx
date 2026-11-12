@@ -13,5 +13,13 @@ export const page = <P extends object>(load: () => Promise<{ default: ComponentT
   )
 }
 
+/** 今日页重点卡的组件：收 data（模块的 server.hooks 的 home 给的数；模块出错或没数据时是 null） */
+export type HomeCardComponent = ComponentType<{ data: unknown }>
+/** 按需加载一张今日页重点卡（装进来的模块在 module.json 的 home 里登记的）：加载时显示一块骨架 */
+export const card = (load: () => Promise<{ default: HomeCardComponent }>): HomeCardComponent => {
+  const C = lazy(load)
+  return (props) => <Suspense fallback={<Skeleton className="h-80" />}><C {...props} /></Suspense>
+}
+
 /** 模块没打开时显示说明页（模块开关，见 shared/modules.ts）；id 和 nav.ts 里菜单项的 module 一致 */
 export const gate = (id: string, el: ReactNode) => <ModuleGate id={id}>{el}</ModuleGate>

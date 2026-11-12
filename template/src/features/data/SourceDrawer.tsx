@@ -16,7 +16,7 @@ import { Badge, GoneNote, Note, RestoreButton, RunStrip } from './parts'
 import { confirmedBy, fullOf, when } from './labels'
 import { RunTimeline } from './RunItem'
 import { useSync } from './use-sync'
-import type { Mapping, Run, SourceDetail } from './types'
+import type { Mapping, MappingTargets, Run, SourceDetail } from './types'
 
 /** “近 7 天跑了 7 次：6 次成功、1 次失败” */
 function runsText(runs: Run[]) {
@@ -40,7 +40,7 @@ export function SourceDrawer({ id, onClose }: { id: string; onClose: () => void 
           : <Button size="sm" variant="outline" disabled={sync.isPending} onClick={() => sync.mutate(s.id)}><RefreshCw className={cn(sync.isPending && 'animate-spin')} />立即同步</Button>}
         {s.channel_id && <Button size="sm" variant="outline" asChild><Link to="/imports"><FileUp />拖文件导入</Link></Button>}
         {s.channel_id && <Button size="sm" variant="ghost" asChild><Link to={`/channel/${s.channel_id}`}>去经营页看<ArrowRight /></Link></Button>}
-        {s.id === 'src_xhs_notes' && <Button size="sm" variant="ghost" asChild><Link to="/content/data">去小红书数据看<ArrowRight /></Link></Button>}
+        {s.target?.page && <Button size="sm" variant="ghost" asChild><Link to={s.target.page.to}>{s.target.page.label}<ArrowRight /></Link></Button>}
       </>}>
       {error ? <GoneNote what="数据源" onClose={onClose} /> : !s ? <div className="grid gap-3"><Skeleton className="h-20" /><Skeleton className="h-40" /><Skeleton className="h-60" /></div> : (
         <div className="grid gap-1">
@@ -91,17 +91,17 @@ export function SourceDrawer({ id, onClose }: { id: string; onClose: () => void 
   )
 }
 
-/** 等你确认的字段对照 + 对好以后按新规则重新导入（小红书笔记数据） */
+/** 等你确认的字段对照 + 对好以后按对照导入（别的模块登记的导入目标，server/modules/data/targets.ts） */
 function MappingReview({ s, items, pending }: { s: SourceDetail; items: Mapping[]; pending: Mapping[] }) {
-  const { data: targets } = useApi<{ notes: { value: string; label: string }[]; daily: { value: string; label: string }[] }>('/data/mapping-targets')
+  const { data: targets } = useApi<MappingTargets>('/data/mapping-targets')
   const decide = useWrite((b: { id: string; action: string; target?: string }) => api.post(`/data/mappings/${b.id}`, b), '已记下')
-  const reimport = useWrite(() => api.post<{ message: string }>('/data/notes/reimport', {}), (r) => r.message)
+  const reimport = useWrite(() => api.post<{ message: string }>(`/data/sources/${s.id}/target/import`, {}), (r) => r.message)
   const by = items.find((m) => m.suggested_by)
-  const options = s.id === 'src_xhs_notes' ? targets?.notes ?? [] : targets?.daily ?? []
+  const options = targets?.targets[s.id] ?? targets?.daily ?? []
   const acceptAll = () => pending.filter((m) => m.target).forEach((m) => decide.mutate({ id: m.id, action: 'accept' }))
   const decided = items.filter((m) => m.suggested_by && !pending.includes(m))
   const others = items.filter((m) => !m.suggested_by)
-  const notes = s.notes
+  const notes = s.target
   return (
     <>
       {pending.length > 0 && (
@@ -117,15 +117,15 @@ function MappingReview({ s, items, pending }: { s: SourceDetail; items: Mapping[
         <SheetSection title="按新规则重新导入">
           {notes.file?.imported_at ? (
             <Note tone="ok" icon={CheckCircle2} title={`${notes.file.name} 已按新对照导进来（${when(notes.file.imported_at)}）`}
-              action={<Button size="sm" variant="outline" asChild><Link to="/content/data">去小红书数据看<ArrowRight /></Link></Button>}>
-              笔记数据和粉丝数都到 {fullOf(notes.file.data_date)} 了，10/26 那篇也有数了。要撤回，在下面运行记录对应的那一批里撤销（导入记录页也能撤）。
+              action={notes.page && <Button size="sm" variant="outline" asChild><Link to={notes.page.to}>{notes.page.label}<ArrowRight /></Link></Button>}>
+              {notes.name}到 {fullOf(notes.file.data_date)} 了。要撤回，在下面运行记录对应的那一批里撤销（导入记录页也能撤）。
             </Note>
           ) : notes.file ? (
             <Note tone="info" icon={Upload} title={`对照确认完了，${notes.file.name} 还没导`}
-              action={<Button size="sm" disabled={reimport.isPending} onClick={() => reimport.mutate(undefined, { onSuccess: () => toast('今日页的提醒会跟着消失', { description: '笔记数据写进了小红书模块，能撤销' }) })}>{reimport.isPending ? <Loader2 className="animate-spin" /> : <Upload />}按新规则重新导入</Button>}>
-              这份是平台改版后第一份笔记数据表（{notes.file.rel}）。按刚确认的对照导进小红书模块的笔记数据，同一次导出的粉丝数据也一起补上；写之前记下原来的数，导错了能撤销。
+              action={<Button size="sm" disabled={reimport.isPending} onClick={() => reimport.mutate(undefined, { onSuccess: () => toast('今日页的提醒会跟着消失', { description: `写进了${notes.writes}，能撤销` }) })}>{reimport.isPending ? <Loader2 className="animate-spin" /> : <Upload />}按新规则重新导入</Button>}>
+              这份是对照确认后的第一份表（{notes.file.rel}）。按刚确认的对照导进{notes.writes}；写之前记下原来的数，导错了能撤销。
             </Note>
-          ) : <p className="text-[13px] text-muted-foreground">导入文件夹里没有笔记数据表：从小红书专业号后台导出“笔记数据”放进去，再点“立即同步”。</p>}
+          ) : <p className="text-[13px] text-muted-foreground">导入文件夹里没有{notes.name}的表：{notes.how}，再点“立即同步”。</p>}
         </SheetSection>
       )}
       {decided.length > 0 && (

@@ -1,0 +1,17 @@
+{
+  "id": "memo",
+  "name": "备忘",
+  "version": "0.1.0",
+  "summary": "测试用的假模块包：把 2026-11-12 加的接入点（今日页重点卡、设置项、server.hooks、导入目标、示例数据、接手旧表）都用一遍",
+  "needs": ["data"],
+  "nav": [{ "key": "memo", "to": "/memo", "label": "备忘", "icon": "StickyNote", "section": "资料" }],
+  "pages": [{ "path": "memo", "file": "src/features/memo/MemoPage.tsx" }],
+  "home": [{ "id": "memo-today", "name": "今天的备忘", "file": "src/features/memo/HomeCard.tsx" }],
+  "settings": [{ "key": "memo_title", "label": "备忘本的名字", "hint": "空着就叫“备忘”", "max": 10 }],
+  "server": {
+    "api": "server/modules/memo/routes.ts#memoRoutes",
+    "cli": { "file": "server/modules/memo/cli.ts#memoCli", "commands": ["memo"] },
+    "hooks": "server/modules/memo/hooks.ts#memoHooks",
+    "read": ["memo"]
+  }
+}

@@ -17,9 +17,7 @@ import * as crmEx from './modules/crm/extract.ts'
 import { careList } from './modules/crm/care.ts'
 import { listInbox } from './modules/crm/materials.ts'
 import * as biz from './modules/biz/service.ts'
-import * as content from './modules/content/service.ts'
 import * as dataSources from './modules/data/service.ts'
-import { addTopics } from './modules/content/topics.ts'
 import { writeSnapshots } from './snapshot.ts'
 import { backupDatabase, open } from './db.ts'
 import { today, addDays, dayOf } from './services/common.ts'
@@ -28,14 +26,15 @@ import { REMIND_HELP, isRemindCommand, runRemindCli } from './reminders/cli.ts'
 import { JOBS_HELP, isJobCommand, runJobsCli } from './jobs/cli.ts'
 import { CALENDAR_HELP, isCalendarCommand, runCalendarCli } from './calendar/cli.ts'
 import { SERVER_MODULES } from './modules.gen.ts'
+import { loadHooks } from './module-hooks.ts'
+import { HOME_CARDS } from '../shared/home.ts'
 
 const ACTOR = 'Codex' as const
 const HELP = `用法：node 工作台/程序/server/cli.ts <命令> [参数] [--json]
 
 查看
-  today                              今日概况：各平台昨天卖得怎样和异常、今天该跟进的大客户、小红书今天发什么、日程、待办
+  today                              今日概况：各平台昨天卖得怎样和异常、今天该跟进的大客户、日程、待办（装进来的模块登记了的也带上）
   biz [--date 日期]                  某天各渠道的成绩单和异常（默认昨天）
-  xhs                                小红书：今天发什么、今天的选题、近两周排期
   sources                            数据源状态（哪个没导进来、哪个超时）
   clients                            客户列表
   client <客户>                      某个客户的全部信息（客户可写公司名，也可写联系人的名字）
@@ -64,12 +63,13 @@ const HELP = `用法：node 工作台/程序/server/cli.ts <命令> [参数] [--
   milestone-add <项目> "2026-12-20 年会"                    加一个里程碑（关键日期）
   apply <清单.json> [--yes]          一张清单一次写入：不加 --yes 是预演（照样检查，什么都不留）；加 --yes 才写。中间哪步不行，整张都不写
                                      清单格式见 server/services/apply.ts 开头
-  settings-set [--owner 称呼] [--business 店名或工作台名称] [--xhs 小红书账号名] [--theme jade|wood|navy|mono|night] [--nav simple|complex|dual|top]
+  settings-set [--owner 称呼] [--business 店名或工作台名称] [--theme jade|wood|navy|mono|night] [--nav simple|complex|dual|top]
                [--kb-name 资料]                 “知识库”这一页在菜单和页面上叫什么；--kb-name "" 改回“知识库”
-               [--modules clients,biz|all] [--home projects,inbox,clients]
-                                     改设置（搭建时按知识库写老板的称呼、店名、小红书账号名、配色、导航）
-                                     --modules 只打开这几个模块（基础版：今日、待办与日程、项目、收件箱、知识库、设置一定开着；打开经营或内容会自动带上数据源与导入）；all = 全部打开
-                                     --home 今日页顶上的重点卡，按老板“最想先看到”排，最多 3 张：projects 项目、inbox 收件箱、clients 客户、sales 经营、xhs 小红书
+               [--modules clients,biz|all] [--home projects,inbox,clients] [--set 设置项=值 …]
+                                     改设置（搭建时按知识库写老板的称呼、店名、配色、导航）
+                                     --modules 只打开这几个模块（基础版：今日、待办与日程、项目、收件箱、知识库、设置一定开着；打开经营会自动带上数据源与导入）；all = 全部打开
+                                     --home 今日页顶上的重点卡，按老板“最想先看到”排，最多 3 张：projects 项目、inbox 收件箱、clients 客户、sales 经营，加上装进来的模块登记的卡
+                                     --set 装进来的模块登记的设置项（module.json 的 settings），可以写几次；值写空 = 清掉。有哪些：settings-set --set help
   modules [--on 模块id,…] [--off 模块id,…]
                                      看每个模块开没开；--on 打开、--off 收起（只从导航、今日页、提醒里拿掉，代码和数据都留着）
   snapshot                           导出只读快照到 工作台/快照/
@@ -89,8 +89,6 @@ ${JOBS_HELP}
   care-set <关怀ID> [--message 新草稿] [--status 已送出|不做]   改关怀草稿、标已发
   care-add <客户> --occasion 立冬问候 --message "草稿" [--date 日期] [--gift 送什么] [--by 定时任务]   存一条关怀草稿（写明谁写的）
   extract-undo <提取ID> --yes        撤销一次提取写入；crm-reset --save 演示前存演示起点，--yes 排练完退回（详细用法：crm-reset --help）
-  xhs-topics-add --file <json> [--date 日期] [--by "Codex 定时任务"]
-                                     把小红书选题写进内容中心的灵感池（JSON 数组，或含 <topics>…</topics> 的回复原文；同名的跳过）
 经营（经营模块，详细用法：biz-report --help）
   biz-report [--date 日期]            看经营早报（默认最新一份）
   biz-report-set <正文> | --file 早报.md [--date 日期] [--at 2026-10-27T07:55] [--method 定时任务]   写回经营早报
@@ -102,6 +100,9 @@ ${JOBS_HELP}
   import <文件.csv> --yes             导入（先 import-check 给老板看，确认后再加 --yes）；import-undo <批次ID> --yes 撤销
   import-rules / import-runs / import-samples   导入规则 / 导入记录 / 示例数据（clear、restore 清掉或恢复）
 规则：听不准的人名、金额先问老板，或在内容里标“（待确认）”；不要替老板编造金额和结论。`
+
+// 装进来的模块的接入点（今日概况里的一段、导入目标、示例数据）：核心命令和导入命令都要用，先加载（server/module-hooks.ts）
+await loadHooks()
 
 // 日历来源的命令（calendar- 开头）交给 calendar/cli.ts（公共，2026-10-27）
 if (isCalendarCommand(process.argv.slice(2))) {
@@ -159,7 +160,7 @@ function parseCli() {
         label: { type: 'string' }, source: { type: 'string' }, help: { type: 'boolean', short: 'h' },
         file: { type: 'string' }, by: { type: 'string' }, home: { type: 'string' },
         kb: { type: 'string' }, owner: { type: 'string' }, goal: { type: 'string' }, milestone: { type: 'string', multiple: true },
-        project: { type: 'string' }, business: { type: 'string' }, theme: { type: 'string' }, nav: { type: 'string' }, xhs: { type: 'string' }, 'kb-name': { type: 'string' },
+        project: { type: 'string' }, business: { type: 'string' }, theme: { type: 'string' }, nav: { type: 'string' }, set: { type: 'string', multiple: true }, 'kb-name': { type: 'string' },
         time: { type: 'string' }, in: { type: 'string' }, modules: { type: 'string' }, on: { type: 'string' }, off: { type: 'string' },
         why: { type: 'string' }, suggest: { type: 'string' }, result: { type: 'string' }, waiting: { type: 'string' }, yes: { type: 'boolean' },
       },
@@ -217,8 +218,8 @@ function main() {
           sales ? line(sales.channels as R[], (c) => `${c.name} ${yuan(c.gmv as number | null)}${delta(c.vs_prev as number | null)}，退款率 ${c.refund_rate ?? '—'}%，ROI ${c.roi == null ? '—' : Number(c.roi).toFixed(1)}`) : '']),
         ...part(['biz', 'data'], ['\n## 数据异常', line(v.alerts as R[], (a) => `[${a.level}] ${a.title}：${a.detail}${a.cause ? `；${a.cause}` : ''}`)]),
         ...part('clients', ['\n## 今天该跟进的大客户', line(v.key_clients as R[], (c) => `${c.name}（${c.contact ?? ''}）：${(c.reasons as string[]).slice(0, 2).join('；')}${c.next_step ? `。下一步：${c.next_step}` : ''}`)]),
-        ...part('content', ['\n## 小红书今天发什么', v.xhs ? line(v.xhs.posts as R[], (p) => `${p.time ?? ''} ${p.title}（${p.status}${p.draft_status ? `，草稿${p.draft_status}` : ''}）`) : '- （内容模块没数据）',
-          v.xhs ? `今天的选题 ${v.xhs.topics_total} 个，前三：${(v.xhs.topics as R[]).map((x) => x.title).join('；')}` : '']),
+        // 装进来的模块在今日概况里的一段（server/module-hooks.ts；模块收着的不在里面）
+        ...v.module_today.flatMap((m) => [`\n## ${m.title}`, m.lines.length ? m.lines.map((l) => `- ${l}`).join('\n') : '- （无）']),
         ...part('tasks', ['\n## 今天的日程', line(v.events as R[], (e) => `${String(e.start).slice(11) || '全天'} ${e.title}`),
           '\n## 今天要做（含已逾期）', line(v.todos.today as R[], (t) => `[${t.id}] ${t.title}（${t.status}，截止 ${t.due}）`)]),
         ...part('clients', ['\n## 该联系了', line(v.follow.due as R[], (c) => `${c.name}（${c.label}）计划 ${c.next_follow}，${Number(c.overdue) > 0 ? `已过 ${c.overdue} 天` : '快到了'}`)]),
@@ -231,14 +232,6 @@ function main() {
       if (!sm) return print(null, '没有经营数据')
       return print({ summary: sm, anomalies: al }, [`# ${sm.date} 各渠道`, line(sm.channels as R[], (c) => `${c.name}：成交 ${c.gmv ?? '—'} 元，订单 ${c.orders ?? '—'}，转化 ${c.conv_rate ?? '—'}%，客单 ${c.aov ?? '—'}，退款率 ${c.refund_rate ?? '—'}%，ROI ${c.roi == null ? '—' : Number(c.roi).toFixed(1)}，比前天 ${c.vs_prev ?? '—'}%`),
         '\n## 异常', line(al as R[], (a) => `[${a.level}] ${a.title}：${a.detail}${a.cause ? `；${a.cause}` : ''}`)].join('\n'))
-    }
-    case 'xhs': {
-      const plan = content.todayPlan()
-      const sc = content.schedule() as R[]
-      return print({ plan, schedule: sc }, [`# 小红书 ${plan.date}`, `粉丝 ${plan.account.followers}（近 7 天 ${plan.account.followers_7d == null ? '—' : `+${plan.account.followers_7d}`}，数据截至 ${plan.account.stats_through ?? '—'}）`,
-        '\n## 今天发', line(plan.posts as R[], (p) => `${p.time ?? ''} ${p.title}（${p.status}）`),
-        '\n## 今天的选题', line(content.topics() as R[], (x) => `${x.title}（${x.source}）`),
-        '\n## 近两周排期', line(sc, (x) => `${x.date} ${x.time ?? ''} ${x.title}（${x.status}）`)].join('\n'))
     }
     case 'sources': {
       const xs = dataSources.sources() as R[]
@@ -361,16 +354,28 @@ function main() {
         : [`预演通过，会写这 ${r.steps.length} 步（这次什么都没写）：`, ...lines, '老板确认后，同一条命令加 --yes 再跑一次。'].join('\n'))
     }
     case 'settings-set': {
-      // 搭建时把老板的称呼、店名（也是工作台名称）、小红书账号名、配色、导航写进设置（网页“设置”页同一套规则）。
-      // 称呼、店名、账号名会用在网页文案、给 Codex 的提示词和小红书手机预览里；--xhs "" 清掉账号名，改用店名
+      // 搭建时把老板的称呼、店名（也是工作台名称）、配色、导航写进设置（网页“设置”页同一套规则）。
+      // 称呼、店名会用在网页文案、给 Codex 的提示词里；--set 写装进来的模块登记的设置项（值写空 = 清掉）
       // --modules：只打开确认页里选中的模块（模块开关，见 shared/modules.ts）
-      if (![o.owner, o.business, o.xhs, o.theme, o.nav, o.modules, o.home, o['kb-name']].some((v) => v !== undefined)) throw new Error('要写改什么：--owner、--business、--xhs、--kb-name、--theme、--nav、--modules 或 --home')
-      if (o.home !== undefined) { const h = checkHome(o.home); if (h.unknown.length) throw new Error(`首页没有这几张卡：${h.unknown.join('、')}（能用的：projects、inbox、clients、sales、xhs）`) }
+      const sets = (o.set as string[] | undefined) ?? []
+      if (sets.includes('help')) {
+        const defs = home.getSettings().module_settings
+        return print(defs, defs.length ? defs.map((d) => `- ${d.key}：${d.label}${d.hint ? `（${d.hint}）` : ''}，现在是“${d.value}”`).join('\n') : '开着的模块没有登记设置项')
+      }
+      if (![o.owner, o.business, o.theme, o.nav, o.modules, o.home, o['kb-name']].some((v) => v !== undefined) && !sets.length) throw new Error('要写改什么：--owner、--business、--kb-name、--theme、--nav、--modules、--home 或 --set 设置项=值')
+      if (o.home !== undefined) { const h = checkHome(o.home); if (h.unknown.length) throw new Error(`首页没有这几张卡：${h.unknown.join('、')}（能用的：${HOME_CARDS.map((c) => c.id).join('、')}）`) }
+      const extra: Record<string, string> = {}
+      for (const kv of sets) {
+        const i = kv.indexOf('=')
+        if (i < 1) throw new Error(`--set 写成 设置项=值，例：--set ${home.getSettings().module_settings[0]?.key ?? '设置项'}=值（现在写的是“${kv}”）`)
+        extra[kv.slice(0, i).trim()] = kv.slice(i + 1)
+      }
       const m = o.modules !== undefined ? modules.setModules(o.modules.trim() === 'all' ? 'all' : o.modules, ACTOR) : null
-      const rest = [o.owner, o.business, o.xhs, o.theme, o.nav, o.home, o['kb-name']].some((v) => v !== undefined)
-      const r = rest ? home.saveSettings({ owner: o.owner, business: o.business, xhs_name: o.xhs, kb_name: o['kb-name'], theme: o.theme, nav_mode: o.nav, home: o.home }, ACTOR) : home.getSettings()
+      const rest = [o.owner, o.business, o.theme, o.nav, o.home, o['kb-name']].some((v) => v !== undefined) || sets.length > 0
+      const r = rest ? home.saveSettings({ owner: o.owner, business: o.business, kb_name: o['kb-name'], theme: o.theme, nav_mode: o.nav, home: o.home, ...(sets.length ? { module_settings: extra } : {}) }, ACTOR) : home.getSettings()
       const mText = m ? `\n${moduleText(m)}${m.added.length ? `\n（自动带上：${m.added.join('、')}）` : ''}` : ''
-      return print({ ...r, modules_detail: m }, `已改设置：称呼 ${r.owner}，店名 / 工作台 ${r.business}，小红书账号 ${r.xhs}${r.xhs_name ? '' : '（跟店名）'}${r.kb_name ? `，“知识库”页叫“${r.kb}”` : ''}，配色 ${r.theme}，导航 ${r.nav_mode}${mText}`)
+      const extraText = r.module_settings.filter((d) => d.value).map((d) => `，${d.label} ${d.value}`).join('')
+      return print({ ...r, modules_detail: m }, `已改设置：称呼 ${r.owner}，店名 / 工作台 ${r.business}${extraText}${r.kb_name ? `，“知识库”页叫“${r.kb}”` : ''}，配色 ${r.theme}，导航 ${r.nav_mode}${mText}`)
     }
     case 'modules': {
       const split = (v?: string) => (v ? v.split(/[\s,，、]+/).map((x) => x.trim()).filter(Boolean) : [])
@@ -386,15 +391,6 @@ function main() {
       // 数据库备份：用 VACUUM INTO 存一份完整的副本（工作台开着也能备份，不会漏掉还在 -wal 里的改动）
       const file = backupDatabase()
       return print({ file }, `已备份数据库：${file}`)
-    }
-    case 'xhs-topics-add': {
-      // 小红书内容中心（E3）：每天早上的选题定时任务用它写回灵感池
-      if (!o.file) throw new Error('要用 --file 指定选题文件（JSON 数组，或含 <topics>…</topics> 的回复）')
-      const raw = readFileSync(o.file, 'utf8')
-      const m = raw.match(/<topics>([\s\S]*?)<\/topics>/)
-      const list = JSON.parse((m ? m[1] : raw).trim()) as unknown
-      const r = addTopics(Array.isArray(list) ? list : (list as { topics?: unknown[] }).topics ?? [], { date: o.date, by: o.by ?? 'Codex 定时任务', actor: ACTOR })
-      return print(r, `已写进灵感池 ${r.added.length} 个选题（${r.date}，${r.by}）${r.skipped.length ? `；跳过同名的 ${r.skipped.length} 个：${r.skipped.join('；')}` : ''}${r.added.length ? `\n${r.added.map((x) => `- ${x.title}`).join('\n')}` : ''}`)
     }
     // ───── 大客户（E5）─────
     case 'materials': {

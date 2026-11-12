@@ -22,10 +22,10 @@ export const CHANNEL_ICON: Record<string, LucideIcon> = {
   douyin: navIcon('ch-douyin') ?? Clapperboard, tmall: navIcon('ch-tmall') ?? ShoppingBag, xhs: navIcon('ch-xhs') ?? BookHeart,
   wechat: navIcon('ch-wechat') ?? Video, store: navIcon('ch-store') ?? Store,
 }
-/** 数据源、规则用哪个图标：经营渠道用渠道图标，小红书笔记用内容图标，其余按方式 */
-export function iconOf(x: { channel_id?: string | null; source_id?: string | null; id?: string; way?: string; platform?: string }): LucideIcon {
+/** 数据源、规则用哪个图标：经营渠道用渠道图标，别的模块登记的导入目标用它那个菜单项的图标（服务端给的 nav），其余按方式 */
+export function iconOf(x: { channel_id?: string | null; source_id?: string | null; id?: string; way?: string; platform?: string; nav?: string | null }): LucideIcon {
   if (x.channel_id && CHANNEL_ICON[x.channel_id]) return CHANNEL_ICON[x.channel_id]
-  if (x.source_id === 'src_xhs_notes' || x.id === 'src_xhs_notes' || x.platform === '小红书') return navIcon('content') ?? NotebookPen
+  if (x.nav) return navIcon(x.nav) ?? NotebookPen
   if (x.platform === '飞书多维表格') return Table2
   return (x.way && WAY_ICON[x.way]) || FileSpreadsheet
 }

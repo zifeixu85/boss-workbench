@@ -34,7 +34,8 @@ export function MapStep({ v, onNext, onLeave }: { v: DraftView; onNext: () => vo
   const pick = (index: number, field: FieldKey | null, by: '你选的' | 'Codex') => patch.mutate({ columns: { [String(index)]: { field, by } } })
   const pickOne = (field: FieldKey, chosen: number, others: number[]) => patch.mutate({ columns: Object.fromEntries([[String(chosen), { field, by: '你选的' as const }], ...others.map((i) => [String(i), { field: null, by: '你选的' as const }])]) })
   const codexPending = v.codex?.ok ? a.columns.filter((c) => c.state === '拿不准' && v.codex!.columns.some((x) => x.index === c.index)) : []
-  const notes = a.target === 'xhs_notes'
+  // 这张表归别的模块登记的导入目标（比如某个模块自己的数据表）：不在这里导，去数据源里它那一项
+  const notes = a.target !== 'channel_daily'
   const missing = a.missing[0]
   // 有规则、表头一列没变、没有拿不准的：结论先说，对照表收起
   const ruleClean = !!a.rule && !a.counts.unsure && !a.blocking.length && !a.rule.missing_cols.length && !a.rule.extra_cols.length && !Object.keys(v.choices.columns ?? {}).length
@@ -45,9 +46,9 @@ export function MapStep({ v, onNext, onLeave }: { v: DraftView; onNext: () => vo
       <Recognized v={v} meta={meta} onPatch={(p) => patch.mutate(p)} />
 
       {notes ? (
-        <Note tone="info" icon={BookOpen} title="这是小红书笔记数据（内容模块用的），不在这里导"
-          action={<Button size="sm" asChild><a href="/sources?source=src_xhs_notes">去确认对照<ArrowRight /></a></Button>}>
-          平台 10/26 改了笔记数据的列名，对照建议在“数据源 → 小红书 · 笔记数据导出”里等你确认；确认后在那里点“按新规则重新导入”，导进小红书模块的笔记数据。
+        <Note tone="info" icon={BookOpen} title={`这是${a.target_name ?? '别的模块的数据'}，不在这里导`}
+          action={a.target_source && <Button size="sm" asChild><a href={`/sources?source=${a.target_source}`}>去确认对照<ArrowRight /></a></Button>}>
+          它有自己的数据源：到“数据源”里它那一项确认字段对照，再在那里点“按对照导入”。
         </Note>
       ) : (
         <>
@@ -107,7 +108,7 @@ export function MapStep({ v, onNext, onLeave }: { v: DraftView; onNext: () => vo
       <footer className="sticky bottom-[calc(57px+env(safe-area-inset-bottom))] z-10 -mx-4 flex flex-wrap items-center gap-x-3 gap-y-2 border-t bg-background/95 px-4 py-2.5 backdrop-blur md:bottom-0 md:-mx-7 md:px-7">
         <Button variant="ghost" size="sm" disabled={discard.isPending} onClick={() => discard.mutate(v.draft.id)}>放弃这份</Button>
         <div className="min-w-0 flex-1 text-right">
-          {notes ? <PendingHint>笔记数据在数据源里导</PendingHint>
+          {notes ? <PendingHint>这张表在数据源里导</PendingHint>
             : missing ? <PendingHint tone="danger">还差 1 件：缺{missing.label}（见上方红框）</PendingHint>
             : a.counts.unsure ? <PendingHint>还差 {a.counts.unsure} 列要你点头</PendingHint>
             : a.blocking.length ? <PendingHint>{a.blocking[0]}</PendingHint>

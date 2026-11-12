@@ -40,8 +40,10 @@ export type Change = { id: number; at: string; actor: string; entity: string; en
 export type ClientDetail = { client: Client; interactions: Interaction[]; deals: Deal[]; projects: Project[]; todos: Todo[]; events: CalEvent[]; receivables: Receivable[] }
 export type NavMode = 'simple' | 'complex' | 'dual' | 'top'
 export type Theme = 'jade' | 'wood' | 'navy' | 'mono' | 'night'
-/** owner 称呼、business 工作台名称（也当店名）；shop、xhs 是服务端按设置算好的店名和小红书账号名（没设置时是“我的店”“我的账号”），xhs_name 是设置里存的原值 */
-export type Settings = { nav_mode: NavMode; theme: Theme; mobile_nav: 'tabs' | 'drawer'; owner: string; business: string; shop: string; xhs: string; xhs_name: string; kb?: string; kb_name?: string; today?: string; demo?: boolean; reminders?: RemindSettings
+/** 装进来的模块登记的一个设置项（module.json 的 settings）和现在存的值（空 = 没设） */
+export type ModuleSetting = { module: string; key: string; label: string; hint?: string; placeholder?: string; max: number; value: string }
+/** owner 称呼、business 工作台名称（也当店名）；shop 是服务端按设置算好的店名（没设置时是“我的店”）；module_settings 是开着的模块登记的设置项 */
+export type Settings = { nav_mode: NavMode; theme: Theme; mobile_nav: 'tabs' | 'drawer'; owner: string; business: string; shop: string; module_settings?: ModuleSetting[]; kb?: string; kb_name?: string; today?: string; demo?: boolean; reminders?: RemindSettings
   /** 打开着的模块 id（shared/modules.ts）；老服务没有这个字段 = 全部打开 */
   modules?: string[]
   /** 今日页重点卡的设置原值（逗号隔开；空 = 默认） */
@@ -78,13 +80,15 @@ export type Overview = {
   sales: SalesSummary | null
   alerts: Alert[]
   key_clients: FocusClient[]
-  xhs: XhsToday | null
+  /** 装进来的模块的重点卡要的数（键是卡片 id，模块的 server.hooks 给的）、今日概况里各模块的一段（brief 进页头那句话）。2026-11-12 */
+  cards?: Record<string, unknown>
+  module_today?: { module: string; name: string; title: string; lines: string[]; brief?: string | null }[]
   module_errors: { module: string; error: string }[]
   /** 提醒页没读的条数（菜单角标）、数据源有几个（数据异常面板的空状态用）。10-12 加 */
   reminders_unread?: number
   source_count?: number
   /** 今日页顶上的重点卡（shared/home.ts），按老板定的顺序；基础版的两张卡的数据。2026-10-15 加 */
-  home?: ('sales' | 'clients' | 'xhs' | 'projects' | 'inbox')[]
+  home?: string[]
   projects_brief?: { id: string; name: string; stage: string; due: string | null; next_step: string | null; waiting_on: string | null; next_milestone: { date: string; title: string } | null; risks: number }[]
   projects_active?: number
   inbox_brief?: InboxItem[]
@@ -108,16 +112,6 @@ export type FocusClient = {
   id: string; name: string; label: string | null; stage: string; contact: string | null; contact_title: string | null
   next_follow: string | null; next_step: string | null; total_spent: number; open_amount: number; score: number; reasons: string[]
 }
-/** 小红书今天发什么（server/modules/content/service.ts 的 todayPlan()） */
-export type XhsToday = {
-  date: string
-  posts: { id: string; time: string | null; title: string; status: string; draft_id: string | null; pillar_name: string | null; cover_text: string | null; draft_status: string | null; memo: string | null }[]
-  upcoming: { date: string; time: string | null; title: string; status: string }[]
-  topics: { id: string; title: string; source: string; reason: string; pillar_name: string | null; status: string }[]
-  topics_total: number
-  account: { followers: number | null; followers_7d: number | null; stats_through: string | null }
-}
-
 export type CashSummary = {
   as_of: string; month: { m: string; inflow: number; outflow: number }; outstanding: number
   overdue: { amount: number; count: number }; due_30: number; avg_monthly_expense: number

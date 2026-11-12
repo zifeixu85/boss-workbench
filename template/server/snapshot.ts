@@ -24,7 +24,7 @@ export function writeSnapshots() {
     + (s ? `## 各平台昨天（${s.date}）\n\n合计 ${yuan(s.total.gmv)}，比前天 ${s.total.vs_prev ?? '—'}%\n\n` + s.channels.map((c) => `- ${c.name}：${yuan(c.gmv)}，退款率 ${c.refund_rate ?? '—'}%，ROI ${c.roi == null ? '—' : Number(c.roi).toFixed(1)}`).join('\n') + '\n\n' : '')
     + '## 数据异常\n\n' + (v.alerts.map((a) => `- ${a.title}：${a.detail}${a.cause ? `；${a.cause}` : ''}`).join('\n') || '- （无）') + '\n\n'
     + '## 今天该跟进的大客户\n\n' + (v.key_clients.map((c) => `- ${c.name}：${c.reasons.slice(0, 2).join('；')}`).join('\n') || '- （无）') + '\n\n'
-    + '## 小红书今天发什么\n\n' + (v.xhs?.posts.map((p) => `- ${p.time ?? ''} ${p.title}（${p.status}）`).join('\n') || '- （无）') + '\n\n'
+    + v.module_today.map((m) => `## ${m.title}\n\n${m.lines.map((l) => `- ${l}`).join('\n') || '- （无）'}\n\n`).join('')
     + '## 今天要做\n\n' + ((v.todos.today as { title: string; status: string }[]).map((t) => `- ${t.title}（${t.status}）`).join('\n') || '- （无）')
     + '\n\n## 有风险的项目\n\n' + (listProjects().filter((p) => p.risks.length).map((p) => `- ${p.name}：${p.risks.map((r) => r.text).join('；')}`).join('\n') || '- （无）') + '\n'
   const files = [['客户现状.md', clientsMd], ['今日概况.md', todayMd]] as const

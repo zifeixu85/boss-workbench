@@ -1,5 +1,6 @@
 // 今日、跟进清单、收件箱、设置、最近改动
-// 今日页还要用 4 个业务模块的“今日接口”：经营 summary()/anomalies()、大客户 focus()、小红书 todayPlan()、数据源 issues()。
+// 今日页还要用 3 个业务模块的“今日接口”：经营 summary()/anomalies()、大客户 focus()、数据源 issues()；
+// 装进来的模块通过接入点（server/module-hooks.ts）给今日页重点卡的数和今日概况里的一段，这里不写模块的名字。
 // 每块单独兜底：某个模块出错，今日页其他部分照常显示，出错的写进 module_errors。
 import { all, get, run, uid, nowIso, logChange, params } from '../db.ts'
 import { demoDate } from '../clock.ts'
@@ -12,13 +13,16 @@ import { listEvents, listTodos } from './schedule.ts'
 import { cashSummary, listReceivables } from './money.ts'
 import * as biz from '../modules/biz/service.ts'
 import * as crm from '../modules/crm/service.ts'
-import * as content from '../modules/content/service.ts'
 import * as dataSources from '../modules/data/service.ts'
 import { readRemindSettings } from '../reminders/settings.ts'
 import { unreadCount } from '../reminders/store.ts'
 import { enabled as enabledModules } from './modules.ts'
 import { searchKb } from './kb.ts'
-import { homeFocus } from '../../shared/home.ts'
+import { homeFocus, HOME_CARDS } from '../../shared/home.ts'
+import { MODULE_SETTINGS } from '../../shared/modules.ts'
+import { moduleHooks, hookErrors } from '../module-hooks.ts'
+import type { TodaySection } from '../module-types.ts'
+import { BadRequest } from './common.ts'
 
 const moduleErrors: { module: string; error: string }[] = []
 function safe<T>(module: string, fn: () => T, fallback: T): T {
@@ -66,7 +70,18 @@ export function overview() {
   const sales = on.has('biz') ? safe('经营', () => biz.summary(), null) : null
   const alerts = [...(on.has('biz') ? safe('经营', () => biz.anomalies(), []) : []), ...(on.has('data') ? safe('数据源', () => dataSources.issues(), []) : [])]
   const keyClients = on.has('clients') ? safe('大客户', () => crm.focus(t, 6), []) : []
-  const xhs = on.has('content') ? safe('小红书', () => content.todayPlan(t), null) : null
+  // 装进来的模块：重点卡的数（键是卡片 id）、今日概况里的一段。模块收着的不调；出错只影响它自己那一块
+  const cards: Record<string, unknown> = {}
+  const moduleToday: (TodaySection & { module: string; name: string })[] = []
+  for (const h of moduleHooks()) {
+    if (!on.has(h.module)) continue
+    for (const [id, fn] of Object.entries(h.hooks.home ?? {})) {
+      if (HOME_CARDS.some((c) => c.id === id && c.module === h.module)) cards[id] = safe(h.name, () => fn(t), null)
+    }
+    const section = h.hooks.today ? safe(h.name, () => h.hooks.today!(t), null) : null
+    if (section) moduleToday.push({ module: h.module, name: h.name, ...section })
+  }
+  for (const e of hookErrors()) moduleErrors.push(e)
   const dueRecs = listReceivables().filter((r) => r.status === '7天内到期')
   // 基础版的两张重点卡：项目推进到哪、收件箱等你看的（2026-10-15）
   const active = listProjects().filter((p) => p.stage !== '已完成' && p.stage !== '暂停')
@@ -74,7 +89,7 @@ export function overview() {
   const homeSetting = get<{ value: string }>("SELECT value FROM settings WHERE key = 'home'")?.value
   return {
     date: t,
-    sales, alerts, key_clients: keyClients, xhs, module_errors: [...moduleErrors],
+    sales, alerts, key_clients: keyClients, cards, module_today: moduleToday, module_errors: [...moduleErrors],
     headline: top ? { id: top.id, title: top.title, due: top.due, due_time: top.due_time } : null,
     events, upcoming,
     todos: { today: todayTodos, week: weekTodos, open: todos.length },
@@ -129,8 +144,10 @@ export function getSettings() {
     theme: s.theme ?? 'jade',
     mobile_nav: (s.mobile_nav as 'tabs' | 'drawer') ?? 'tabs',
     owner: id.owner, business: s.business || '我的工作台',
-    // 店名、小红书账号名（没设置时是中性说法，见 services/identity.ts）；xhs_name 是设置里存的原值，空着就是没设
-    shop: id.shop, xhs: id.xhs, xhs_name: s.xhs_name ?? '',
+    // 店名（没设置时是中性说法，见 services/identity.ts）
+    shop: id.shop,
+    // 装进来的模块登记的设置项（module.json 的 settings）：只列开着的模块的；value 是存的原值，空着就是没设
+    module_settings: moduleSettings(s),
     // “知识库”这一页叫什么（kb 是算好的名字；kb_name 是设置里存的原值，空着就是没设）
     kb: id.kb, kb_name: s.kb_name ?? '',
     today: today(), demo: demoDate() !== null,
@@ -141,21 +158,34 @@ export function getSettings() {
     home: s.home ?? '',
   }
 }
+/** 开着的模块登记的设置项和现在的值 */
+function moduleSettings(stored: Record<string, string>) {
+  const on = enabledModules()
+  return MODULE_SETTINGS.filter((d) => on.includes(d.module)).map((d) => ({ ...d, value: stored[d.key] ?? '' }))
+}
 export function saveSettings(input: unknown, actor: Actor) {
-  const data = settingsInput.parse(input)
+  const { module_settings: extra, ...data } = settingsInput.parse(input)
+  const extraNames: string[] = []
+  // 模块的设置项：只收登记过的 key，长度按登记的；写空 = 清掉（模块自己决定空着时用什么）
+  for (const [key, value] of Object.entries(extra ?? {})) {
+    const def = MODULE_SETTINGS.find((d) => d.key === key)
+    if (!def) throw new BadRequest(`没有“${key}”这个设置项（装进来的模块登记的有：${MODULE_SETTINGS.map((d) => d.key).join('、') || '无'}）`)
+    if (value.length > def.max) throw new BadRequest(`${def.label}最多 ${def.max} 个字`)
+    if (value === '') run('DELETE FROM settings WHERE key = :key', { key })
+    else run('INSERT INTO settings (key, value) VALUES (:key, :value) ON CONFLICT(key) DO UPDATE SET value = :value', { key, value })
+    extraNames.push(def.label)
+  }
   for (const [key, value] of Object.entries(data)) {
     if (value === undefined) continue
-    // 小红书账号名写空 = 不单独设，跟着店名走
-    if (key === 'xhs_name' && value === '') { run("DELETE FROM settings WHERE key = 'xhs_name'"); continue }
     // “知识库”页的名字写空 = 改回“知识库”
     if (key === 'kb_name' && value === '') { run("DELETE FROM settings WHERE key = 'kb_name'"); continue }
     run('INSERT INTO settings (key, value) VALUES (:key, :value) ON CONFLICT(key) DO UPDATE SET value = :value', { key, value })
   }
   const NAMES: Record<string, string> = {
-    nav_mode: '电脑导航', theme: '风格', mobile_nav: '手机导航', owner: '称呼', business: '工作台名称（店名）', xhs_name: '小红书账号名', kb_name: '“知识库”页的名字', home: '首页重点卡', assistant_on: 'AI 助手开关',
+    nav_mode: '电脑导航', theme: '风格', mobile_nav: '手机导航', owner: '称呼', business: '工作台名称（店名）', kb_name: '“知识库”页的名字', home: '首页重点卡', assistant_on: 'AI 助手开关',
     remind_on: '提醒开关', notify_at: '每天看汇总的时间', quiet_start: '免打扰时段', quiet_end: '免打扰时段', remind_demo_system: '演示时弹不弹系统通知',
   }
-  const changed = [...new Set(Object.entries(data).filter(([, v]) => v !== undefined).map(([k]) => NAMES[k] ?? k))]
+  const changed = [...new Set([...Object.entries(data).filter(([, v]) => v !== undefined).map(([k]) => NAMES[k] ?? k), ...extraNames])]
   logChange(actor, 'settings', 'app', '修改', `设置：改了${changed.join('、')}`)
   return getSettings()
 }

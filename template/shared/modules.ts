@@ -6,9 +6,10 @@
 // 自己在程序里写的，在 CORE_MODULES 里加一项，再在 src/app/nav.ts 的菜单项上写 module。
 // 基础版（2026-10-15 A梦 定）：今日、待办与日程、项目、收件箱、知识库、设置每个工作台都有，有没有数据都在（没数据显示空状态和“新建”），
 // 所以都是 required，关不掉。客户与跟进是业务模块：老板确实在维护客户，才按他的做法加进来；
-// 经营、内容搭建时不放（2026-10-13、10-18 A梦 定），以后要用再作为模块加。
+// 经营搭建时不放（2026-10-13、10-18 A梦 定），以后要用再作为模块加。
+// 基础版只带每个人都用得上的（2026-11-12 A梦 定）：小红书内容中心这类进阶模块不在模板里，做成模块包另外装（Skill 的 modules/README.md）。
 
-import { INSTALLED_MODULES } from './modules.gen.ts'
+import { INSTALLED_MODULES, INSTALLED_SETTINGS } from './modules.gen.ts'
 
 export type ModuleDef = {
   id: string
@@ -27,7 +28,6 @@ const CORE_MODULES: ModuleDef[] = [
   { id: 'reminders', name: '提醒' },
   { id: 'clients', name: '客户与跟进' },
   { id: 'biz', name: '经营', needs: ['data'] },
-  { id: 'content', name: '小红书内容中心', needs: ['data'] },
   { id: 'data', name: '数据源与导入' },
   { id: 'kb', name: '知识库', required: true },
   { id: 'settings', name: '设置', required: true },
@@ -49,6 +49,10 @@ export function setInstalledModules(installed: ModuleDef[]) {
   MODULES = withInstalled(installed)
   MODULE_IDS = MODULES.map((m) => m.id)
 }
+/** 装进来的模块登记的设置项（module.json 的 settings）：设置页“基本信息”里多出来的输入框，命令行 settings-set --set 也认 */
+export type ModuleSettingDef = { module: string; key: string; label: string; hint?: string; placeholder?: string; max: number }
+export let MODULE_SETTINGS: ModuleSettingDef[] = INSTALLED_SETTINGS
+export function setInstalledSettings(defs: ModuleSettingDef[]) { MODULE_SETTINGS = defs }
 export const moduleName = (id: string) => MODULES.find((m) => m.id === id)?.name ?? id
 
 /** 把“today, tasks、kb”这类写法拆成 id 列表（逗号、顿号、空格都行） */
@@ -77,7 +81,7 @@ export function enabledModules(stored: string | null | undefined): string[] {
   return normalizeModules(stored).ids
 }
 
-/** 关掉一个模块时，哪些打开着的模块还需要它（比如经营、内容都要“数据源与导入”） */
+/** 关掉一个模块时，哪些打开着的模块还需要它（比如经营要“数据源与导入”） */
 export function neededBy(id: string, on: string[]): string[] {
   return MODULES.filter((m) => on.includes(m.id) && m.needs?.includes(id)).map((m) => m.id)
 }

@@ -12,6 +12,7 @@ import { startReminders, type PushPayload } from './reminders/service.ts'
 import { markInterrupted } from './assistant/service.ts'
 import { errorResponse } from './module-kit.ts'
 import { moduleApi, refreshModules } from './modules-live.ts'
+import { loadHooks } from './module-hooks.ts'
 import { startJobs } from './jobs/service.ts'
 import { startCalendarSync } from './calendar/service.ts'
 
@@ -63,6 +64,9 @@ app.get('/api/live', (c) => streamSSE(c, async (stream) => {
   await stream.writeSSE({ data: JSON.stringify({ reason: 'hello' }), event: 'change' })
   while (!stream.aborted) await stream.sleep(25000).then(() => stream.writeSSE({ data: '{}', event: 'ping' }))
 }))
+
+// 装进来的模块的接入点（今日页重点卡的数、导入目标……）：启动时加载一遍，之后装了新模块由 modules-live.ts 再加载
+await loadHooks()
 
 app.route('/api', routes)
 // 装进来的模块的接口：/api/m/<模块编号>/…，交给模块自己的 Hono（server/modules.gen.ts）。工作台开着时新装的模块也能马上用

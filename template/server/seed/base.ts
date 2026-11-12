@@ -2,7 +2,7 @@
 // 客户 ID 来自 crm-data.ts（c_lantuo 澜拓科技、c_hengyan 衡言律师事务所……），所以要在 crm 之后跑。
 import { insert, iso, DEMO_TODAY, type SeedModule } from './lib.ts'
 
-const SETTINGS = { owner: '林总', business: 'ABC茶社', xhs_name: 'ABC茶社', nav_mode: 'complex', theme: 'jade', mobile_nav: 'tabs', demo_today: DEMO_TODAY }
+const SETTINGS = { owner: '林总', business: 'ABC茶社', nav_mode: 'complex', theme: 'jade', mobile_nav: 'tabs', demo_today: DEMO_TODAY }
 
 type P = { id: string; name: string; kb: string; stage: string; owner: string; goal: string; next: string; waiting?: string; due: string; risk?: string; budget?: number; updated: string; created: string; miles: [date: string, title: string, status: string, note?: string][] }
 const PROJECTS: P[] = [
@@ -167,13 +167,10 @@ const CHANGES: [string, string, string, string, string, string][] = [
   ['2026-10-26T16:30', '网页', 'client', 'c_hongyin', '跟进', '鸿印包装：刘经理说纸张涨价，春节礼盒报价要再等两天'],
   ['2026-10-26T10:20', '网页', 'inbox', 'n_2', '新建', '随手记：抖店直播间想加一个 19 元的试喝装'],
   ['2026-10-26T18:40', '网页', 'todo', '新品详情页和小红书预热笔记定稿', '修改', '待办「新品详情页和小红书预热笔记定稿」→进行中'],
-  ['2026-10-26T21:40', 'Codex', 'content', 'd_3', '修改', '草稿「试喝笔记：今年秋冬，我们在调一款新茶」写好了，等林总看'],
-  ['2026-10-27T07:05', 'Codex', 'content', 'xhs', '生成', '定时任务：生成今天的小红书选题 10 个'],
   ['2026-10-27T07:20', '导入', 'data', 'src_douyin', '导入', '抖店 10/26 经营数据导入成功'],
   ['2026-10-27T07:31', '导入', 'data', 'src_tmall', '导入', '天猫 10/26 经营数据导入成功'],
   ['2026-10-27T07:36', '导入', 'data', 'src_xhs_shop', '导入', '小红书店 10/26 经营数据导入成功'],
   ['2026-10-27T07:44', '导入', 'data', 'src_wechat', '导入', '视频号小店 10/26 经营数据导入成功'],
-  ['2026-10-27T07:50', '导入', 'data', 'src_xhs_notes', '失败', '小红书笔记数据导入失败：导出表的字段对不上（3 处）'],
   ['2026-10-27T07:55', 'Codex', 'biz', 'daily', '生成', '定时任务：经营早报已生成，5 个渠道里有 3 处异常'],
 ]
 

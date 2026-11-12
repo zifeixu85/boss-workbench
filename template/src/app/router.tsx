@@ -1,7 +1,7 @@
 // 页面登记。每个页面按需加载（日历、图表这些大组件只在用到时下载）
-// 4 个业务模块的页面在各自的 features 文件夹里：经营 biz、小红书 content、数据源与导入 data、大客户 crm（客户列表和抽屉在 clients）
+// 3 个业务模块的页面在各自的 features 文件夹里：经营 biz、数据源与导入 data、大客户 crm（客户列表和抽屉在 clients）
 // 装进来的模块（scripts/module.mjs add）的页面登记在 modules.routes.gen.tsx，不用改这里
-import { createBrowserRouter, Link, Navigate } from 'react-router'
+import { createBrowserRouter, Link } from 'react-router'
 import { AppShell, EmbedShell } from './AppShell'
 import { page, gate } from './pages'
 import { MODULE_ROUTES } from './modules.routes.gen'
@@ -28,12 +28,6 @@ const Extract = page(() => import('@/features/crm/ExtractPage')) // 新材料提
 // 经营
 const BizSummary = page(() => import('@/features/biz/BizSummaryPage'))
 const Channel = page(() => import('@/features/biz/ChannelPage'))
-// 小红书内容中心（今天 / 内容 / 创作 / 数据 / 复盘；旧地址 /content/schedule、/content/notes 跳到新页）
-const XhsToday = page(() => import('@/features/content/TodayPage'))
-const XhsPieces = page(() => import('@/features/content/PiecesPage'))
-const XhsStudio = page(() => import('@/features/content/StudioPage'))
-const XhsData = page(() => import('@/features/content/DataPage'))
-const XhsReview = page(() => import('@/features/content/ReviewPage'))
 // 数据源与导入
 const Sources = page(() => import('@/features/data/SourcesPage'))
 const Imports = page(() => import('@/features/data/ImportsPage'))
@@ -65,14 +59,6 @@ export const router = createBrowserRouter([
       { path: 'clients/:id', element: gate('clients', <ClientPage />) },
       { path: 'biz', element: gate('biz', <BizSummary />) },
       { path: 'channel/:id', element: gate('biz', <Channel />) },
-      { path: 'content', element: gate('content', <XhsToday />) },
-      { path: 'content/pieces', element: gate('content', <XhsPieces />) },
-      { path: 'content/studio', element: gate('content', <XhsStudio />) },
-      { path: 'content/studio/:id', element: gate('content', <XhsStudio />) },
-      { path: 'content/data', element: gate('content', <XhsData />) },
-      { path: 'content/review', element: gate('content', <XhsReview />) },
-      { path: 'content/schedule', element: <Navigate to="/content/pieces?view=calendar" replace /> },
-      { path: 'content/notes', element: <Navigate to="/content/data" replace /> },
       { path: 'sources', element: gate('data', <Sources />) },
       { path: 'imports', element: gate('data', <Imports />) },
       { path: 'imports/history', element: gate('data', <ImportHistory />) },
