@@ -101,7 +101,7 @@ export function KeywordChips({ value }: { value: string[] }) {
 /** 每天的口令：粘进 Codex 的定时任务。工作台自己不调 AI，取和写总结都是 Codex 做 */
 export function PromptPanel({ daily, once }: { daily: string; once: string }) {
   return (
-    <Panel title="让 Codex 每天去取" desc="在 Codex 里新建一个定时任务（比如每天 08:30），把这段粘进去：它到点去开着的来源取新内容、写进来，再写一份当天的总结。"
+    <Panel title="让 Codex 每天去取" desc="在 Codex 里新建一个定时任务（比如每天 08:30），把这段粘进去：它到点先看开着哪些来源，去取新内容、写进来，再写一份当天的总结。只粘一次，以后加减来源、改关注词都不用重新复制。"
       action={<Button size="sm" variant="outline" className="h-7 shrink-0 px-2 text-xs" onClick={() => copyText(daily, '每天的口令复制好了，粘进 Codex 的定时任务')}><Copy aria-hidden />复制</Button>}>
       <pre className="max-h-64 overflow-y-auto rounded-lg bg-muted px-3 py-2.5 font-sans text-xs leading-relaxed break-words whitespace-pre-wrap text-muted-foreground" tabIndex={0} aria-label="每天的口令">{daily}</pre>
       <p className="mt-2 text-xs text-muted-foreground">

@@ -50,7 +50,8 @@ test('装上行业资讯：课上的走法（Codex 取了写进来）、RSS 自�
   const empty = json('news')
   assert.deepEqual([empty.enabled_count, empty.day, empty.has_rss], [0, null, false])
   assert.match(cli('news').out, /还没有打开的来源/)
-  assert.match(cli('news-prompt').out, /news-sources[\s\S]*news-source-on/, '没开来源时，口令让 Codex 先问打开哪个')
+  const promptBefore = cli('news-prompt').out
+  assert.match(promptBefore, /news-sources --json[\s\S]*news-source-on/, '口令让 Codex 先看来源清单，一个都没开就问打开哪个')
 
   // ③ 生财是第一个来源：打开，Codex 用自己的 MCP 取了写进来（带全文）
   assert.match(cli('news-add', '--source', '生财有术', '--title', '关着的时候写').out, /关着[\s\S]*news-source-on/)
@@ -90,7 +91,8 @@ test('装上行业资讯：课上的走法（Codex 取了写进来）、RSS 自�
   const row = news.items.find((x) => x.id === one.id)
   assert.deepEqual([row.source, row.has_body, 'body' in row], ['生财有术', true, false], '列表里只说有没有全文，不带全文')
   assert.deepEqual(json('news', '--source', 'AI HOT').items.map((x) => x.title), ['某表格软件上线 AI 助手（虚构）'])
-  assert.match(cli('news-prompt').out, /生财有术（https:\/\/scys\.com\/mcp）[\s\S]*AI HOT（https:\/\/aihot\.news\/api\/mcp\?aihot_actor=abc）[\s\S]*news-digest-set today/)
+  assert.equal(cli('news-prompt').out, promptBefore, '口令不写死来源：加了来源、改了关注词，粘进定时任务的那段不用重新复制')
+  assert.deepEqual(json('news-sources').sources.filter((s) => s.enabled).map((s) => [s.name, s.url]), [['生财有术', 'https://scys.com/mcp'], ['AI HOT', 'https://aihot.news/api/mcp?aihot_actor=abc']], 'Codex 按口令跑 news-sources 就能看到现在开着的来源和地址')
   assert.doesNotMatch(cli('news-prompt', '--once').out, /news-digest-set/)
 
   // 每天一份总结：Codex 写了用命令放进来；标出的条目必须真有、是那一天的
