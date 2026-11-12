@@ -18,6 +18,7 @@ description: 老板工作台：在本机搭一个个人工作台网页，把今�
 | “工作台接上我的知识库” | 空白版接上新建好的知识库：对照、导入、写入口 | [references/空白起步.md](references/空白起步.md) 的“以后接上知识库” |
 | “工作台加个××模块”“我想管好大客户”“把某个页面改成……”“导入这份导出表” | 加模块、改功能：立项对焦 → 需求文档 → 选起点 → 样张 → 开发 → 验收 → 记录；小改动直接改 | [references/加减模块.md](references/加减模块.md)、[references/立项对焦.md](references/立项对焦.md) |
 | “工作台装上行业资讯”“有哪些现成的模块”“把资讯模块拿掉 / 更新一下” | 装现成的模块包：`node scripts/module.mjs list / add / update / remove <编号>`（在程序文件夹里跑；工作台开着也不用重开） | [references/加减模块.md](references/加减模块.md) 的“装现成的模块包”、Skill 的 `modules/README.md` |
+| “给资讯加一个来源：××”“把今天生财里和我有关的新帖取来，写进工作台的资讯”“每天帮我写资讯总结” | 行业资讯模块：来源都由 Codex 去取。加或打开来源 `news-source-add` / `news-source-on`（预设生财有术、AI HOT），用老板接好的 MCP 只读取后 `news-add` 写进来；总结 `news-digest-set`；每天自动做把 `news-prompt` 的口令粘进 Codex 定时任务 | Skill 的 `modules/news/README.md`、`references/需求文档-行业资讯.md` |
 | “这个模块用不上了”“把经营打开” | 模块开关：`modules --off/--on`，不改代码、不删数据 | [references/加减模块.md](references/加减模块.md) 的“打开、收起模块” |
 | “和某某聊了”“整理收件箱”“这几件事记一下”“会上定了这些” | 进内容：拆 7 类 → 一次问清 → 一张清单 → `apply` 一次写入工作台 | [references/进内容.md](references/进内容.md) |
 | “换个配色”“重新选模块” | 重开确认页，只改要改的部分 | 本文件第 1 步最后一条 |
