@@ -114,7 +114,7 @@ node server/seed/index.ts --only biz # 只重灌一个模块（biz、data、crm-
 | 公共：提醒（规则、浏览器通知、电脑系统通知） | `/reminders`；设置页“提醒” | `src/features/reminders`、`src/lib/reminders.ts` | `server/reminders/` | `016_reminders.sql` |
 | 客户与跟进（大客户：客户列表、跟进看板、关怀与回访、新材料提取、跟进清单、应收款） | `/clients…` | `src/features/clients`、`src/features/crm` | `server/modules/crm` | `002_crm.sql`、`015_crm_*.sql` |
 | 经营（汇总 + 每个渠道一页、经营早报、异常） | `/biz`、`/channel/<渠道>` | `src/features/biz` | `server/modules/biz` | `003_biz.sql`、`012_biz_reports.sql` |
-| 装进来的模块（模块包，`node scripts/module.mjs add <编号>`）：行业资讯 `news` 在 Skill 的 `modules/` 里；小红书内容中心 `xhs` 是进阶模块，模块包要另外拿（2026-11-12 起不在基础模板里） | 模块自己定（`xhs` 是 `/content…`） | `src/features/<编号>` | `server/modules/<编号>`，接口在 `/api/m/<编号>/` | `m-<编号>-*.sql` |
+| 装进来的模块（模块包，`node scripts/module.mjs add <编号>`）：行业资讯 `news` 在 Skill 的 `modules/` 里；小红书内容中心 `xhs` 是进阶模块，模块包也在 Skill 的 `modules/` 里（2026-11-12 起不在基础模板里） | 模块自己定（`xhs` 是 `/content…`） | `src/features/<编号>` | `server/modules/<编号>`，接口在 `/api/m/<编号>/` | `m-<编号>-*.sql` |
 | 数据源与导入（导入文件、对字段、导入记录、导入规则） | `/sources`、`/imports…` | `src/features/data` | `server/modules/data` | `005_data.sql`、`014_data_import*.sql` |
 | 公共：日历同步（只读、单向：Mac 日历 / 飞书日历 / 订阅链接，每 10 分钟拉未来两周进 `events`，source = 日历同步、不能改；命令 `calendar-connect`、`calendar-status`、`calendar-sync`、`calendar-off`） | `/calendar` 顶上的来源条；设置页“日历来源” | `src/features/calendar/sync.ts`、`SyncBar.tsx`、`src/features/settings/CalendarSettings.tsx` | `server/calendar/`；Mac 助手 `tools/mac-calendar/`（编好的 工作台日历.app，不在老板电脑上重编）、`scripts/mac-calendar.mjs` | `021_日历同步.sql` |
 | 公共：定时任务（模块登记“每天几点跑一次”，没赶上补跑，失败了隔 15 分钟再试） | 命令 `jobs`、`job-run`、`job-set` | — | `server/jobs/` | `020_定时任务.sql` |

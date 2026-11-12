@@ -126,11 +126,12 @@ test('基础工作台 + 一个用了全部接入点的模块包：今日卡、�
   assert.deepEqual(after.home, ['inbox'], '存的重点卡里模块那张不认了，剩下老板定的那张')
 })
 
-test('基础模板里没有小红书内容中心的代码；模块目录里它是进阶模块', () => {
+test('基础模板里没有小红书内容中心的代码；它是放在 Skill 的 modules/ 里的进阶模块包', () => {
   for (const f of ['src/features/content', 'server/modules/content', 'shared/xhs-check.ts', 'server/seed/content.ts', 'server/migrations/004_content.sql', 'src/features/today/XhsToday.tsx']) {
     assert.ok(!existsSync(join(TEMPLATE, f)), `${f} 不该在基础模板里`)
   }
-  assert.ok(!existsSync(join(REPO, 'modules', 'xhs')), '进阶模块包不放在公开仓库里')
+  assert.ok(existsSync(join(REPO, 'modules', 'xhs', 'module.json')), '小红书模块包在 Skill 的 modules/ 里，学员一句话就能装（2026-11-12 A梦 定：当引子放在这里）')
+  assert.equal(JSON.parse(readFileSync(join(REPO, 'modules', 'xhs', 'module.json'), 'utf8')).tier, '进阶')
   const cat = JSON.parse(readFileSync(join(REPO, 'modules', 'catalog.json'), 'utf8')).modules
   assert.equal(cat.find((x) => x.id === 'xhs').tier, '进阶')
   assert.equal(cat.find((x) => x.id === 'news').tier, '基础')

@@ -211,17 +211,17 @@ test('接手旧版自带的文件（replaces）：程序里留着的那批先挪
   assert.ok(existsSync(join(app, 'src/features/memo/MemoPage.tsx')))
 })
 
-test('进阶模块包去哪找：知识库的 工作台/模块包/（文件夹或 .zip、多套一层也行）；找不到时按模块目录说清是进阶模块、去哪拿', async (t) => {
+test('另外发的模块包（比如以后的 pro 版）去哪找：知识库的 工作台/模块包/（文件夹或 .zip、多套一层也行）；找不到时按模块目录说清去哪拿', async (t) => {
   const app = makeApp('app-pro')
   const drop = M.dropDir(app)
   // 模块目录写在某个模块包文件夹的 catalog.json 里
   const skill = join(tmp, 'skill-pro')
-  put(join(skill, 'modules', 'catalog.json'), JSON.stringify({ modules: [{ id: 'memo', name: '备忘', tier: '进阶', summary: '随手记', get: '向课程方要“备忘”的模块包。' }] }))
+  put(join(skill, 'modules', 'catalog.json'), JSON.stringify({ modules: [{ id: 'memo', name: '备忘', tier: '进阶', edition: 'pro', summary: '随手记', get: '向课程方要“备忘”的模块包。' }] }))
   process.env.BOSS_WORKBENCH_SKILL = skill
   t.after(() => { delete process.env.BOSS_WORKBENCH_SKILL; rmSync(drop, { recursive: true, force: true }) }) // 这几个测试共用一个知识库：用完清掉，不影响后面的
   assert.deepEqual(M.missingPacks(app).map((x) => x.id), ['memo'])
   await assert.rejects(M.addModule('memo', { app, noBuild: true }), (err) => {
-    assert.match(err.message, /“备忘”是进阶模块，模块包不在老板工作台 Skill 里/)
+    assert.match(err.message, /“备忘”的模块包要另外拿，不在老板工作台 Skill 里/)
     assert.match(err.message, /向课程方要“备忘”的模块包。/)
     assert.ok(err.message.includes(drop), '告诉老板放哪')
     return true

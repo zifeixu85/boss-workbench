@@ -8,7 +8,7 @@
 //
 //   node scripts/module.mjs list                       有哪些模块包可以装、装了哪些
 //   node scripts/module.mjs add <编号> [--from <包>]    装（--no-build 不重新构建网页）；<包> 可以是文件夹或 .zip。
-//                                                       进阶模块的模块包不在 Skill 里：放进知识库的 工作台/模块包/，或用 --from 指过去
+//                                                       另外发的模块包（目录里写了 get 的，比如以后的 pro 版）：放进知识库的 工作台/模块包/，或用 --from 指过去
 //   node scripts/module.mjs update <编号> [--from <包>] [--force]   换成包里的新版；老板改过的文件默认不覆盖
 //   node scripts/module.mjs remove <编号>               拿掉代码和菜单，数据留着；改过的文件挪进备份
 //   node scripts/module.mjs status                     装了哪些、哪些文件改过
@@ -79,7 +79,7 @@ export function packDirs(app = APP) {
   return [...new Set([...direct.filter(Boolean), ...skills.map((s) => join(s, MOD_DIR))].map((d) => resolve(d)))].filter((d) => existsSync(d))
 }
 
-/** 模块目录（modules/catalog.json）：有哪些模块、哪些是进阶的（模块包不在公开的 Skill 里，要另外拿）。几处的目录合在一起，前面的优先 */
+/** 模块目录（modules/catalog.json）：有哪些模块、基础还是进阶、哪一档（lite / pro），模块包要另外拿的写 get。几处的目录合在一起，前面的优先 */
 export function catalog(app = APP) {
   const out = []
   for (const base of packDirs(app)) {
@@ -125,8 +125,8 @@ export function findPack(id, from, app = APP) {
   if (existsSync(drop)) for (const f of readdirSync(drop)) if (/\.zip$/i.test(f)) { try { unzip(join(drop, f)) } catch { /* 解不开的跳过，下面照常找 */ } }
   for (const base of packDirs(app)) { const hit = packIn(base, id); if (hit) return hit }
   const known = catalog(app).find((x) => x.id === id)
-  if (known?.tier === '进阶') {
-    fail(`“${known.name}”是进阶模块，模块包不在老板工作台 Skill 里，这台电脑上还没有。\n${known.get ?? '向课程方要模块包。'}\n拿到以后把文件夹或压缩包放进 ${drop}，再说一次“工作台装上${known.name}”；放在别处就用 --from 指过去。`)
+  if (known?.get) {
+    fail(`“${known.name}”的模块包要另外拿，不在老板工作台 Skill 里，这台电脑上还没有。\n${known.get}\n拿到以后把文件夹或压缩包放进 ${drop}，再说一次“工作台装上${known.name}”；放在别处就用 --from 指过去。`)
   }
   fail(`找不到“${id}”这个模块包。看了：${packDirs(app).join('、') || '（一个模块包文件夹都没找到）'}。用 --from 指定模块包的文件夹或压缩包`)
 }
@@ -504,10 +504,10 @@ export function listPacks(app = APP) {
   return out
 }
 
-/** 目录里有、这台电脑上还没有模块包的进阶模块 */
+/** 目录里有、要另外拿（写了 get）、这台电脑上还没有模块包的 */
 export function missingPacks(app = APP) {
   const have = new Set(listPacks(app).map((p) => p.id))
-  return catalog(app).filter((x) => x.tier === '进阶' && !have.has(x.id))
+  return catalog(app).filter((x) => x.get && !have.has(x.id))
 }
 
 // ───────────────────────────── 命令行
@@ -528,7 +528,7 @@ async function main(argv) {
       const packs = listPacks()
       say(packs.length ? `可以装的模块包：\n${packs.map((p) => `- ${p.name}（${p.id} ${p.version}）${installed[p.id] ? `：已装 ${installed[p.id].version}` : ''}${p.summary ? `\n    ${p.summary}` : ''}`).join('\n')}` : '没找到模块包（老板工作台 Skill 的 modules/ 文件夹）')
       const more = missingPacks()
-      if (more.length) say(`\n进阶模块（模块包要另外拿，拿到后放进 ${dropDir()} 就能装）：\n${more.map((x) => `- ${x.name}（${x.id}）${x.summary ? `\n    ${x.summary}` : ''}${x.get ? `\n    怎么拿：${x.get}` : ''}`).join('\n')}`)
+      if (more.length) say(`\n还有这些模块（模块包要另外拿，拿到后放进 ${dropDir()} 就能装）：\n${more.map((x) => `- ${x.name}（${x.id}）${x.summary ? `\n    ${x.summary}` : ''}${x.get ? `\n    怎么拿：${x.get}` : ''}`).join('\n')}`)
       return 0
     }
     case 'status': {

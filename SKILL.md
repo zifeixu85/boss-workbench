@@ -18,7 +18,7 @@ description: 老板工作台：在本机搭一个个人工作台网页，把今�
 | “工作台接上我的知识库” | 空白版接上新建好的知识库：对照、导入、写入口 | [references/空白起步.md](references/空白起步.md) 的“以后接上知识库” |
 | “工作台加个××模块”“我想管好大客户”“把某个页面改成……”“导入这份导出表” | 加模块、改功能：立项对焦 → 需求文档 → 选起点 → 样张 → 开发 → 验收 → 记录；小改动直接改 | [references/加减模块.md](references/加减模块.md)、[references/立项对焦.md](references/立项对焦.md) |
 | “工作台装上行业资讯”“有哪些现成的模块”“把资讯模块拿掉 / 更新一下” | 装现成的模块包：`node scripts/module.mjs list / add / update / remove <编号>`（在程序文件夹里跑；工作台开着也不用重开） | [references/加减模块.md](references/加减模块.md) 的“装现成的模块包”、Skill 的 `modules/README.md` |
-| “工作台装上小红书模块”“装上小红书内容中心”“有哪些进阶模块” | 进阶模块：模块包不在这个 Skill 里。照样先 `node scripts/module.mjs add xhs`：找得到模块包（老板放进知识库 `工作台/模块包/` 的文件夹或 .zip、装在本机的 `boss-workbench-modules`）就装上；找不到，把它给的那段话原样告诉老板（这是进阶模块、去哪拿、拿到放哪），不要自己到网上找代码、不要照旧版本重写一份 | Skill 的 `modules/README.md` 的“进阶模块” |
+| “工作台装上小红书模块”“装上小红书内容中心”“有哪些进阶模块” | 进阶模块（基础模板不带，模块包在 Skill 的 `modules/xhs/`）：`node scripts/module.mjs add xhs`。以后另外发的模块包（比如 pro 版）放在知识库 `工作台/模块包/`，同样 `add <编号>`；找不到时把命令给的那段话原样告诉老板（去哪拿、拿到放哪），不要到网上找代码、不要照旧版本重写 | Skill 的 `modules/README.md` 的“进阶模块” |
 | “把工作台升级到新版”“我的工作台是以前搭的，更新一下” | 升级已经搭好的工作台：先 `node <Skill>/template/scripts/upgrade.mjs --app <程序文件夹> --check` 给老板看会做什么，老板同意、关掉工作台后去掉 `--check` 再跑；数据不删，升级前自动备份数据库和程序 | [references/加减模块.md](references/加减模块.md) 的“升级已经搭好的工作台” |
 | “这个模块用不上了”“把经营打开” | 模块开关：`modules --off/--on`，不改代码、不删数据 | [references/加减模块.md](references/加减模块.md) 的“打开、收起模块” |
 | “和某某聊了”“整理收件箱”“这几件事记一下”“会上定了这些” | 进内容：拆 7 类 → 一次问清 → 一张清单 → `apply` 一次写入工作台 | [references/进内容.md](references/进内容.md) |
@@ -100,7 +100,7 @@ node "<本 Skill 文件夹>/scripts/confirm_ui/server.mjs" "<工作目录>" --wa
 |---|---|
 | `scripts/kb_scan.mjs` | 读知识库地图和元信息，输出清单（JSON），只读；带出建库档案里的“工作台结构草案”（`workbench_draft`）；不是知识库时输出 `kb: false`，有老板自己的资料时加 `existing`（只有顶层文件夹名和份数，建议先梳理） |
 | `scripts/confirm_ui/` | 本地确认页：`server.mjs` 零依赖；`page/` 页面；`example/` 示例推荐（ABC茶社） |
-| `modules/` | 模块包（2026-10-18 起）：每个文件夹一个“一句话装进工作台”的模块，现在有 `news`（行业资讯）；`catalog.json` 是模块目录（哪些是进阶模块、去哪拿，进阶模块包不在这个仓库里）；格式、接入点、进阶模块怎么发怎么装见 `modules/README.md` |
+| `modules/` | 模块包（2026-10-18 起）：每个文件夹一个“一句话装进工作台”的模块，现在有 `news`（行业资讯）、`xhs`（小红书内容中心，进阶）；`catalog.json` 是模块目录（基础 / 进阶、lite / pro、另外发的去哪拿）；格式、接入点、进阶模块怎么做怎么装见 `modules/README.md` |
 | `scripts/deploy/` | 上线手机版：`preflight`（装机检查）、`export_snapshot`（打码快照）、`build_page`（只读网页）、`check_dist`（上传前自检）、`qrcode`、`record`（云上文件夹和记录） |
 | [references/复述规则.md](references/复述规则.md) | 复述写什么、不写什么 |
 | [references/模块目录.md](references/模块目录.md) | 可选模块、推荐条件、预览数据、导航和提醒的定法 |

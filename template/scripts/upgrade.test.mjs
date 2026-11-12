@@ -60,7 +60,7 @@ test('升级：先备份；不再带的旧文件拿掉、新版盖上去；老�
   assert.ok(readdirSync(r.backup).some((f) => f.startsWith('程序-')))
 }))
 
-test('老工作台在用“以前自带、现在是模块包”的功能，又找不到模块包：停下，什么都不改；--without 才继续', () => withEnv(makeOld('kb2'), (app) => {
+test('老工作台在用“以前自带、现在是模块包”的功能：Skill 里有模块包就用；找不到就停下，什么都不改，--without 才继续', () => withEnv(makeOld('kb2'), (app) => {
   const db = join(app, '..', '数据', 'workbench.db')
   mkdirSync(dirname(db), { recursive: true })
   const d = new DatabaseSync(db)
@@ -68,19 +68,19 @@ test('老工作台在用“以前自带、现在是模块包”的功能，又�
   d.close()
   const used = U.movedOutInUse(app, [{ id: 'xhs', name: '小红书内容中心', was: { module: 'content', tables: ['xhs_pieces', 'xhs_notes'] } }, { id: 'news', name: '行业资讯' }])
   assert.deepEqual(used.map((x) => [x.id, x.rows]), [['xhs', 2]])
-  // 这台电脑上真有小红书模块包的时候（开发的人、拿到包的人）这条不测“找不到”
-  const p = U.plan(app)
-  const xhs = p.need.find((x) => x.id === 'xhs')
-  assert.ok(xhs, '认出在用小红书内容中心')
-  if (xhs.pack) return
-  assert.throws(() => U.upgrade(app, { noInstall: true, noBuild: true }), (err) => {
-    assert.match(err.message, /这个工作台在用“小红书内容中心”/)
+  // 小红书的模块包就在这个 Skill 的 modules/ 里：升级时直接找得到
+  assert.equal(U.plan(app).need.find((x) => x.id === 'xhs')?.pack, join(TEMPLATE, '..', 'modules', 'xhs'))
+  // 换一个这台电脑上没有模块包的（比如以后另外发的 pro 版模块）：停下，什么都不改
+  const catalog = [{ id: 'xhs-pro-test', name: '测试用的进阶模块', tier: '进阶', get: '向课程方要模块包。', was: { module: 'content', tables: ['xhs_pieces'] } }]
+  assert.throws(() => U.upgrade(app, { noInstall: true, noBuild: true, catalog }), (err) => {
+    assert.match(err.message, /这个工作台在用“测试用的进阶模块”/)
     assert.match(err.message, /现在什么都没改/)
-    assert.match(err.message, /--without xhs/)
+    assert.match(err.message, /向课程方要模块包。/)
+    assert.match(err.message, /--without xhs-pro-test/)
     return true
   })
   assert.ok(existsSync(join(app, RETIRED[0])), '停下时程序没动')
   assert.equal(readFileSync(join(app, 'server/cli.ts'), 'utf8'), '// 老版本的命令行\n')
   assert.ok(!existsSync(join(dirname(db), '备份')), '连备份都还没做')
-  assert.equal(U.upgrade(app, { check: true, without: ['xhs'] }).need[0].skip, true)
+  assert.equal(U.upgrade(app, { check: true, without: ['xhs-pro-test'], catalog }).need[0].skip, true)
 }))

@@ -74,9 +74,13 @@ export function movedOutInUse(app, list) {
   return out
 }
 
-/** 模块目录：新版 Skill 自带的那份在前，再并上这台电脑上别处的（scripts/module.mjs 的 catalog） */
-function allCatalog(app) {
-  const own = readJson(join(SRC, '..', 'modules', 'catalog.json'), null)?.modules ?? []
+/** 新版 Skill 自带的模块包文件夹（和这份模板在同一个 Skill 里） */
+const OWN_MODULES = join(SRC, '..', 'modules')
+
+/** 模块目录：新版 Skill 自带的那份在前，再并上这台电脑上别处的（scripts/module.mjs 的 catalog）。测试可以用 o.catalog 换掉 */
+function allCatalog(app, o = {}) {
+  if (o.catalog) return o.catalog
+  const own = readJson(join(OWN_MODULES, 'catalog.json'), null)?.modules ?? []
   return [...own, ...catalog(app).filter((x) => !own.some((y) => y.id === x.id))]
 }
 
@@ -89,10 +93,15 @@ export function plan(app, o = {}) {
   const owned = new Set(Object.values(lock.modules).flatMap((m) => Object.keys(m.files ?? {})))
   const retired = (readJson(join(SRC, 'scripts', 'retired-files.json'), { files: [] }).files ?? []).filter((f) => existsSync(join(app, f)) && !owned.has(f))
   const need = []
-  for (const x of movedOutInUse(app, allCatalog(app))) {
+  for (const x of movedOutInUse(app, allCatalog(app, o))) {
     if (lock.modules[x.id]) continue
     let pack = null
-    try { pack = findPack(x.id, o.modules, app) } catch (err) { if (!(err instanceof ModuleError)) throw err }
+    // 找模块包：--modules 指的；没指就按 module.mjs 的找法（老板放的、本机装的），再找新版 Skill 自带的 modules/
+    const froms = o.modules ? [o.modules] : [undefined, ...(o.catalog ? [] : [OWN_MODULES])]
+    for (const from of froms) {
+      if (pack) break
+      try { pack = findPack(x.id, from, app) } catch (err) { if (!(err instanceof ModuleError)) throw err }
+    }
     need.push({ id: x.id, name: x.name, rows: x.rows, get: x.get ?? '', pack, skip: without.has(x.id) })
   }
   return { app, ...placesOf(app), from: pkg.version, to: readJson(join(SRC, 'package.json'), {}).version, retired, need, installed: Object.entries(lock.modules).map(([id, m]) => `${m.name ?? id} ${m.version ?? ''}`.trim()) }
@@ -108,7 +117,7 @@ export function upgrade(app, o = {}) {
   const p = plan(app, o)
   const blocked = p.need.filter((x) => !x.pack && !x.skip)
   if (blocked.length) {
-    fail(`这个工作台在用${blocked.map((x) => `“${x.name}”`).join('、')}：新版把它从基础模板里拿出来，做成了进阶模块包，这台电脑上还没找到模块包。现在什么都没改。\n${blocked.map((x) => `- ${x.name}（${x.id}）：${x.get || '向课程方要模块包'}`).join('\n')}\n拿到以后把文件夹或压缩包放进 ${join(p.root, '工作台', '模块包')}，再升级一次（或用 --modules 指过去）。\n实在要先升级：加 --without ${blocked.map((x) => x.id).join(',')}，它的页面先没有，数据都留着，以后装上模块包接着用。`)
+    fail(`这个工作台在用${blocked.map((x) => `“${x.name}”`).join('、')}：新版把它从基础模板里拿出来，做成了模块包，这台电脑上还没找到模块包。现在什么都没改。\n${blocked.map((x) => `- ${x.name}（${x.id}）：${x.get || '模块包应该在老板工作台 Skill 的 modules/ 里，先把 Skill 更新到新版'}`).join('\n')}\n拿到以后把文件夹或压缩包放进 ${join(p.root, '工作台', '模块包')}，再升级一次（或用 --modules 指过去）。\n实在要先升级：加 --without ${blocked.map((x) => x.id).join(',')}，它的页面先没有，数据都留着，以后装上模块包接着用。`)
   }
   if (o.check) return { ...p, done: false }
   const t = stamp()
