@@ -53,6 +53,7 @@ node scripts/module.mjs remove <编号>       # 拿掉（代码和菜单拿掉�
 - `server.read`：Codex 能用的只读命令（`workbench_read`）。每项写命令名，或 `{ "command": "news", "what": "一句话说它做什么" }`。
 - `server.write`：Codex 能用的写入命令（`workbench_write`），写法同上。只能登记这个模块自己的命令（`server.cli.commands` 里的名字，或它加 `-` 开头的）；同一个命令不能既在 `read` 又在 `write`。要老板拍板的（报价、收款、改阶段）不要登记成能直接写的。
 - `open`：菜单以外能让 Codex 打开的东西（`workbench_open`）。每项写 `key`、`label`、`to`；地址里带 `{id}` 的是具体对象，要再写一个 `id` 说清它是什么，例：`{ "key": "news-day", "label": "某一天的资讯", "to": "/news?day={id}", "id": "日期，如 2026-11-12" }`。菜单里的页面不用登记，自动能打开；`embed=1` 不用写，打开时自动带上。
+- 上面三样登记了就自动出现在 Codex 插件的 `workbench_capabilities` 里，不用改插件（见 `references/接进Codex.md`）。
 - 数据库：迁移文件放 `files/server/migrations/`，名字写成 `m-<编号>-001-说明.sql`；拿掉模块时表和数据都留着。
 
 ### 接入点（2026-11-12 加）

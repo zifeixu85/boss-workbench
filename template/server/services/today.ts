@@ -156,6 +156,8 @@ export function getSettings() {
     modules: enabledModules(),
     // 今日页重点卡（shared/home.ts）：存的原值，空 = 默认
     home: s.home ?? '',
+    // 页面里的 AI 助手开没开（默认关：日常在 Codex 里说，工作台开在右侧面板）
+    assistant_on: s.assistant_on === '1',
   }
 }
 /** 开着的模块登记的设置项和现在的值 */

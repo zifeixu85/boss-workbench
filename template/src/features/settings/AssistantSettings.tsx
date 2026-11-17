@@ -1,4 +1,5 @@
-// 设置 → AI 助手（2026-10-15）：本机 Codex 找没找到、登没登录，开关，和它能做什么、不做什么
+// 设置 → AI 助手（2026-10-15）：本机 Codex 找没找到、登没登录，页面里的对话栏的开关（默认关），和它能做什么、不做什么。
+// 日常用法是在 Codex 里说、工作台开在右侧面板（2026-11-12）；页面里的对话栏是可选的
 import { CircleAlert, CircleCheck } from 'lucide-react'
 import { api, useApi, useWrite } from '@/lib/api'
 import { Button } from '@/components/ui/button'
@@ -22,8 +23,8 @@ export function AssistantSettings() {
       </div>
       <label className="flex items-center gap-3 border-t pt-4">
         <div className="min-w-0 flex-1">
-          <div className="text-sm font-medium">每页右边的 AI 助手</div>
-          <div className="text-xs text-muted-foreground">按 ⌘J（Windows 是 Ctrl+J）或右下角按钮打开。关掉后按钮还在，点开会提示到这里打开</div>
+          <div className="text-sm font-medium">页面里的 AI 助手</div>
+          <div className="text-xs text-muted-foreground">默认关着。打开后每页右下角多一个按钮，也可以按 ⌘J（Windows 是 Ctrl+J）</div>
         </div>
         <Switch checked={data.on} disabled={save.isPending} aria-label="AI 助手" onCheckedChange={(c) => save.mutate(c)} />
       </label>
@@ -31,7 +32,7 @@ export function AssistantSettings() {
         <li>· 使用本机 Codex 和你的账号。文件保存在本机，AI 处理时会把用到的内容发给模型服务商。</li>
         <li>· 能读写工作台（待办、日程、项目、收件箱、客户跟进）和读知识库；它写的东西记在“最近改动”里，操作人是 Codex。</li>
         <li>· 报价、合同、收款、答应别人的事、改客户阶段，它会先问你。不发消息、不付款、不删东西。</li>
-        <li>· 不用页面里的助手也可以：在 Codex 里直接说，它用同一套命令读写，页面会自动刷新。</li>
+        <li>· 平时不用开它：在 Codex 里直接说就行，工作台会开在 Codex 右边，读写的是同一份数据，页面自动刷新。</li>
       </ul>
     </div>
   )

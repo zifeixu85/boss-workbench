@@ -53,10 +53,22 @@
       ]
     },
     "read": [
-      "news",
-      "news-item",
-      "news-sources",
-      "news-prompt"
+      {
+        "command": "news",
+        "what": "某天（默认最近一天；--range 7 看近 7 天）的资讯：当天总结、关注词命中的、每条的来源、标题、链接、一句摘要和 id"
+      },
+      {
+        "command": "news-item",
+        "what": "一条资讯的全文（args 写条目 id）"
+      },
+      {
+        "command": "news-sources",
+        "what": "资讯来源清单：哪些开着、每个怎么取（地址、说明）"
+      },
+      {
+        "command": "news-prompt",
+        "what": "给 Codex 定时任务用的口令（--once 是“现在取一次”的）"
+      }
     ],
     "write": [
       {

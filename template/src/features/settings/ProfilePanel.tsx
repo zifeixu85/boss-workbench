@@ -1,5 +1,5 @@
 // 设置 → 我的资料（2026-10-15）：上面是称呼、工作台名称（能改），下面是知识库里讲“你是谁、怎么跟你说话”的几份（只读，点开在知识库里看）。
-// AI 助手和 Codex 每次都按这几份理解你；要改内容，跟 Codex 说“更新一下我的基本情况：……”，由知识库 Skill 去改
+// Codex（和页面里的 AI 助手）每次都按这几份理解你；要改内容，跟 Codex 说“更新一下我的基本情况：……”，由知识库 Skill 去改
 import { Link } from 'react-router'
 import { FileText } from 'lucide-react'
 import type { Settings } from '@/lib/types'
@@ -24,7 +24,7 @@ export function ProfilePanel({ settings }: { settings: Settings }) {
       <BasicInfoForm key={`${settings.owner}|${settings.business}|${(settings.module_settings ?? []).map((d) => `${d.key}=${d.value}`).join('|')}`} settings={settings} />
       <div className="grid gap-2">
         <div className="text-sm font-medium">AI 读到的你</div>
-        <p className="text-xs text-muted-foreground">AI 助手和 Codex 每次都先读这几份。要改，直接跟 Codex 说“更新一下我的基本情况：……”，它会改知识库里的原文。</p>
+        <p className="text-xs text-muted-foreground">Codex 每次都先读这几份。要改，直接跟 Codex 说“更新一下我的基本情况：……”，它会改知识库里的原文。</p>
         {!docs ? <Skeleton className="h-32" /> : (
           <ul className="grid gap-2 sm:grid-cols-2">
             {docs.map((d) => (

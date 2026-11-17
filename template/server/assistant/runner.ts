@@ -1,4 +1,5 @@
-// AI 助手：工作台每页右边的对话栏，后台调本机 Codex 回答（2026-10-15，照 A梦 自用工作台的做法精简）。
+// 页面里的 AI 助手：工作台每页右边的对话栏，后台调本机 Codex 回答（2026-10-15，照 A梦 自用工作台的做法精简）。
+// 默认关（2026-11-12）：日常用法是在 Codex 里说、工作台开在右侧面板（Codex 插件，scripts/codex-plugin.mjs）；这里是可选的。
 //
 // 边界：不读老板 Codex 的个人配置（不带上别的 MCP、插件、技能），只读沙箱，关掉命令行、浏览器、电脑操作；
 // 只挂工作台自己的工具（./mcp.ts），只开白名单里的那几个。写入走工作台命令（和网页同一套规则），写完网页自动刷新。
@@ -18,6 +19,7 @@ export type Progress = { status?: 'running' | 'done' | 'failed' | 'cancelled'; t
 type CodexInfo = { ready: boolean; bin: string | null; version: string | null; detail: string; fix: string | null }
 
 const TOOL_LABELS: Record<string, string> = {
+  workbench_capabilities: '看工作台有什么', workbench_open: '找页面地址',
   workbench_help: '看工作台命令', workbench_read: '读工作台', workbench_write: '写工作台', workbench_apply: '一次写入一张清单',
   kb_list: '看知识库目录', kb_read: '读知识库', kb_search: '在知识库里找',
 }
@@ -71,8 +73,8 @@ export function buildPrompt(input: { text: string; page?: PageContext; history: 
     `工作台打开着的模块：${input.modules.join('、')}。用 workbench 工具读写工作台（先 workbench_help 看命令），用 kb_ 工具读知识库（先 kb_read AGENTS.md 看地图；关于${input.owner}和生意的背景都在里面）。`,
     '这是工作台网页内的问答，不是 Codex App 的新聊天。不做 App 对话命名、项目登记或其他管理操作，也不报告这些无关操作缺少工具。',
     '规矩：',
-    `- 普通的事直接写：记一笔跟进、加日程、改待办状态、往收件箱放材料、给项目加里程碑。写完用一两句说清改了什么、在哪能看到。`,
-    `- 待办要问清谁做、哪天前；几条一起的，先列给${input.owner}看，他点头再用 workbench_apply 一次写（先预演 yes=false）。`,
+    `- ${input.owner}明说的单条小事直接写：加一条客户往来记录、加日程、改待办状态、往收件箱放材料、给项目加里程碑。写完用一两句说清改了什么、在哪能看到。`,
+    `- 待办要问清谁做、哪天前；几条一起的、从一段话里拆出来的进展，先用 workbench_apply 预演（yes=false），把结果列给${input.owner}核对；他点头后，原样的清单再发一次 yes=true，confirmation 写他的原话。没预演过或预演后改过的清单写不进去。`,
     `- 报价、合同、收款、对外承诺、改客户阶段、改项目状态：先讲清是什么、到哪一步、要${input.owner}定什么，他明确点头了再写。绝不编造他的同意。`,
     '- 进内容（聊天、纪要、材料）先拆：状态变化、决定、下一步、待办（谁做、哪天前）、里程碑、要拍板的、答应的事；缺的一次问清（最多 3 问），再列一张清单确认。',
     '- 不编数字、客户事实和原话；资料里没有就直说缺什么。不发消息、不发布、不付款、不删东西。改知识库原文不在这里做：告诉他“这条要记进知识库，跟 Codex 说一声，它用知识库 Skill 去写”。',

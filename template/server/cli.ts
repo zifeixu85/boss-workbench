@@ -28,6 +28,7 @@ import { CALENDAR_HELP, isCalendarCommand, runCalendarCli } from './calendar/cli
 import { SERVER_MODULES } from './modules.gen.ts'
 import { loadHooks } from './module-hooks.ts'
 import { HOME_CARDS } from '../shared/home.ts'
+import { ASSISTANT_HELP, isAssistantCommand, runAssistantCli } from './assistant/cli.ts'
 
 const ACTOR = 'Codex' as const
 const HELP = `用法：node 工作台/程序/server/cli.ts <命令> [参数] [--json]
@@ -62,7 +63,17 @@ const HELP = `用法：node 工作台/程序/server/cli.ts <命令> [参数] [--
   project-set <项目> [--stage 进行中|收尾|暂停…] [--step 下一步] [--waiting 在等谁|none] [--due 截止]
   milestone-add <项目> "2026-12-20 年会"                    加一个里程碑（关键日期）
   apply <清单.json> [--yes]          一张清单一次写入：不加 --yes 是预演（照样检查，什么都不留）；加 --yes 才写。中间哪步不行，整张都不写
-                                     清单格式见 server/services/apply.ts 开头
+    清单是一个 JSON：{ "material": "从哪份材料来（可不写）", "steps": [ … ] }，每一步写一个 do；客户、项目写名字或 id，带 ? 的可不写
+      { "do": "log", "client", "text", "date"?, "channel"?, "step"?, "next"? }          客户往来记录（channel 默认微信；step 下一步；next 下次跟进日期）
+      { "do": "todo", "title", "owner"?, "due"?, "time"?, "priority"?, "status"?, "note"?, "client"?, "project"? }   新待办
+      { "do": "todo-set", "id", "status"?, "due"?, "owner"? }                           改已有的待办
+      { "do": "promise", "client", "text", "to"?, "due"? }                              答应客户的事
+      { "do": "stage", "client", "stage", "reason" }                                    改客户阶段
+      { "do": "follow", "client", "date"?, "step"?, "reason"? }                         下次跟进（不写 date = 取消）
+      { "do": "project", "project", "stage"?, "next_step"?, "waiting_on"?, "due"?, "risk"?, "goal"? }   更新项目进展
+      { "do": "milestone", "project", "date", "title" }                                 项目里程碑
+      { "do": "event", "title", "start", "end"?, "kind"?, "location"?, "client"?, "project"? }   日程（start 写 2026-11-04 或 2026-11-04T10:00）
+      { "do": "inbox-done", "id", "result" }                                            收件箱某条处理完了
   settings-set [--owner 称呼] [--business 店名或工作台名称] [--theme jade|wood|navy|mono|night] [--nav simple|complex|dual|top]
                [--kb-name 资料]                 “知识库”这一页在菜单和页面上叫什么；--kb-name "" 改回“知识库”
                [--modules clients,biz|all] [--home projects,inbox,clients] [--set 设置项=值 …]
@@ -79,6 +90,8 @@ ${REMIND_HELP}
 ${CALENDAR_HELP}
 
 ${JOBS_HELP}
+
+${ASSISTANT_HELP}
 大客户（客户详情加深，E5）
   materials                          知识库收件箱里的新材料：是谁的、提取过没有
   extract <收件箱文件> [--client 客户]  让 Codex 提取一份新材料（最多等 150 秒），结果“待确认”，到网页 /clients/extract 确认后才写入
@@ -103,6 +116,11 @@ ${JOBS_HELP}
 
 // 装进来的模块的接入点（今日概况里的一段、导入目标、示例数据）：核心命令和导入命令都要用，先加载（server/module-hooks.ts）
 await loadHooks()
+
+// 接进 Codex 的两条命令（capabilities、open）交给 assistant/cli.ts（公共，2026-11-12）
+if (isAssistantCommand(process.argv.slice(2))) {
+  try { process.exit(await runAssistantCli(process.argv.slice(2))) } catch (err) { console.error(`没办成：${(err as Error).message}`); process.exit(1) }
+}
 
 // 日历来源的命令（calendar- 开头）交给 calendar/cli.ts（公共，2026-10-27）
 if (isCalendarCommand(process.argv.slice(2))) {

@@ -28,7 +28,7 @@ export default function SettingsPage() {
         <section id="profile" className="scroll-mt-20"><Panel title="我的资料" desc="怎么称呼你、工作台叫什么，以及 AI 读到的你">
           {data ? <ProfilePanel settings={data} /> : <div className="grid gap-4 sm:grid-cols-2"><Skeleton className="h-16" /><Skeleton className="h-16" /></div>}
         </Panel></section>
-        <Panel title="AI 助手" desc="每页右边的对话栏，用你电脑上的 Codex 读写工作台">
+        <Panel title="AI 助手" desc="页面里的对话栏，默认关着。平时在 Codex 里说就行，工作台会开在 Codex 右边">
           <AssistantSettings />
         </Panel>
         <Panel title="风格" desc="颜色、字体一起换。建台时可以按行业推荐一个，之后随时换">

@@ -14,7 +14,7 @@
 
   确认后按模板搭出工作台，带数据库；提醒和开机自启按你的选择设。
 - **基础版每个都有**：今日、日程、待办、项目、收件箱、知识库、设置（我的资料、配色、四种导航、模块开关、提醒），没数据也在。基础版只带每个人都用得上的。客户跟进你确实在跟客户才加，按你的做法加；经营以后要用再加；小红书内容中心这类进阶模块不在模板里，另外装（见下面“进阶模块”）。
-- **AI 助手**：每一页右边都能打开（⌘J），用你自己电脑上的 Codex 读写工作台；在 Codex 里直接说也行，页面自动刷新。电脑上没有 Codex 的，其他功能照常。
+- **接进 Codex**：平时就在 Codex 里说（“今天我先做哪件事？”“刚和某某聊完，更新一下进展”），工作台通过一个本地插件接进 Codex，页面开在 Codex 右边。更新进展时先拆成清单给你核对，你确认后才写。说一句“把工作台接进 Codex”就装上；以后工作台加了新模块，不用重装插件。电脑上没有 Codex 的，工作台网页照常能用。
 - **空白起步**：还没有知识库，先搭一个基础版。以后说“工作台接上我的知识库”，客户和项目会自动对上。
 - **加模块、改功能**：新做一块业务前，先和你“立项对焦”：谁用、什么流程、有哪些状态节点、AI 帮什么，写成一份需求文档，你确认后再按设计规范开发、验收、留改动记录。带六份写好的案例需求文档：
   - 客户跟进（线索、报价、成交、售后、复购，谁跟到哪了）；
@@ -68,7 +68,7 @@ git clone https://github.com/zifeixu85/boss-workbench.git "$HOME/.claude/skills/
 
 ## 现在的状态
 
-- 自动测试：脚本和确认页 `node --test scripts/tests/*.test.mjs scripts/deploy/tests/*.test.mjs`；经营数据的缺值、迁移、撤销 `node --test tests/*.test.ts`，装模块的整体测试 `node --test tests/module-news.test.mjs`（都要先在 `template/` 装好依赖）；模块包自己的 `node --test modules/*/tests/*.test.ts`；模板在 `template/` 里 `npm test`。
+- 自动测试：脚本和确认页 `node --test scripts/tests/*.test.mjs scripts/deploy/tests/*.test.mjs`；经营数据的缺值、迁移、撤销 `node --test tests/*.test.ts`，装模块的整体测试 `node --test tests/module-news.test.mjs`、接进 Codex 的整体测试 `node --test tests/codex-plugin.test.mjs`（都要先在 `template/` 装好依赖）；模块包自己的 `node --test modules/*/tests/*.test.ts`；模板在 `template/` 里 `npm test`。
 - 真正上传到腾讯云开发的流程、Windows、干净电脑都**还没实测**；工作台模板是测试版，会继续更新。
 
 ## 搭配使用

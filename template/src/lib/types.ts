@@ -47,7 +47,9 @@ export type Settings = { nav_mode: NavMode; theme: Theme; mobile_nav: 'tabs' | '
   /** 打开着的模块 id（shared/modules.ts）；老服务没有这个字段 = 全部打开 */
   modules?: string[]
   /** 今日页重点卡的设置原值（逗号隔开；空 = 默认） */
-  home?: string }
+  home?: string
+  /** 页面里的 AI 助手开没开（默认关；老服务没有这个字段 = 关） */
+  assistant_on?: boolean }
 
 /** 提醒的设置（server/reminders/settings.ts）；改的时候 PATCH /settings 用 remind_on、notify_at、quiet_start、quiet_end、remind_demo_system */
 export type RemindSettings = { on: boolean; notify_at: string; quiet_start: string; quiet_end: string; demo_system: boolean }
