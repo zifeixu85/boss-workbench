@@ -97,7 +97,7 @@ export default function DataPage() {
           <Choice className="w-40" value={pillar} onChange={(v) => setPillar(v ?? '全部')} options={[{ value: '全部', label: '全部内容支柱' }, ...pillars.map((p) => ({ value: p.id, label: p.name }))]} />
           <Choice className="w-36" value={sort} onChange={(v) => setSort(v ?? 'new')} options={[{ value: 'new', label: '最新发布' }, { value: 'reads', label: '阅读最多' }, { value: 'saves', label: '收藏最多' }, { value: 'rate', label: '自然收藏率最高' }]} />
           {filtered && <Button size="sm" variant="ghost" onClick={clear}>清空筛选</Button>}
-          {data && <span className="ml-auto text-xs text-muted-foreground">{md(data.from)}—{md(data.to)} · {data.rows.length} 篇，{withData} 篇有数据 · 数据截至 {md(data.through)}（10/27 早上的导入没成功）</span>}
+          {data && <span className="ml-auto text-xs text-muted-foreground">{md(data.from)}—{md(data.to)} · {data.rows.length} 篇，{withData} 篇有数据 · 数据截至 {md(data.through)}</span>}
         </div>
         {error ? <Failed message={(error as Error).message} onRetry={() => refetch()} /> : isLoading || !data ? <Loading /> : !data.rows.length ? (
           <div className="grid place-items-center gap-3 rounded-lg border border-dashed px-4 py-10 text-center text-sm text-muted-foreground">
