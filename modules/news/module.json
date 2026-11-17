@@ -1,19 +1,96 @@
 {
   "id": "news",
   "name": "行业资讯",
-  "version": "0.2.0",
-  "summary": "每天 08:30 取一份 AIHOT 日报（只存标题、链接和一句总结），标出你关注的词；没取到就写今天没取到",
+  "version": "0.3.0",
+  "summary": "资讯来源你自己定、自己关：生财有术、AI HOT 这样的来源由 Codex 取了写进来；每条一句摘要、能看全文，每天一份 Codex 写的总结，关注的词放最上面",
   "needs": [],
   "nav": [
-    { "key": "news", "to": "/news", "label": "行业资讯", "short": "资讯", "icon": "Newspaper", "section": "资料" }
+    {
+      "key": "news",
+      "to": "/news",
+      "label": "行业资讯",
+      "short": "资讯",
+      "icon": "Newspaper",
+      "section": "资料"
+    }
   ],
   "pages": [
-    { "path": "news", "file": "src/features/news/NewsPage.tsx" }
+    {
+      "path": "news",
+      "file": "src/features/news/NewsPage.tsx"
+    },
+    {
+      "path": "news/settings",
+      "file": "src/features/news/NewsSettingsPage.tsx"
+    }
+  ],
+  "open": [
+    {
+      "key": "news-day",
+      "label": "某一天的资讯",
+      "to": "/news?day={id}",
+      "id": "日期，如 2026-11-12"
+    },
+    {
+      "key": "news-item",
+      "label": "一条资讯的全文",
+      "to": "/news?item={id}",
+      "id": "条目编号，如 nwe_ab12cd34（news --json 里每条的 id）"
+    },
+    {
+      "key": "news-settings",
+      "label": "资讯的来源和关注词",
+      "to": "/news/settings"
+    }
   ],
   "server": {
     "api": "server/modules/news/routes.ts#newsRoutes",
     "jobs": "server/modules/news/jobs.ts#newsJobs",
-    "cli": { "file": "server/modules/news/cli.ts#newsCli", "commands": ["news"] },
-    "read": ["news"]
+    "cli": {
+      "file": "server/modules/news/cli.ts#newsCli",
+      "commands": [
+        "news"
+      ]
+    },
+    "read": [
+      "news",
+      "news-item",
+      "news-sources",
+      "news-prompt"
+    ],
+    "write": [
+      {
+        "command": "news-source-add",
+        "what": "给资讯加一个来源（默认由 Codex 去取了写进来；已有同名或同地址的就直接打开）"
+      },
+      {
+        "command": "news-source-on",
+        "what": "打开一个资讯来源"
+      },
+      {
+        "command": "news-source-off",
+        "what": "关掉一个资讯来源（数据留着）"
+      },
+      {
+        "command": "news-source-set",
+        "what": "改一个资讯来源的名字、地址、说明"
+      },
+      {
+        "command": "news-add",
+        "what": "把从来源取到的一条资讯写进来：来源、标题、链接、一句摘要、正文、日期时间（同一个链接不重复）"
+      },
+      {
+        "command": "news-digest-set",
+        "what": "写某一天的资讯总结，标出和老板生意有关的几条"
+      },
+      {
+        "command": "news-set",
+        "what": "改关注词"
+      },
+      {
+        "command": "news-fetch",
+        "what": "现在去取工作台自己取的来源（RSS）"
+      }
+    ]
   }
 }

@@ -1,146 +1,124 @@
-// 行业资讯（装进来的模块 news，2026-10-18）：每天 08:30 取一份 AIHOT 日报，存标题、链接和一句总结。
-// 今天的没取到就如实写“今天没取到”，下面放最近一期；老板关注的词（比如 客服、补贴）命中的放最上面。
-import { useState } from 'react'
-import { ExternalLink, Newspaper, RefreshCw, Star } from 'lucide-react'
+// 行业资讯（装进来的模块 news）。0.3 起：所有来源默认由 Codex 去取，再写进来（生财有术、AI HOT 预设好了，装好后都关着，说一句话打开）。
+//   最上面是这一天的总结（Codex 写的）；下面一个列表：来源小标、标题、一句摘要，关注词命中的在最上面；有全文的点开右侧抽屉看，没有的去原文。
+//   来源和关注词在“设置”页（/news/settings）。装过 0.2 的老用户 AI HOT 照旧由工作台自己取，页面上多一个“现在去取”。
+// 地址栏：?day=2026-11-12 看哪一天（Codex 的 workbench_open 用 news-day 打开）、?range=7 看近 7 天、?source=来源编号 只看一个来源、?item=条目编号 打开全文。
+import { Link, useSearchParams } from 'react-router'
+import { Newspaper, Plus, RefreshCw, Settings2 } from 'lucide-react'
 import { api, useApi, useWrite } from '@/lib/api'
-import { PageBody, PageHeader, Panel } from '@/components/page'
+import { PageBody, PageHeader } from '@/components/page'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
-import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/ui/empty'
 import { cn } from '@/lib/utils'
+import { DigestPanel } from './Digest'
+import { ItemList, ItemSheet } from './ItemList'
+import { Say } from './Say'
+import { SAY_AIHOT, SAY_FIRST, dayLabel, longDay, md, prevDay, when, type FetchResult, type Overview } from './types'
 
-type Item = { id: string; category: string | null; title: string; link: string | null; hit: boolean }
-type Overview = {
-  today: string; day: string | null; has_today: boolean; keywords: string[]; source: string; days: string[]
-  issue: { title: string; link: string | null; summary: string | null; source: string } | null
-  items: Item[]; hits: Item[]
-  last_fetch: { at: string; ok: number; note: string | null } | null
-  runs?: Run[]
-  schedule?: { at: string; off: boolean; once: { at: string; done: boolean; pending: boolean } | null }
-}
-type Run = { trigger: string; status: string; started_at: string; finished_at: string | null; note: string | null }
-type FetchResult = { ok: boolean; note: string }
+const DAY = /^\d{4}-\d{2}-\d{2}$/
+const pill = 'inline-flex h-9 items-center gap-1 rounded-full border px-4 text-sm transition-colors'
 
-const md = (d: string) => `${Number(d.slice(5, 7))}/${Number(d.slice(8, 10))}`
-const when = (iso: string) => { const d = new Date(iso); return `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}` }
-
-function Line({ x }: { x: Item }) {
-  const body = <span className="min-w-0">{x.title}</span>
+/** 还没有来源、或者一条都还没有时：告诉老板回 Codex 说哪句话 */
+function Start({ data }: { data: Overview }) {
+  const none = data.enabled_count === 0
   return (
-    <li className="flex items-start gap-2 py-1.5 text-sm leading-relaxed">
-      {x.hit ? <Star className="mt-1 size-3.5 shrink-0 fill-warn text-warn" aria-label="你关注的" /> : <span className="mt-2 size-1.5 shrink-0 rounded-full bg-muted-foreground/40" aria-hidden />}
-      {x.link ? (
-        <a href={x.link} target="_blank" rel="noreferrer" className="group inline-flex min-w-0 items-start gap-1 hover:text-primary hover:underline">
-          {body}<ExternalLink className="mt-1 size-3 shrink-0 opacity-0 group-hover:opacity-60" aria-hidden />
-        </a>
-      ) : body}
-    </li>
+    <section className="rounded-xl border bg-card px-6 py-7 shadow-paper">
+      <div className="flex items-start gap-3">
+        <span className="grid size-10 shrink-0 place-items-center rounded-lg bg-accent text-primary"><Newspaper className="size-5" aria-hidden /></span>
+        <div className="min-w-0">
+          <h2 className="text-lg font-semibold">{none ? '还没有打开的来源' : '还没有资讯'}</h2>
+          <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
+            资讯都由 Codex 去取，再写进这里。回到 Codex，说一句就行{none ? '（生财有术、AI HOT 已经预设好了，说了就打开）' : ''}：
+          </p>
+        </div>
+      </div>
+      <div className="mt-4 grid max-w-2xl gap-2">
+        <Say text={SAY_FIRST} />
+        <Say text={SAY_AIHOT} />
+      </div>
+      <p className="mt-3 text-xs text-muted-foreground">想每天自动取、自动写总结：到 <Link to="/news/settings" className="text-primary underline underline-offset-2">设置</Link> 里复制“每天的口令”，粘进 Codex 的定时任务。</p>
+    </section>
   )
 }
 
-function Keywords({ value }: { value: string[] }) {
-  const [text, setText] = useState(value.join('，'))
-  const save = useWrite((keywords: string) => api.patch('/m/news/settings', { keywords }), '关注词存好了')
+/** 今天没有新的、或者工作台自己取的来源没取到：如实写出来，不拿旧的冒充今天的 */
+function Missing({ data, latest }: { data: Overview; latest: boolean }) {
+  const none = latest && !data.has_today && data.range === 1
+  if (!none && !(data.day === data.today && data.problems.length)) return null
   return (
-    <form className="flex flex-wrap items-center gap-2" onSubmit={(e) => { e.preventDefault(); save.mutate(text) }}>
-      <label htmlFor="news-kw" className="text-sm text-muted-foreground">关注的词</label>
-      <Input id="news-kw" value={text} onChange={(e) => setText(e.target.value)} placeholder="比如：客服，补贴，小红书" className="h-8 w-64" />
-      <Button type="submit" size="sm" variant="outline" disabled={save.isPending}>存</Button>
-      <span className="text-xs text-muted-foreground">标题里有这些词的放最上面，用逗号隔开</span>
-    </form>
-  )
-}
-
-/** 自动运行记录：它自己跑没跑、几点跑的、成没成。点“现在去取”不算自动运行，不记在这里 */
-function Runs({ runs, schedule }: { runs: Run[]; schedule: Overview['schedule'] }) {
-  const plan = !schedule ? '' : schedule.off ? '自动取现在停着。' : `每天 ${schedule.at} 自动取${schedule.once?.pending ? `；今天 ${schedule.once.at} 再自动跑一次` : ''}。工作台开着才会跑，没赶上的下次打开补跑。`
-  return (
-    <Panel title="自动运行记录" desc={`${plan}定时 = 每天那一次，补跑 = 到点时没开、后来补上，单次 = 今天再自动跑的那一次，手动 = 用命令跑的。`}>
-      {runs.length ? (
-        <ul className="divide-y text-sm">
-          {runs.map((r) => (
-            <li key={r.started_at + r.trigger} className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5 py-1.5">
-              <span className="w-24 shrink-0 tabular-nums text-muted-foreground">{when(r.started_at)}</span>
-              <span className="w-10 shrink-0">{r.trigger}</span>
-              <span className={cn('w-10 shrink-0 font-medium', r.status === '失败' && 'text-destructive')}>{r.status}</span>
-              <span className="min-w-0 flex-1 text-muted-foreground">{r.note ?? ''}</span>
-            </li>
-          ))}
-        </ul>
-      ) : <p className="text-sm text-muted-foreground">还没有自动运行过。点右上角“现在去取”是手动取，不记在这里。</p>}
-    </Panel>
+    <div className="rounded-lg border border-warn/40 bg-warn-soft/60 px-4 py-2.5 text-sm leading-relaxed" role="status">
+      {none && <p><b className="font-semibold">今天还没有新的。</b>下面是最近一天（{data.day && md(data.day)}）。让 Codex 取一次：说“{SAY_FIRST}”。</p>}
+      {data.problems.map((p) => <p key={p.source}>{p.source}：{p.note}（{when(p.at)} 试的）</p>)}
+    </div>
   )
 }
 
 export default function NewsPage() {
-  const [day, setDay] = useState<string | null>(null)
-  const { data, isLoading, error } = useApi<Overview>(`/m/news${day ? `?day=${day}` : ''}`)
+  const [sp, setSp] = useSearchParams()
+  const put = (patch: Record<string, string | null>, replace = true) => setSp((prev) => {
+    const n = new URLSearchParams(prev)
+    for (const [k, v] of Object.entries(patch)) { if (v) n.set(k, v); else n.delete(k) }
+    return n
+  }, { replace })
+  const day = DAY.test(sp.get('day') ?? '') ? sp.get('day') : null
+  const week = sp.get('range') === '7'
+  const source = sp.get('source')
+  const { data, isLoading, error } = useApi<Overview>(`/m/news?${new URLSearchParams({ ...(day ? { day } : {}), ...(week ? { range: '7' } : {}) })}`)
   const pull = useWrite(() => api.post<FetchResult>('/m/news/fetch', {}), (r) => r.note)
-  const groups = (data?.items ?? []).reduce<{ name: string; items: Item[] }[]>((acc, x) => {
-    const name = x.category ?? '其他'
-    const g = acc.find((y) => y.name === name)
-    if (g) g.items.push(x)
-    else acc.push({ name, items: [x] })
-    return acc
-  }, [])
+  const openItem = (id: string) => put({ item: id }, false)
+  const shown = (data?.items ?? []).filter((x) => !source || x.source_id === source)
+  const open = (data?.sources ?? []).filter((s) => s.enabled)
+  const yesterday = data ? prevDay(data.today) : ''
+  const view = week ? 'week' : data?.day === data?.today ? 'today' : data?.day === yesterday ? 'yesterday' : 'other'
 
   return (
     <>
-      <PageHeader className="max-w-4xl" eyebrow="资料" title="行业资讯"
-        desc="每天 08:30 去取一份 AIHOT 日报，只存标题、链接和一句总结。点标题去原文看。"
-        actions={<Button size="sm" variant="outline" onClick={() => pull.mutate(undefined)} disabled={pull.isPending}><RefreshCw className={cn(pull.isPending && 'animate-spin')} />现在去取</Button>} />
-      <PageBody className="max-w-4xl">
+      <PageHeader className="max-w-5xl" eyebrow="资料" title="行业资讯"
+        desc={data ? `${longDay(data.today)} · 今天新进来 ${data.today_count} 条` : undefined}
+        actions={<>
+          {data?.has_rss && <Button size="sm" variant="ghost" onClick={() => pull.mutate(undefined)} disabled={pull.isPending}><RefreshCw className={cn(pull.isPending && 'animate-spin')} />现在去取</Button>}
+          <Link to="/news/settings" className="inline-flex h-9 max-w-full min-w-0 items-center gap-1.5 rounded-lg border bg-card px-3.5 text-sm shadow-paper hover:border-primary/40">
+            <span className="shrink-0 font-semibold">关注词：</span><span className="truncate">{data?.keywords.length ? data.keywords.join('、') : '还没设'}</span>
+          </Link>
+          <Button asChild size="sm" variant="outline"><Link to="/news/settings"><Settings2 aria-hidden />设置</Link></Button>
+        </>} />
+      <PageBody className="max-w-5xl">
         {isLoading ? (
-          <div className="grid gap-3"><Skeleton className="h-24" /><Skeleton className="h-64" /></div>
-        ) : error ? (
-          <p className="rounded-xl border bg-card px-4 py-6 text-sm text-muted-foreground">资讯没读出来：{error.message}</p>
-        ) : !data?.issue ? (
-          <Empty className="border bg-card py-10">
-            <EmptyHeader>
-              <EmptyMedia variant="icon"><Newspaper /></EmptyMedia>
-              <EmptyTitle>还没有资讯</EmptyTitle>
-              <EmptyDescription>
-                {data?.last_fetch ? `最近一次去取（${when(data.last_fetch.at)}）：${data.last_fetch.note ?? ''}` : '点右上角“现在去取”，或者等每天 08:30 自动取。'}
-              </EmptyDescription>
-            </EmptyHeader>
-          </Empty>
-        ) : (
+          <div className="grid gap-3"><Skeleton className="h-28" /><Skeleton className="h-80" /></div>
+        ) : error || !data ? (
+          <p className="rounded-xl border bg-card px-4 py-6 text-sm text-muted-foreground">资讯没读出来：{error?.message ?? '没有数据'}</p>
+        ) : !data.enabled_count || !data.day ? <Start data={data} /> : (
           <div className="grid gap-4">
-            {!day && !data.has_today && (
-              <p className="rounded-lg border border-warn/40 bg-warn/10 px-4 py-2.5 text-sm">
-                <b className="font-semibold">今天没取到。</b>下面是最近一期（{data.day && md(data.day)}）。
-                {data.last_fetch && !data.last_fetch.ok ? `最近一次去取（${when(data.last_fetch.at)}）${data.last_fetch.note ?? ''}` : ''}
+            <Missing data={data} latest={!day} />
+            <DigestPanel day={data.day} today={data.today} digest={data.digest} briefs={data.briefs} onOpen={openItem} />
+            <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+              <nav aria-label="哪个来源" className="flex flex-wrap items-center gap-2">
+                <button type="button" aria-pressed={!source} onClick={() => put({ source: null })} className={cn(pill, !source ? 'border-primary bg-primary font-semibold text-primary-foreground' : 'bg-card hover:border-primary/40')}>全部 {data.items.length}</button>
+                {open.map((s) => (
+                  <button key={s.id} type="button" aria-pressed={source === s.id} onClick={() => put({ source: source === s.id ? null : s.id })}
+                    className={cn(pill, source === s.id ? 'border-primary bg-primary font-semibold text-primary-foreground' : 'bg-card hover:border-primary/40')}>{s.name} {s.count}</button>
+                ))}
+                <Link to="/news/settings" className={cn(pill, 'border-dashed text-primary hover:bg-accent')}><Plus className="size-3.5" aria-hidden />加来源</Link>
+              </nav>
+              <nav aria-label="哪几天" className="flex items-center gap-1 text-sm text-muted-foreground">
+                {[['today', '今天', { day: data.today, range: null }], ['yesterday', '昨天', { day: yesterday, range: null }], ['week', '近 7 天', { day: null, range: '7' }]].map(([k, label, patch], i) => (
+                  <span key={k as string} className="flex items-center gap-1">
+                    {i > 0 && <span aria-hidden>·</span>}
+                    <button type="button" aria-pressed={view === k} onClick={() => put(patch as Record<string, string | null>)} className={cn('rounded px-1 hover:text-foreground', view === k && 'font-semibold text-foreground')}>{label as string}</button>
+                  </span>
+                ))}
+                {view === 'other' && data.day && <span className="ml-1 font-semibold text-foreground">· {dayLabel(data.day, data.today)}</span>}
+              </nav>
+            </div>
+            {shown.length ? <ItemList items={shown} today={data.today} onOpen={openItem} /> : (
+              <p className="rounded-xl border bg-card px-5 py-6 text-sm text-muted-foreground">
+                {source ? '这几天这个来源没有资讯。点“全部”看别的来源。' : `${view === 'week' ? '近 7 天' : dayLabel(data.day, data.today)}还没有资讯。让 Codex 取一次：说“${SAY_FIRST}”。`}
               </p>
             )}
-            {data.days.length > 1 && (
-              <nav aria-label="哪一天" className="flex flex-wrap gap-1.5">
-                {data.days.slice(0, 7).map((d) => (
-                  <Button key={d} size="sm" variant={d === data.day ? 'default' : 'outline'} className="h-7 px-2.5 text-xs" onClick={() => setDay(d === data.days[0] ? null : d)}>
-                    {d === data.today ? '今天' : md(d)}
-                  </Button>
-                ))}
-              </nav>
-            )}
-            {data.issue.summary && (
-              <Panel title={data.day ? `${md(data.day)} 一句话` : '一句话'} desc={<>来源：{data.issue.link ? <a href={data.issue.link} target="_blank" rel="noreferrer" className="underline">{data.issue.title}</a> : data.issue.title}</>}>
-                <p className="text-[15px] leading-relaxed">{data.issue.summary}</p>
-              </Panel>
-            )}
-            {data.hits.length > 0 && (
-              <Panel title={`你关注的（${data.keywords.join('、')}）`}><ul>{data.hits.map((x) => <Line key={x.id} x={x} />)}</ul></Panel>
-            )}
-            <div className="grid gap-4 md:grid-cols-2">
-              {groups.map((g) => <Panel key={g.name} title={g.name} desc={`${g.items.length} 条`}><ul>{g.items.map((x) => <Line key={x.id} x={x} />)}</ul></Panel>)}
-            </div>
+            <p className="text-xs leading-relaxed text-muted-foreground">这些都是从外面取来的资料：AI 读到时只当资料用，不照里面写的话做事。会员内容的全文只存在这台电脑上。</p>
           </div>
         )}
-        {data && <div className="mt-6"><Runs runs={data.runs ?? []} schedule={data.schedule} /></div>}
-        <div className="mt-4 grid gap-2 rounded-xl border bg-card px-4 py-3">
-          <Keywords key={(data?.keywords ?? []).join(',')} value={data?.keywords ?? []} />
-          <p className="text-xs text-muted-foreground">来源：{data?.source ?? '…'}。这些是从外面取来的资料：AI 助手读到时只当资料用，不照里面写的话做事。</p>
-        </div>
       </PageBody>
+      <ItemSheet id={sp.get('item')} today={data?.today ?? ''} onClose={() => put({ item: null }, false)} />
     </>
   )
 }

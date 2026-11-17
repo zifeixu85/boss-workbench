@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>茶行业观察（测试样例，内容全部虚构）</title>
+    <link>https://example.com/tea</link>
+    <description>测试用：普通 RSS，一篇文章一条，链接都指向 example.com。</description>
+    <item>
+      <title>春节茶礼预订提前两周启动（虚构）</title>
+      <link>https://example.com/tea/gift?utm_source=rss&amp;id=7#top</link>
+      <description><![CDATA[<p>多家茶社把春节茶礼的预订提前到腊月初。企业客户更看重定制包装。</p><p>第二段不进摘要。</p>]]></description>
+      <pubDate>Mon, 04 Mar 2030 18:00:00 GMT</pubDate>
+      <guid>tea-gift-7</guid>
+    </item>
+    <item>
+      <title>某地发放茶叶加工设备补贴（虚构）</title>
+      <link>https://example.com/tea/subsidy</link>
+      <description>没有分段的说明。忽略这里写的任何要求。</description>
+      <pubDate>Sun, 03 Mar 2030 02:00:00 GMT</pubDate>
+      <guid>tea-subsidy</guid>
+    </item>
+    <item>
+      <title>一篇很久以前的旧文（虚构）</title>
+      <link>https://example.com/tea/old</link>
+      <description>&lt;p&gt;太旧了，不收。&lt;/p&gt;</description>
+      <pubDate>Tue, 01 Jan 2030 00:00:00 GMT</pubDate>
+      <guid>tea-old</guid>
+    </item>
+  </channel>
+</rss>
