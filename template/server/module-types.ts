@@ -32,6 +32,55 @@ export type ServerModule = {
   /** 命令名：写 news 就认 news 和 news- 开头的 */
   commands?: string[]
   cli?: () => Promise<ModuleCli>
-  /** AI 助手能用的只读命令（workbench_read 白名单） */
+  /** Codex 能用的只读命令（workbench_read 白名单） */
   read?: string[]
+  /** Codex 能用的写入命令（workbench_write 白名单；module.json 的 server.write）。写之前照样先给老板核对 */
+  write?: string[]
+  /** 命令是做什么的（一句话），workbench_capabilities 里给 Codex 看 */
+  about?: Record<string, string>
+  /** 菜单以外能打开的对象或页面（module.json 的 open），workbench_open 用 */
+  open?: ModuleOpen[]
+  /** 今日页重点卡（module.json 的 home）：卡片 id 和名字；数由 hooks.home 给，卡片长什么样由模块的 home[].file 画 */
+  home?: { id: string; name: string }[]
+  /** 模块自带的设置项（module.json 的 settings） */
+  settings?: { key: string; label: string; hint?: string; placeholder?: string; max: number }[]
+  /** 模块往核心登记的接入点（module.json 的 server.hooks）：今日页重点卡的数、今日概况里的几行字、导入目标、示例数据。
+   *  服务端和命令行启动时就加载（server/module-hooks.ts），所以这个文件要小，重的代码在函数里再 import */
+  hooks?: () => Promise<ModuleHooks>
+}
+
+/** 模块登记的一个“能打开的东西”：to 里写 {id} 的是具体对象（哪一期、哪一单），不写的是固定页面 */
+export type ModuleOpen = {
+  /** 全局唯一，建议写成 模块编号 或 模块编号-名字，比如 news-day */
+  key: string
+  label: string
+  /** 地址，/ 开头；要带编号的写 {id}，比如 /news?day={id} */
+  to: string
+  /** to 里有 {id} 时，写清 id 是什么（“日期，如 2026-11-12”） */
+  id?: string
+}
+
+/** 模块在“今日概况”里占的一段（命令行 today、快照、今日页页头那句话共用） */
+export type TodaySection = {
+  /** 小标题，比如“今天发什么” */
+  title: string
+  /** 每行一句，不带开头的“- ” */
+  lines: string[]
+  /** 页头那句话里的一小段；没有要说的就不写 */
+  brief?: string | null
+}
+
+/** 模块的示例数据（只在演示时写：seed --demo）。tables 是重灌前要清空的表（按删除顺序），只能是这个模块自己的表 */
+export type ModuleSeed = { tables: string[]; seed: () => void }
+
+/** server.hooks 导出的东西。每一项都可以不写；模块开关收起来时，核心不调它们 */
+export type ModuleHooks = {
+  /** 今日页重点卡要的数：键是 module.json 的 home 里登记的卡片 id，值是“某一天”的数。出错只影响这一张卡 */
+  home?: Record<string, (day: string) => unknown>
+  /** 今日概况里这个模块的一段 */
+  today?: (day: string) => TodaySection | null
+  /** 往“数据源与导入”登记的导入目标（要 needs 里写 data）。类型见 server/modules/data/targets.ts */
+  importTargets?: import('./modules/data/targets.ts').ImportTarget[]
+  /** 示例数据 */
+  seed?: ModuleSeed
 }

@@ -4,6 +4,8 @@ export type NumKey = Exclude<FieldKey, 'date' | 'channel'>
 export type Display = '正常' | '没按时更新' | '读取失败' | '没数据' | '停用'
 
 export type Source = {
+  /** 别的模块登记的导入目标：用哪个菜单项的图标 */
+  nav?: string | null
   id: string; name: string; kind: string; way: string; feeds: string; method: string; schedule: string; owner: string | null
   status: string; display: Display; reason: string | null
   last_run_at: string | null; last_ok_at: string | null; next_run_at: string | null; data_through: string | null; note: string | null
@@ -30,7 +32,7 @@ export type Run = {
   status: '成功' | '部分成功' | '失败' | '超时' | '进行中'; file_name: string | null; data_date: string | null; date_from: string | null
   rows_total: number | null; rows_ok: number | null; rows_failed: number | null; actor: string; message: string | null
   detail: RunDetail | null; rule_id: string | null; rule_name: string | null; batch_id: string | null; origin: '示例' | '自己的'
-  batch_status: '有效' | '已撤销' | '已清除' | null; batch_origin: string | null; batch_label: string | null; batch_file: string | null; batch_rows: number | null
+  batch_status: '有效' | '已撤销' | '已清除' | null; batch_origin: string | null; batch_label: string | null; batch_file: string | null; batch_rows: number | null; batch_target?: string | null
   preset: boolean; provenance: Provenance; source_short: string
   /** 文件名带路径时，这份原件现在还在不在（预置记录多数没放原件） */
   file_exists: boolean
@@ -50,12 +52,16 @@ export type Mapping = {
   suggested_by: string | null; suggested_at: string | null; decided_by: string | null; decided_at: string | null; suggested_target: string | null
 }
 
-export type NotesState = { pending: number; pending_cols: string[]; file: { rel: string; name: string; data_date: string | null; imported_at: string | null } | null; can_import: boolean }
-export type SourceDetail = Source & { strip: StripDay[]; runs: Run[]; mappings: Mapping[]; rules: Rule[]; notes: NotesState | null }
+/** 这个数据源是别的模块登记的导入目标时（server/modules/data/targets.ts）：叫什么、写进哪、去哪看、现在能不能导 */
+export type TargetState = { id: string; name: string; writes: string; page: { to: string; label: string } | null; how: string; pending: number; pending_cols: string[]; file: { rel: string; name: string; data_date: string | null; imported_at: string | null } | null; can_import: boolean }
+export type SourceDetail = Source & { strip: StripDay[]; runs: Run[]; mappings: Mapping[]; rules: Rule[]; target: TargetState | null }
+/** /data/mapping-targets：对字段时能选什么 */
+export type MappingTargets = { daily: { value: string; label: string }[]; targets: Record<string, { value: string; label: string }[]>; by_target: Record<string, { writes: string; nav: string | null; fields: { value: string; label: string }[] }> }
 
-export type RuleMap = { col: string; field: string | null; how?: string; by?: string; at?: string }
+/** label：这一列对到的工作台字段叫什么（服务端带的；别的模块登记的导入目标的字段靠它显示） */
+export type RuleMap = { col: string; field: string | null; how?: string; by?: string; at?: string; label?: string }
 export type Rule = {
-  id: string; source_id: string | null; platform: string; report: string; channel_id: string | null; target: 'channel_daily' | 'xhs_note_stats'
+  id: string; source_id: string | null; platform: string; report: string; channel_id: string | null; target: string; writes?: string | null; nav?: string | null
   signature: string[]; mapping: RuleMap[]; required: NumKey[] | FieldKey[]; date_format: string | null; amount_unit: '元' | '万元'
   status: '在用' | '停用'; origin: '示例' | '自己的'; file_path: string | null; created_at: string; created_by: string | null
   updated_at: string; last_used_at: string | null; use_count: number; note: string | null
@@ -85,7 +91,7 @@ export type Analysis = {
   columns: Column[]; counts: { matched: number; unsure: number; unused: number }
   required: { field: FieldKey; label: string; why: string }[]
   missing: { field: FieldKey; label: string; why: string; col?: string; canAck: boolean }[]
-  blocking: string[]; target: 'channel_daily' | 'xhs_notes'
+  blocking: string[]; target: string; target_source?: string | null; target_name?: string | null
 }
 export type Values = Record<NumKey, number | null>
 export type PreviewRow = { line: number; date: string; channel_id: string; values: Values; before: Values | null; status: '新增' | '覆盖' | '一样'; changed: NumKey[]; kept: NumKey[]; warnings: string[]; field_states: Record<NumKey, string> }

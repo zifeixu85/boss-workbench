@@ -6,7 +6,9 @@ import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import type { Hono } from 'hono'
 import { APP_DIR } from './db.ts'
-import { setInstalledModules } from '../shared/modules.ts'
+import { setInstalledModules, setInstalledSettings } from '../shared/modules.ts'
+import { setInstalledHome } from '../shared/home.ts'
+import { loadHooks } from './module-hooks.ts'
 import { SERVER_MODULES } from './modules.gen.ts'
 import type { ServerModule } from './module-types.ts'
 
@@ -25,6 +27,10 @@ export async function refreshModules(): Promise<boolean> {
     const m = (await import(`${pathToFileURL(GEN).href}?t=${t}`)) as { SERVER_MODULES: ServerModule[] }
     current = m.SERVER_MODULES
     setInstalledModules(current.map(({ id, name, needs }) => ({ id, name, needs })))
+    // 今日页重点卡、模块设置项、接入点跟着换（网页那边按构建时的清单，装模块时会重新构建）
+    setInstalledHome(current.flatMap((m) => (m.home ?? []).map((h) => ({ ...h, module: m.id }))))
+    setInstalledSettings(current.flatMap((m) => (m.settings ?? []).map((d) => ({ ...d, module: m.id }))))
+    await loadHooks(current)
     apis.clear()
     return true
   } catch (err) {

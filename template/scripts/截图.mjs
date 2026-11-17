@@ -30,7 +30,7 @@ const SHOTS = [
   ['05-客户列表-方案报价', '/clients?status=deal', D], ['05-客户卡片', '/clients?view=cards', D], ['05-客户整页-许国平', '/clients/c_xuguoping', D],
   ['06-待办', '/todos', D], ['06-项目', '/projects', D], ['06-项目抽屉-春节预售', '/projects?project=p_spring', D],
   ['07-跟进清单', '/clients/follow', D], ['07-商机看板', '/clients/pipeline', D], ['07-应收款', '/clients/receivables', D],
-  ['08-占位-经营汇总', '/biz', D], ['08-占位-抖店', '/channel/douyin', D], ['08-占位-小红书选题', '/content', D], ['08-占位-数据源', '/sources', D], ['08-占位-导入', '/imports', D], ['08-占位-大客户档案', '/clients/key', D],
+  ['08-占位-经营汇总', '/biz', D], ['08-占位-抖店', '/channel/douyin', D], ['08-占位-数据源', '/sources', D], ['08-占位-导入', '/imports', D], ['08-占位-大客户档案', '/clients/key', D],
   ['09-收件箱', '/inbox', D], ['09-知识库', '/kb', D], ['09-设置', '/settings', D], ['09-组件规范-风格', '/design', D], ['09-组件规范-Tab', '/design?s=tabs', D],
   ['10-嵌入页-澜拓科技', '/embed/clients/c_lantuo', 'narrow'],
   ['11-手机-今日', '/', M], ['11-手机-客户卡片', '/clients?view=cards', M], ['11-手机-日程', '/calendar', M], ['11-手机-项目', '/projects', M],

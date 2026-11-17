@@ -138,6 +138,13 @@ test("默认几块：只放今天有内容的；点名要的照放", () => {
   assert.match(defaultSections(noXhs).skipped[0].reason, /没有这一块/);
 });
 
+test("小红书排期：新版工作台的数在重点卡里（cards.xhs，进阶模块给的），老工作台在 xhs，两种都认", () => {
+  const moved = { ...OV, cards: { xhs: OV.xhs } };
+  delete moved.xhs;
+  assert.ok(defaultSections(moved).keys.includes("xhs"));
+  assert.deepEqual(defaultSections(moved).keys, defaultSections(OV).keys);
+});
+
 test("查漏：号码、密钥、真名（含 \\u 写法）", () => {
   const r = scanText('陈静 13812345678 AKIDabcdefghijklmnop1234 "\\u8861\\u8a00"', ["陈静", "衡言"]);
   assert.equal(r.problems.length, 3);

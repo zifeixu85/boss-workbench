@@ -1,4 +1,4 @@
-// 今日：顶上是老板“最想先看到”的重点卡（最多 3 张，按设置 home 排：经营、大客户、小红书、项目、收件箱，见 shared/home.ts），
+// 今日：顶上是老板“最想先看到”的重点卡（最多 3 张，按设置 home 排：经营、大客户、装进来的模块登记的、项目、收件箱，见 shared/home.ts），
 // 然后是数据异常、日程、待办、该联系的人、钱、卡在哪。数据都从 /api/overview 一次取回。
 import { CalendarPlus, MessageSquarePlus, Sparkles } from 'lucide-react'
 import { api, useApi, useWrite } from '@/lib/api'
@@ -13,7 +13,7 @@ import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { SalesBrief } from './SalesBrief'
 import { KeyClients } from './KeyClients'
-import { XhsToday } from './XhsToday'
+import { MODULE_HOME_CARDS } from '@/app/modules.routes.gen'
 import { AlertsPanel } from './AlertsPanel'
 import { ScheduleAndTodos, SideColumn } from './DayColumns'
 import { NotifyBanner } from './NotifyBanner'
@@ -35,8 +35,8 @@ function digest(o: Overview) {
   const data = o.alerts.length - biz
   if (o.alerts.length) parts.push(`${biz ? `${biz} 处数据不对劲` : ''}${biz && data ? '，' : ''}${data ? `${data} 个数据源没跟上` : ''}`)
   if (o.key_clients.length) parts.push(`${o.key_clients.slice(0, 3).map((c) => c.name).join('、')}等着跟进`)
-  const post = o.xhs?.posts[0]
-  if (post) parts.push(`小红书 ${post.time ?? '今天'} 发《${post.title}》`)
+  // 装进来的模块在今日概况里的那一小段（模块的 server.hooks 给的）
+  for (const m of o.module_today ?? []) if (m.brief) parts.push(m.brief)
   // 基础版（没开经营、客户、内容时）：说项目的下一个关键日子和收件箱
   if (!parts.length) {
     const next = (o.projects_brief ?? []).filter((p) => p.next_milestone).sort((a, b) => a.next_milestone!.date.localeCompare(b.next_milestone!.date))[0]
@@ -55,14 +55,14 @@ export default function TodayPage() {
   const has = (id: string) => !!o && hasModule(o, id)
   if (!o) return <PageBody className="grid gap-4 pt-7"><Skeleton className="h-24" /><div className="grid gap-4 xl:grid-cols-3"><Skeleton className="h-80" /><Skeleton className="h-80" /><Skeleton className="h-80" /></div><Skeleton className="h-60" /></PageBody>
   // 顶上的重点卡：服务端按老板定的顺序给（shared/home.ts）；老服务没给就按以前的三件事
-  const focus = o.home ?? (['sales', 'clients', 'xhs'] as const).filter((id) => has({ sales: 'biz', clients: 'clients', xhs: 'content' }[id]))
-  const card = (id: (typeof focus)[number]) => ({
+  const focus: string[] = o.home ?? (['sales', 'clients'] as const).filter((id) => has({ sales: 'biz', clients: 'clients' }[id]))
+  const moduleCard = (id: string) => { const C = MODULE_HOME_CARDS[id]; return C ? <C key={id} data={o.cards?.[id] ?? null} /> : null }
+  const card = (id: string) => ({
     sales: <div key="sales" className="min-w-0 lg:col-span-2 xl:col-span-1"><SalesBrief sales={o.sales} alerts={o.alerts} /></div>,
     clients: <KeyClients key="clients" items={o.key_clients} />,
-    xhs: <XhsToday key="xhs" plan={o.xhs} />,
     projects: <ProjectsBrief key="projects" o={o} />,
     inbox: <InboxBrief key="inbox" o={o} />,
-  })[id]
+  } as Record<string, React.ReactNode>)[id] ?? moduleCard(id)
   return (
     <>
       <PageHeader eyebrow={fullDate(o.date)} title={`${greet()}，${s?.owner ?? '老板'}`} desc={digest(o)}

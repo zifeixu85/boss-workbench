@@ -19,9 +19,10 @@ test('基础版（今日、待办与日程、项目、收件箱、知识库、�
   assert.deepEqual(r.unknown, [])
 })
 
-test('打开经营或内容，自动带上数据源与导入', () => {
+test('打开经营，自动带上数据源与导入；小红书内容中心不在基础模板里（进阶模块，装了才有）', () => {
   assert.ok(normalizeModules('biz').ids.includes('data'))
-  assert.ok(normalizeModules('content').ids.includes('data'))
+  assert.deepEqual(normalizeModules('content').unknown, ['content'])
+  assert.deepEqual(normalizeModules('xhs').unknown, ['xhs'])
   assert.ok(!normalizeModules('clients').ids.includes('data'))
 })
 
@@ -32,6 +33,6 @@ test('模板里没有的模块单独列出来，不悄悄忽略', () => {
 })
 
 test('关数据源前能查到谁还在用它', () => {
-  assert.deepEqual(neededBy('data', ['biz', 'content', 'data']), ['biz', 'content'])
+  assert.deepEqual(neededBy('data', ['biz', 'data']), ['biz'])
   assert.deepEqual(neededBy('data', ['tasks', 'data']), [])
 })

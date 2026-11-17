@@ -5,11 +5,12 @@ import { join } from 'node:path'
 import { all, ROOT } from '../../db.ts'
 import { today } from '../../services/common.ts'
 import {
-  CHANNELS, CORE, DATE_FMT_LABEL, FIELD, PROFILES, detectDateFmt, guessByLook, guessByName, isTotalRow, normHeader, unitOf,
+  CHANNELS, CORE, DATE_FMT_LABEL, FIELD, profiles, detectDateFmt, guessByLook, guessByName, isTotalRow, normHeader, unitOf,
   type DateFmt, type FieldKey, type Profile,
 } from './fields.ts'
 import type { Table } from './csv.ts'
 import { activeRules, listRules, type Rule } from './rules.ts'
+import { targetOfProfile } from './targets.ts'
 import { identity } from '../../services/identity.ts'
 
 export type ColState = '已对上' | '拿不准' | '用不上'
@@ -54,7 +55,11 @@ export type Analysis = {
   required: { field: FieldKey; label: string; why: string }[]
   missing: Missing[]
   blocking: string[]
-  target: 'channel_daily' | 'xhs_notes'
+  /** channel_daily = 在这里导；别的 = 这张表归某个模块登记的导入目标（targets.ts），不在这里导 */
+  target: string
+  /** 归别的导入目标时：去哪个数据源里导、那个目标叫什么 */
+  target_source?: string | null
+  target_name?: string | null
 }
 
 const KB_FILE = '10-渠道与经营/数据口径.md'
@@ -92,7 +97,7 @@ function recognize(headers: string[], preamble: string[]): Analysis['recognized'
   const hs = new Set(headers.map(normHeader))
   const pre = preamble.join(' ')
   let best: { p: Profile; hits: string[] } | null = null
-  for (const p of PROFILES) {
+  for (const p of profiles()) {
     const hits = p.markers.filter((m) => hs.has(normHeader(m)))
     if (p.hint && pre.includes(p.hint)) hits.push(`表头上方写着“${p.hint}”`)
     if (!best || hits.length > best.hits.length) best = { p, hits }
@@ -194,7 +199,7 @@ export function analyze(table: Table, choices: Choices = {}): Analysis {
   const recognized = recognize(headers, table.preamble)
   const ruleHit = matchRule(headers)
   const rule = ruleHit?.rule ?? null
-  const isNotes = recognized?.profile === 'xhs_notes'
+  const other = targetOfProfile(recognized?.profile)
   const ruleByCol = new Map((rule?.mapping ?? []).map((m) => [normHeader(m.col), m]))
 
   // 渠道：老板选的 > 规则里的 > 认出来的
@@ -202,10 +207,10 @@ export function analyze(table: Table, choices: Choices = {}): Analysis {
   let channel_from: Analysis['channel_from'] = null
   if (choices.channel_id) { channel_id = choices.channel_id; channel_from = '你选的' }
   else if (rule?.channel_id) { channel_id = rule.channel_id; channel_from = '规则里的' }
-  else if (recognized?.profile && PROFILES.find((p) => p.id === recognized.profile)?.channel) { channel_id = PROFILES.find((p) => p.id === recognized.profile)!.channel; channel_from = '认出来的' }
+  else if (recognized?.profile && profiles().find((p) => p.id === recognized.profile)?.channel) { channel_id = profiles().find((p) => p.id === recognized.profile)!.channel; channel_from = '认出来的' }
 
   const ruleLabel = rule ? `按规则「${rule.platform} · ${rule.report}」` : ''
-  const retired = rule || isNotes ? null : retiredRule(channel_id, recognized?.platform)
+  const retired = rule || other ? null : retiredRule(channel_id, recognized?.platform)
   const retiredByCol = new Map((retired?.mapping ?? []).filter((m) => m.field).map((m) => [normHeader(m.col), m]))
   let columns: Column[] = headers.map((header, index) => {
     const base = { index, header, samples: samples(index), unit: unitOf(header) }
@@ -274,14 +279,14 @@ export function analyze(table: Table, choices: Choices = {}): Analysis {
   }
   const ack = new Set(choices.ack_missing ?? [])
   const ruleMissing = rule ? rule.mapping.filter((m) => !headers.some((h) => normHeader(h) === normHeader(m.col))) : []
-  const missing: Missing[] = isNotes ? [] : required.filter((r) => !mapped.has(r.field) && !ack.has(r.field)).map((r) => ({
+  const missing: Missing[] = other ? [] : required.filter((r) => !mapped.has(r.field) && !ack.has(r.field)).map((r) => ({
     ...r, col: ruleMissing.find((m) => m.field === r.field)?.col, canAck: !CORE.includes(r.field),
   }))
 
   const counts = { matched: columns.filter((c) => c.state === '已对上').length, unsure: columns.filter((c) => c.state === '拿不准').length, unused: columns.filter((c) => c.state === '用不上').length }
   const total_rows = rows.filter((r) => isTotalRow(r.cells)).length
   const blocking: string[] = []
-  if (isNotes) blocking.push('这是小红书笔记数据（内容模块用的），不在这里导：到“数据源 → 小红书 · 笔记数据导出”里确认字段对照，再按新规则重新导入')
+  if (other) blocking.push(`这是${other.name}，不在这里导：到“数据源”里它那一项确认字段对照，再按对照导入`)
   else {
     if (!rows.length) blocking.push('表里没有数据行')
     if (counts.unsure) blocking.push(`还差 ${counts.unsure} 列要你点头`)
@@ -299,6 +304,6 @@ export function analyze(table: Table, choices: Choices = {}): Analysis {
     header_row: table.headerRow, preamble: table.preamble, row_count: rows.length - total_rows, total_rows, recognized, amount_unit, amount_unit_from, sample_file, pick_one, derived,
     rule: rule ? { id: rule.id, name: `${rule.platform} · ${rule.report}`, matched: ruleHit!.matched, total: rule.signature.length, missing_cols: ruleMissing.map((m) => m.col), extra_cols: headers.filter((h) => !rule.signature.some((s) => normHeader(s) === normHeader(h))), created: rule.created_at, origin: rule.origin } : null,
     retired: retired ? { id: retired.id, name: `${retired.platform} · ${retired.report}`, used: columns.filter((c) => c.how === '旧规则').length, total: retired.mapping.filter((m) => m.field).length } : null,
-    channel_id, channel_from, date, columns, counts, required, missing, blocking, target: isNotes ? 'xhs_notes' : 'channel_daily',
+    channel_id, channel_from, date, columns, counts, required, missing, blocking, target: other ? other.id : 'channel_daily', target_source: other?.source ?? null, target_name: other?.name ?? null,
   }
 }

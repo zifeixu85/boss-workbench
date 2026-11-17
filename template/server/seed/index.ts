@@ -1,9 +1,10 @@
-// 示例数据（ABC茶社，全部虚构）。按模块拆文件：crm 客户 → base 公共 → biz 经营 → content 小红书 → data 数据源。
+// 示例数据（ABC茶社，全部虚构）。按模块拆文件：crm 客户 → base 公共 → biz 经营 → data 数据源；装进来的模块自己带示例数据的（server.hooks 的 seed），排在最后。
 //
 // 用法（在 工作台/程序/ 下）：
 //   node server/seed/index.ts --demo                  还没有数据库时：建表、写入全部示例数据
 //   node server/seed/index.ts --demo --reset          删掉数据库，从零建表、写入全部示例数据（npm run seed 就是这条）
-//   node server/seed/index.ts --only biz              只重建经营模块的数据（也可以 content、data、crm-follow，逗号分开写几个）
+//   node server/seed/index.ts --only biz              只重建经营模块的数据（也可以 data、crm-follow、装进来的模块的编号，逗号分开写几个）
+//   node server/seed/index.ts --only <模块编号> --if-empty   装模块时用：这个模块的表都还空着才写（装回来、原来有数据的不动）
 // crm 和 base 互相引用（待办、日程挂在客户上），只能用 --reset 一起重建。
 // 安全：示例数据只在演示时用。不加 --demo 时，只有“本来就是示例库”（settings 里有 demo_today）才让重灌，
 // 免得在老板自己的真数据库上误跑，把真数据换成 ABC茶社。
@@ -15,12 +16,16 @@ import { DEMO_TODAY, type SeedModule } from './lib.ts'
 import { crm } from './crm.ts'
 import { base } from './base.ts'
 import { biz } from './biz.ts'
-import { content } from './content.ts'
 import { data } from './data.ts'
 import { crmFollow } from './crm-follow.ts' // 大客户模块 E5：客户详情加深（概况页签的客户信息、改阶段留痕、关怀来源）
 
-const ORDER: SeedModule[] = [crm, base, biz, content, data, crmFollow]
-const ALONE = new Set(['biz', 'content', 'data', 'crm-follow'])
+import { loadHooks } from '../module-hooks.ts'
+
+// 装进来的模块的示例数据：名字就是模块编号，可以单独重建
+const hooked = await loadHooks()
+const MODULE_SEEDS: SeedModule[] = hooked.flatMap((x) => (x.hooks.seed ? [{ name: x.module, tables: x.hooks.seed.tables, seed: x.hooks.seed.seed }] : []))
+const ORDER: SeedModule[] = [crm, base, biz, data, crmFollow, ...MODULE_SEEDS]
+const ALONE = new Set(['biz', 'data', 'crm-follow', ...MODULE_SEEDS.map((m) => m.name)])
 
 const args = process.argv.slice(2)
 const onlyArg = args.find((a) => a.startsWith('--only'))
@@ -62,6 +67,10 @@ if (only) {
   if (!existsSync(DB_PATH)) { console.error('还没有数据库，先运行 node server/seed/index.ts --demo'); process.exit(1) }
   open()
   const mods = ORDER.filter((m) => only.includes(m.name))
+  if (args.includes('--if-empty')) {
+    const used = mods.flatMap((m) => m.tables).filter((t) => all<{ n: number }>(`SELECT COUNT(*) AS n FROM ${t}`)[0].n > 0)
+    if (used.length) { console.log(`${only.join('、')} 已经有数据（${used[0]}），没重灌示例。`); process.exit(0) }
+  }
   tx(() => { for (const m of mods) for (const t of m.tables) run(`DELETE FROM ${t}`) })
   console.log(`重建 ${only.join('、')} 的示例数据：`)
   seedModules(mods)

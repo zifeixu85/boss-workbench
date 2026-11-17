@@ -10,15 +10,15 @@ const here = (path) => {
   return [r.section?.key, r.page ? pageTrail(r.page) : undefined]
 }
 
-test('五个分区按顺序排，系统不占顶栏', () => {
-  assert.deepEqual(SECTIONS.map((s) => s.key), ['今日', '客户', '经营', '内容', '数据', '资料', '系统'])
-  assert.deepEqual(TOP_SECTIONS.map((s) => s.key), ['今日', '客户', '经营', '内容', '数据', '资料'])
+test('五个分区按顺序排，系统不占顶栏（“内容”分区留给装进来的模块，没装就不显示）', () => {
+  assert.deepEqual(SECTIONS.map((s) => s.key), ['今日', '客户', '经营', '数据', '资料', '系统'])
+  assert.deepEqual(TOP_SECTIONS.map((s) => s.key), ['今日', '客户', '经营', '数据', '资料'])
   assert.deepEqual(SECTIONS.find((s) => s.key === '经营').groups.map((g) => g.label), [null, '渠道'])
   // 数据源与导入单独一个分区（2026-10-13 定）：数据源不分组，导入的子页面以「导入」为组名
   assert.deepEqual(SECTIONS.find((s) => s.key === '数据').groups.map((g) => g.label), [null, '导入'])
   assert.deepEqual(SECTIONS.find((s) => s.key === '客户').groups.map((g) => g.label), ['客户与跟进'])
   // 分区入口 = 第一页
-  assert.deepEqual(TOP_SECTIONS.map((s) => s.to), ['/', '/clients', '/biz', '/content', '/sources', '/kb'])
+  assert.deepEqual(TOP_SECTIONS.map((s) => s.to), ['/', '/clients', '/biz', '/sources', '/kb'])
 })
 
 test('每个地址只亮一页：子页面、详情页、老地址都落对', () => {
@@ -32,8 +32,8 @@ test('每个地址只亮一页：子页面、详情页、老地址都落对', ()
   assert.deepEqual(here('/channel/nope'), ['经营', undefined])
   assert.deepEqual(here('/imports'), ['数据', '数据 › 导入文件'])
   assert.deepEqual(here('/imports/rules'), ['数据', '数据 › 导入规则'])
-  assert.deepEqual(here('/content'), ['内容', '内容 › 今天'])
-  assert.deepEqual(here('/content/studio/p_1'), ['内容', '内容 › 创作'])
+  // 基础版不带小红书内容中心（进阶模块，装了才有 /content）
+  assert.deepEqual(here('/content'), [undefined, undefined])
   assert.deepEqual(here('/settings'), ['系统', '系统 › 设置'])
   assert.deepEqual(here('/nope'), [undefined, undefined])
 })
@@ -57,17 +57,19 @@ test('模块拿掉以后，空了的分区自动不显示（基础版：只有�
   assert.deepEqual(mobileTabs(basic).map((n) => n.key), ['today', 'calendar', 'todos', 'kb'])
 })
 
-test('手机底栏补位按分区：拿掉客户与跟进，空出的位置给还没有入口的分区（按分区顺序，这里是数据），每个分区最多先占一个', () => {
+test('手机底栏补位按分区：拿掉客户与跟进，空出的位置给还没有入口的分区（按分区顺序，这里是数据、资料），每个分区最多先占一个', () => {
   const noClients = NAV.filter((n) => n.key !== 'clients')
   const tabs = mobileTabs(noClients)
-  assert.deepEqual(tabs.map((n) => n.key), ['today', 'biz', 'content', 'sources'])
-  assert.deepEqual(tabs.map((n) => n.section), ['今日', '经营', '内容', '数据'])
+  assert.deepEqual(tabs.map((n) => n.key), ['today', 'biz', 'sources', 'kb'])
+  assert.deepEqual(tabs.map((n) => n.section), ['今日', '经营', '数据', '资料'])
   // 只开今日：今日分区的页面按菜单顺序补满
   assert.deepEqual(mobileTabs(NAV.filter((n) => n.section === '今日')).map((n) => n.key), ['today', 'calendar', 'todos', 'projects'])
 })
 
-test('手机底栏的名字：今日 / 客户 / 经营 / 内容（和设置页、组件规范页写的一样）', () => {
-  assert.deepEqual(mobileTabs().map((n) => n.short ?? n.label), ['今日', '客户', '经营', '内容'])
+test('手机底栏的名字：今日 / 客户 / 经营，第四个按分区顺序补（基础版是数据源；装了放在“内容”分区的模块就是它）', () => {
+  assert.deepEqual(mobileTabs().map((n) => n.short ?? n.label), ['今日', '客户', '经营', '数据源'])
+  const withContent = [...NAV.slice(0, NAV.findIndex((n) => n.key === 'sources')), { key: 'content', to: '/content', label: '小红书', short: '内容', icon: NAV[0].icon, section: '内容', module: 'xhs' }, ...NAV.slice(NAV.findIndex((n) => n.key === 'sources'))]
+  assert.deepEqual(mobileTabs(withContent).map((n) => n.short ?? n.label), ['今日', '客户', '经营', '内容'])
 })
 
 test('模块开关：关掉的模块从菜单里收起，分区空了就不显示（菜单项的 module 指向模块 id）', () => {
@@ -76,9 +78,9 @@ test('模块开关：关掉的模块从菜单里收起，分区空了就不显�
   const off = new Set(['biz', 'data'])
   const nav = navWithModules((id) => !off.has(id))
   const sections = sectionsOf(nav)
-  assert.deepEqual(sections.map((s) => s.key), ['今日', '客户', '内容', '资料', '系统'])
+  assert.deepEqual(sections.map((s) => s.key), ['今日', '客户', '资料', '系统'])
   assert.equal(resolveNav('/channel/tmall', sections).section, undefined)
-  assert.deepEqual(mobileTabs(nav).map((n) => n.key), ['today', 'clients', 'content', 'kb'])
+  assert.deepEqual(mobileTabs(nav).map((n) => n.key), ['today', 'calendar', 'clients', 'kb'])
   // 全开 = 原样
   assert.equal(navWithModules(() => true).length, NAV.length)
 })
@@ -104,11 +106,11 @@ test('分区角标：渠道的异常已算进经营汇总，不重复加', () =>
 
 test('手机底栏按分区亮：在分区里任何一页都亮这个分区的入口', () => {
   const tabs = mobileTabs()
-  assert.deepEqual(tabs.map((n) => n.key), ['today', 'clients', 'biz', 'content'])
+  assert.deepEqual(tabs.map((n) => n.key), ['today', 'clients', 'biz', 'sources'])
   assert.equal(activeTab(tabs, resolveNav('/todos'))?.key, 'today')
   assert.equal(activeTab(tabs, resolveNav('/channel/tmall'))?.key, 'biz')
-  // 数据源单独成了「数据」分区（2026-10-13），底栏没有它的入口，和资料一样亮「更多」
-  assert.equal(activeTab(tabs, resolveNav('/sources')), undefined)
+  // 基础版第四个入口是数据源；资料没有入口，亮「更多」
+  assert.equal(activeTab(tabs, resolveNav('/sources'))?.key, 'sources')
   assert.equal(activeTab(tabs, resolveNav('/clients/follow'))?.key, 'clients')
   assert.equal(activeTab(tabs, resolveNav('/kb')), undefined)
 })

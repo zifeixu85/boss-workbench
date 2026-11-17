@@ -1,5 +1,6 @@
 // 导入时用到的“字典”：工作台有哪些字段、各平台常见叫法、各平台导出表的特征、日期和数字怎么认。归属：数据源与导入模块。
 // 这里只放确定的知识；对不上、有两种意思的，一律交给页面标“拿不准”，不猜。
+import { importTargets, targetField } from './targets.ts'
 
 /** 工作台字段（写进经营模块的 channel_daily，每渠道每天一行） */
 export type FieldKey = 'date' | 'channel' | 'gmv' | 'orders' | 'visitors' | 'refund_amount' | 'refund_orders' | 'ad_spend' | 'ad_gmv' | 'new_buyers' | 'old_buyers'
@@ -121,24 +122,18 @@ export function guessByLook(header: string): Guess | null {
   return null
 }
 
-/** 小红书笔记数据（写进内容模块的 xhs_note_stats）：只在数据源抽屉里确认对照时用 */
-export const NOTE_TARGETS: { value: string; label: string }[] = [
-  { value: 'xhs_notes.title', label: '笔记标题' }, { value: 'xhs_notes.published_at', label: '发布时间' }, { value: 'xhs_notes.kind', label: '笔记类型' },
-  { value: 'xhs_note_stats.impressions', label: '曝光' }, { value: 'xhs_note_stats.reads', label: '阅读' }, { value: 'xhs_note_stats.likes', label: '点赞' },
-  { value: 'xhs_note_stats.saves', label: '收藏' }, { value: 'xhs_note_stats.comments', label: '评论' }, { value: 'xhs_note_stats.shares', label: '分享' },
-  { value: 'xhs_note_stats.new_followers', label: '涨粉' }, { value: 'xhs_note_stats.traffic', label: '流量来源（自然 / 投流）' },
-]
+/** 字段代码 → 界面上的叫法。别的模块登记的导入目标（targets.ts）的字段也认 */
 export const targetLabel = (t: string | null) => {
   if (!t) return '不导'
-  const note = NOTE_TARGETS.find((x) => x.value === t)
-  if (note) return note.label
+  const other = targetField(t)
+  if (other) return other.label
   const k = t.replace(/^channel_daily\./, '') as FieldKey
   return FIELD[k]?.label ?? t
 }
 
 /** 各平台导出表的特征：认出“这是哪家的哪张表” */
 export type Profile = { id: string; platform: string; report: string; channel: string | null; markers: string[]; hint?: string }
-export const PROFILES: Profile[] = [
+const CORE_PROFILES: Profile[] = [
   { id: 'douyin_compass', platform: '抖店', report: '罗盘 · 经营数据（按日）', channel: 'douyin', markers: ['千川消耗', '千川成交金额', '商品访客数', '直播间成交占比', '成交订单数'] },
   { id: 'tmall_sycm', platform: '天猫', report: '生意参谋 · 店铺日报', channel: 'tmall', markers: ['支付子订单数', '万相台花费', '万相台成交金额', '新买家数', '老买家数', '支付买家数', '支付转化率', '万相台无界花费', '支付新买家数'], hint: '生意参谋' },
   { id: 'xhs_qianfan', platform: '小红书店', report: '千帆 · 店铺数据', channel: 'xhs', markers: ['聚光消耗', '聚光成交金额', '店铺访客数', '复购客数'], hint: '千帆' },
@@ -146,8 +141,9 @@ export const PROFILES: Profile[] = [
   { id: 'store_pos', platform: '门店', report: '收银系统 · 日汇总', channel: 'store', markers: ['营业日期', '营业额', '实收金额', '交易笔数', '客流', '会员消费人数'] },
   { id: 'store_lark', platform: '门店', report: '飞书多维表格 · 门店日报', channel: 'store', markers: ['当天成交', '进店人数', '会员单数', '单数'] },
   { id: 'lark_biz', platform: '飞书多维表格', report: '经营数据表', channel: null, markers: ['渠道', '成交额', '订单数', '访客数', '推广花费', '推广成交额', '填表人'] },
-  { id: 'xhs_notes', platform: '小红书', report: '专业号 · 笔记数据', channel: null, markers: ['笔记标题', '展现量', '观看量', '曝光', '阅读', '涨粉数', '新增关注'] },
 ]
+/** 自带的 + 别的模块登记的导入目标带来的（targets.ts） */
+export const profiles = (): Profile[] => [...CORE_PROFILES, ...importTargets().flatMap((t) => (t.profile ? [t.profile] : []))]
 
 // ———— 日期 ————
 export type DateFmt = 'ymd-dash' | 'ymd-slash' | 'ymd-compact' | 'ymd-cn' | 'md-cn' | 'excel-serial' | 'datetime'

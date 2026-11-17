@@ -154,8 +154,8 @@ export const settingsInput = z.object({
   mobile_nav: z.enum(['tabs', 'drawer']).optional(),
   owner: z.string().trim().max(20).optional(),
   business: z.string().trim().max(40).optional(),
-  /** 小红书账号名（手机预览、给 Codex 的提示词用）；空着就用店名 */
-  xhs_name: z.string().trim().max(30).optional(),
+  /** 装进来的模块登记的设置项（module.json 的 settings）：键是设置项的 key；能写哪些、最长多少由服务端按登记的检查。写空 = 清掉 */
+  module_settings: z.record(z.string(), z.string().trim().max(200)).optional(),
   /** “知识库”这一页在菜单和页面上叫什么（比如“资料”）；空着就叫“知识库” */
   kb_name: z.string().trim().max(12).optional(),
   /** 今日页顶上的重点卡（shared/home.ts 的 id，逗号隔开；空 = 默认） */

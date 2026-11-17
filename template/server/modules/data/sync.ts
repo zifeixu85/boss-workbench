@@ -9,7 +9,7 @@ import { readTable } from './csv.ts'
 import { analyze } from './recognize.ts'
 import { commitTable, type ImportResult } from './importer.ts'
 import { kbNow } from './service.ts'
-import { notesState, reimportNotes } from './notes.ts'
+import { targetOfSource } from './targets.ts'
 import { stamp, whenText } from './time.ts'
 
 type Src = { id: string; name: string; kind: string; channel_id: string | null; inbox_dir: string | null; schedule: string; owner: string | null; status: string; next_run_at: string | null }
@@ -82,12 +82,14 @@ export function syncSource(id: string): SyncResult {
   const src = get<Src>('SELECT * FROM data_sources WHERE id = :id', { id })
   if (!src) throw new NotFound('找不到这个数据源')
   if (src.status === '停用') return { kind: '要手动', message: '这个数据源停用了，先启用再同步' }
-  if (src.id === 'src_xhs_notes') {
-    const st = notesState()
-    if (st.pending) return { kind: '要手动', message: `先确认 ${st.pending} 列对照（${st.pending_cols.join('、')}）：平台改了列名，不确认就同步，还是会因为对不上而失败。在这个数据源的“等你确认”里点一下就行` }
-    if (!st.file) return { kind: '没有新文件', message: `${src.inbox_dir}/ 里没有笔记数据表：从小红书专业号后台导出“笔记数据”放进去再点` }
-    if (st.file.imported_at) return { kind: '没有新文件', message: `${st.file.name} 已在 ${whenText(st.file.imported_at)} 按新对照导过，没有新文件` }
-    const r = reimportNotes('网页')
+  // 别的模块登记的导入目标（targets.ts）：对照确认完才导，怎么导由那个模块自己写
+  const target = targetOfSource(src.id)
+  if (target) {
+    const st = target.state()
+    if (st.pending) return { kind: '要手动', message: `先确认 ${st.pending} 列对照（${st.pending_cols.join('、')}）：表头和原来的对不上，不确认就同步，还是会因为对不上而失败。在这个数据源的“等你确认”里点一下就行` }
+    if (!st.file) return { kind: '没有新文件', message: `${src.inbox_dir}/ 里没有${target.name}的表：${target.how}，再点` }
+    if (st.file.imported_at) return { kind: '没有新文件', message: `${st.file.name} 已在 ${whenText(st.file.imported_at)} 按对照导过，没有新文件` }
+    const r = target.run('网页')
     return { kind: '导入了', message: r.message }
   }
   switch (src.kind) {

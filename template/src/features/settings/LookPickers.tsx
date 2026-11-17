@@ -50,7 +50,7 @@ export function MobileNavPicker({ value }: { value?: Settings['mobile_nav'] }) {
   const save = useWrite((mobile_nav: Settings['mobile_nav']) => api.patch<Settings>('/settings', { mobile_nav }), (o) => `手机导航已换成${o.mobile_nav === 'tabs' ? '底部标签' : '汉堡菜单'}`)
   if (!value) return <Skeleton className="h-48" />
   const opts = [
-    { v: 'tabs' as const, name: '底部标签', desc: '每个分区一个入口放在底部（今日、客户、经营、内容），大拇指一点就到；全部页面按分区放在“更多”里。' },
+    { v: 'tabs' as const, name: '底部标签', desc: '每个分区一个入口放在底部（今日、客户、经营这些），大拇指一点就到；全部页面按分区放在“更多”里。' },
     { v: 'drawer' as const, name: '汉堡菜单', desc: '左上角一个菜单按钮，点开是按分区分段的完整菜单；屏幕留给内容。' },
   ]
   return (

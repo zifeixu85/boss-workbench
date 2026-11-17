@@ -206,6 +206,7 @@ export const SECTIONS = [
   { key: "events", label: "日程", names: ["日程", "events"], on: true, fields: "时间、事情、类型、相关客户（化名）；不放地点和备注" },
   { key: "follow", label: "该联系的客户", names: ["跟进", "客户", "follow"], on: true, fields: "客户（化名）、阶段、计划跟进日、跟进理由和下一步；不放联系人、电话、沟通原文" },
   { key: "risks", label: "项目风险", names: ["风险", "项目", "risks"], on: true, fields: "项目名、风险说明" },
+  // 小红书排期：装了“小红书内容中心”（进阶模块）的工作台才有这一块的数；没装就自动跳过
   { key: "xhs", label: "小红书排期", names: ["小红书", "内容", "xhs"], on: true, fields: "今天和后三天要发的笔记标题和状态、今天的选题标题；不放账号数据" },
   { key: "biz", label: "各平台昨天", names: ["经营", "biz"], on: false, fields: "各平台比前天涨跌、退款率、ROI、异常标题（加 --amounts 才放成交额和订单数）" },
   { key: "cash", label: "钱（应收）", names: ["钱", "应收", "cash"], on: false, fields: "应收总额、逾期金额和笔数、30 天内到期金额（万元）" },
@@ -228,12 +229,14 @@ const num = (x) => (typeof x === "number" && Number.isFinite(x) ? x : null);
 const dayDiff = (a, b) => Math.round((Date.parse(b) - Date.parse(a)) / 864e5);
 
 /** 工作台 today --json 里，这一块有没有东西可放。每个老板挑的模块不一样，没有的块默认不放，免得手机上一张空卡。 */
+/** 小红书今天发什么：新版工作台在重点卡的数里（overview.cards.xhs，模块给的）；2026-11-12 以前的老工作台直接在 overview.xhs */
+const xhsOf = (ov) => ov.xhs ?? ov.cards?.xhs ?? null;
 const HAS = {
   todos: (ov) => Boolean(ov.headline) || arr(ov.todos?.today).length + arr(ov.todos?.week).length > 0,
   events: (ov) => arr(ov.events).length + arr(ov.upcoming).length > 0,
   follow: (ov) => arr(ov.key_clients).length + arr(ov.follow?.due).length > 0,
   risks: (ov) => arr(ov.risks).some((p) => arr(p.risks).length > 0),
-  xhs: (ov) => Boolean(ov.xhs) && arr(ov.xhs.posts).length + arr(ov.xhs.upcoming).length + arr(ov.xhs.topics).length > 0,
+  xhs: (ov) => { const x = xhsOf(ov); return Boolean(x) && arr(x.posts).length + arr(x.upcoming).length + arr(x.topics).length > 0; },
   biz: (ov) => arr(ov.sales?.channels).length + arr(ov.alerts).length > 0,
   cash: (ov) => Boolean(ov.cash),
 };
@@ -290,7 +293,7 @@ export function buildSnapshot(ov, clients, { sections, amounts = false, style = 
     s.risks = arr(ov.risks).map((p) => ({ name: T(p.name), client: m.who(p.client_id, p.client_name), items: arr(p.risks).map((r) => ({ level: r.level ?? null, text: T(r.text) })) }));
   }
   if (keys.includes("xhs")) {
-    const x = ov.xhs ?? {};
+    const x = xhsOf(ov) ?? {};
     const post = (p) => ({ date: p.date ?? null, time: p.time ?? null, title: T(p.title), status: p.status ?? null });
     s.xhs = { posts: arr(x.posts).map(post), upcoming: arr(x.upcoming).map(post), topics: arr(x.topics).map((t) => ({ title: T(t.title) })), topics_total: num(x.topics_total) ?? arr(x.topics).length };
   }

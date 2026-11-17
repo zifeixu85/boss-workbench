@@ -4,14 +4,16 @@ import { existsSync, mkdirSync, readdirSync, rmSync, writeFileSync } from 'node:
 import { join } from 'node:path'
 import { all, get, run, ROOT, uid, logChange } from '../../db.ts'
 import { BadRequest, NotFound } from '../../services/common.ts'
-import { CHANNELS, FIELD, NOTE_TARGETS, targetLabel, type DateFmt, type FieldKey } from './fields.ts'
+import { CHANNELS, FIELD, targetLabel, type DateFmt, type FieldKey } from './fields.ts'
+import { targetById } from './targets.ts'
 import { stamp } from './time.ts'
 
 /** 一列怎么对：how 是怎么对上的（规则、常见叫法、知识库、你选的、Codex）；人点过头的记 by（谁）和 at（几点） */
 export type RuleMap = { col: string; field: string | null; how?: string; by?: string; at?: string }
 export type Rule = {
   id: string; source_id: string | null; platform: string; report: string; channel_id: string | null
-  target: 'channel_daily' | 'xhs_note_stats'; signature: string[]; mapping: RuleMap[]; required: FieldKey[]
+  /** channel_daily，或别的模块登记的导入目标（targets.ts） */
+  target: string; signature: string[]; mapping: RuleMap[]; required: FieldKey[]
   date_format: DateFmt | null; amount_unit: '元' | '万元'; status: '在用' | '停用'; origin: '示例' | '自己的'
   file_path: string | null; created_at: string; created_by: string | null; updated_at: string
   last_used_at: string | null; use_count: number; note: string | null
@@ -44,7 +46,7 @@ export function writeRuleFile(rule: Rule): string {
   const body = {
     说明: '工作台的导入规则：同一种表以后按这里对字段。改规则请在工作台“导入规则”页改，这份文件会跟着更新。',
     平台: rule.platform, 报表: rule.report, 状态: rule.status, 来源: rule.origin === '示例' ? '示例数据' : '自己存的',
-    写进: rule.target === 'channel_daily' ? `经营 · 每天的数（${rule.channel_id ? CHANNELS[rule.channel_id]?.name ?? rule.channel_id : '按表里的“渠道”列'}）` : '小红书 · 笔记数据',
+    写进: rule.target === 'channel_daily' ? `经营 · 每天的数（${rule.channel_id ? CHANNELS[rule.channel_id]?.name ?? rule.channel_id : '按表里的“渠道”列'}）` : targetById(rule.target)?.writes ?? rule.target,
     表头特征: rule.signature,
     字段对照: rule.mapping.map((m) => ({ 表里的列: m.col, 工作台字段: targetLabel(m.field), 字段代码: m.field, ...(m.by ? { 谁确认的: m.by, 几点: m.at } : {}) })),
     缺了就停下来: rule.required.map((f) => FIELD[f]?.label ?? f),
@@ -126,7 +128,7 @@ export function updateRule(id: string, input: unknown): Rule {
   }
   if (body.mapping !== undefined) {
     if (!Array.isArray(body.mapping)) throw new BadRequest('字段对照格式不对')
-    const valid = new Set<string>(rule.target === 'channel_daily' ? Object.keys(FIELD) : NOTE_TARGETS.map((t) => t.value))
+    const valid = new Set<string>(rule.target === 'channel_daily' ? Object.keys(FIELD) : (targetById(rule.target)?.fields ?? []).map((t) => t.value))
     const byCol = new Map(body.mapping.map((m) => [m.col, m.field]))
     const mapping = rule.mapping.map((m) => {
       if (!byCol.has(m.col)) return m

@@ -39,9 +39,17 @@ function migrate(d: DatabaseSync) {
   const dir = join(APP_DIR, 'server', 'migrations')
   for (const file of readdirSync(dir).filter((f) => f.endsWith('.sql')).sort()) {
     if (done.has(file)) continue
+    const sql = readFileSync(join(dir, file), 'utf8')
+    // 接手旧迁移（2026-11-12）：以前模板自带、后来改成模块包的功能，表是旧文件名建的。模块的迁移第一行写
+    // “-- 接手：旧文件名.sql”，旧的那份跑过就只登记、不再建一遍（表和数据原样留着）；没跑过就照常建
+    const takes = sql.match(/^--\s*接手[：:]\s*(\S+\.sql)\s*$/m)?.[1]
+    if (takes && done.has(takes)) {
+      d.prepare('INSERT INTO _migrations (name, at) VALUES (?, ?)').run(file, nowIso())
+      continue
+    }
     d.exec('BEGIN')
     try {
-      d.exec(readFileSync(join(dir, file), 'utf8'))
+      d.exec(sql)
       d.prepare('INSERT INTO _migrations (name, at) VALUES (?, ?)').run(file, nowIso())
       d.exec('COMMIT')
     } catch (err) {

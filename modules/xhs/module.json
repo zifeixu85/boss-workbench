@@ -1,0 +1,67 @@
+{
+  "id": "xhs",
+  "name": "小红书内容中心",
+  "version": "1.0.0",
+  "tier": "进阶",
+  "summary": "今天发什么、选题到发布一条线、和本机 Codex 一起写稿（带手机预览和发布前检查）、笔记数据、每周复盘。要先有“数据源与导入”",
+  "needs": ["data"],
+  "nav": [
+    {
+      "key": "content", "to": "/content", "label": "小红书", "short": "内容", "icon": "NotebookPen", "section": "内容",
+      "children": [
+        { "to": "/content", "label": "今天", "icon": "Sun", "end": true },
+        { "to": "/content/pieces", "label": "内容", "icon": "LayoutGrid" },
+        { "to": "/content/studio", "label": "创作", "icon": "PenLine" },
+        { "to": "/content/data", "label": "数据", "icon": "ChartLine" },
+        { "to": "/content/review", "label": "复盘", "icon": "NotebookText" }
+      ]
+    }
+  ],
+  "pages": [
+    { "path": "content", "file": "src/features/xhs/TodayPage.tsx" },
+    { "path": "content/pieces", "file": "src/features/xhs/PiecesPage.tsx" },
+    { "path": "content/studio", "file": "src/features/xhs/StudioPage.tsx" },
+    { "path": "content/studio/:id", "file": "src/features/xhs/StudioPage.tsx" },
+    { "path": "content/data", "file": "src/features/xhs/DataPage.tsx" },
+    { "path": "content/review", "file": "src/features/xhs/ReviewPage.tsx" },
+    { "path": "content/schedule", "file": "src/features/xhs/OldSchedule.tsx" },
+    { "path": "content/notes", "file": "src/features/xhs/OldNotes.tsx" }
+  ],
+  "home": [
+    { "id": "xhs", "name": "小红书今天发什么", "file": "src/features/xhs/HomeCard.tsx" }
+  ],
+  "settings": [
+    { "key": "xhs_name", "label": "小红书账号名", "hint": "小红书手机预览、选题和写稿时用；空着就用店名", "max": 30 }
+  ],
+  "open": [
+    { "key": "xhs-piece", "label": "某一篇内容的创作台", "to": "/content/studio/{id}", "id": "内容编号（xhs 命令返回的 id，如 p_1a2b3c4d）" }
+  ],
+  "server": {
+    "api": "server/modules/xhs/routes.ts#xhsRoutes",
+    "cli": { "file": "server/modules/xhs/cli.ts#xhsCli", "commands": ["xhs"] },
+    "hooks": "server/modules/xhs/hooks.ts#xhsHooks",
+    "read": [
+      { "command": "xhs", "what": "小红书：今天发什么、今天的选题、近两周排期" }
+    ],
+    "write": [
+      { "command": "xhs-topics-add", "what": "把一批选题写进灵感池（同名的跳过）" }
+    ]
+  },
+  "replaces": {
+    "module": "content",
+    "files": [
+      "src/features/content/",
+      "src/features/today/XhsToday.tsx",
+      "server/modules/content/",
+      "server/modules/data/notes.ts",
+      "server/seed/content.ts",
+      "server/seed/content-data.ts",
+      "server/seed/content-center.ts",
+      "server/seed/content-center-data.ts",
+      "server/migrations/004_content.sql",
+      "server/migrations/013_content_center.sql",
+      "server/migrations/013_content_center_02_来源与评论.sql",
+      "shared/xhs-check.ts"
+    ]
+  }
+}

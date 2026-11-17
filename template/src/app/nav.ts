@@ -10,9 +10,9 @@
 //   页内 Tab       只切换当前页的看法（表格 / 看板、月 / 周），不跳到别的页面。
 // 当前在哪一页由 resolveNav 统一算（地址最长的那项优先，全站只亮一项），外壳不要自己比地址。
 import {
-  BellRing, BookHeart, BookOpen, CalendarDays, ChartLine, ChartNoAxesCombined, Clapperboard, Database, FileCog, FileUp, FolderKanban,
-  HandCoins, HeartHandshake, History, Inbox, LayoutDashboard, LayoutGrid, ListChecks, ListTodo, NotebookPen, NotebookText, Palette, PenLine,
-  ScanText, Settings, ShoppingBag, SquareKanban, Store, Sun, Users, Video, type LucideIcon,
+  BellRing, BookHeart, BookOpen, CalendarDays, ChartNoAxesCombined, Clapperboard, Database, FileCog, FileUp, FolderKanban,
+  HandCoins, HeartHandshake, History, Inbox, LayoutDashboard, ListChecks, ListTodo, NotebookPen, Palette, 
+  ScanText, Settings, ShoppingBag, SquareKanban, Store, Users, Video, type LucideIcon,
 } from 'lucide-react'
 import type { Overview } from '@/lib/types'
 import { MODULE_NAV } from './modules.nav.gen.ts'
@@ -67,15 +67,7 @@ const CORE_NAV: NavItem[] = [
   { key: 'ch-wechat', to: '/channel/wechat', label: '视频号小店', icon: Video, section: '经营', module: 'biz', sub: '渠道', badge: channelAlerts('wechat'), tone: 'warn', countedIn: 'biz' },
   { key: 'ch-store', to: '/channel/store', label: '门店', icon: Store, section: '经营', module: 'biz', sub: '渠道', badge: channelAlerts('store'), tone: 'warn', countedIn: 'biz' },
 
-  {
-    key: 'content', to: '/content', label: '小红书', short: '内容', icon: NotebookPen, section: '内容', module: 'content',
-    children: [
-      { to: '/content', label: '今天', icon: Sun, end: true }, { to: '/content/pieces', label: '内容', icon: LayoutGrid }, { to: '/content/studio', label: '创作', icon: PenLine },
-      { to: '/content/data', label: '数据', icon: ChartLine }, { to: '/content/review', label: '复盘', icon: NotebookText },
-    ],
-  },
-
-  // 数据源与导入：经营和小红书的数都从这里进来，单独一个“数据”分区（2026-10-13 定，不再挂在经营下面）
+  // 数据源与导入：经营的数（和装进来的模块登记的导入目标）都从这里进来，单独一个“数据”分区（2026-10-13 定，不再挂在经营下面）
   { key: 'sources', to: '/sources', label: '数据源', icon: Database, section: '数据', module: 'data', badge: (o) => o.alerts?.filter((a) => a.module === 'data').length || undefined, tone: 'warn' },
   {
     key: 'imports', to: '/imports', label: '导入', icon: FileUp, section: '数据', module: 'data',
@@ -96,8 +88,9 @@ function withModuleNav(core: NavItem[], extra: NavItem[]): NavItem[] {
 }
 export const NAV: NavItem[] = withModuleNav(CORE_NAV, MODULE_NAV)
 
-/** 手机底栏的 4 个：每个分区一个入口（今日 / 客户 / 经营 / 内容）。拿掉了的模块自动跳过，空位先给还没有入口的分区（见 mobileTabs） */
-export const MOBILE_TABS = ['today', 'clients', 'biz', 'content']
+/** 手机底栏的 4 个：每个分区一个入口。这里写核心的三个；拿掉了的模块自动跳过，空位按分区顺序给还没有入口的分区（见 mobileTabs），
+ *  所以装了放在“内容”分区的模块，第四个就是它；没装就是数据源 */
+export const MOBILE_TABS = ['today', 'clients', 'biz']
 
 /** 模块开关打开着的菜单项：没写 module 的照常显示（shared/modules.ts 定义模块；网页里用 nav-sections.ts 的 useNav） */
 export const navWithModules = (on: (id: string) => boolean, nav: NavItem[] = NAV): NavItem[] => nav.filter((n) => !n.module || on(n.module))
@@ -194,7 +187,7 @@ export function sectionCount(items: NavItem[], o?: Overview) {
   return items.reduce((sum, n) => sum + (n.tone === 'warn' && !(n.countedIn && keys.has(n.countedIn)) ? n.badge?.(o) ?? 0 : 0), 0)
 }
 
-/** 组就是一个有子页面的模块（客户与跟进、小红书）时返回这个模块：它的角标挂在组名上 */
+/** 组就是一个有子页面的模块（客户与跟进）时返回这个模块：它的角标挂在组名上 */
 export const groupModule = (g: NavGroup) => (g.items.length === 1 && g.items[0].children?.length ? g.items[0] : undefined)
 /** 页面那一行的角标：有子页面的模块，角标挂在组名上（groupModule），子页面不重复 */
 export const pageBadge = (p: NavPage, o?: Overview) => (o && !p.item.children?.length ? p.item.badge?.(o) : undefined)

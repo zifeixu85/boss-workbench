@@ -21,7 +21,7 @@ export function ProfilePanel({ settings }: { settings: Settings }) {
           <div className="truncate text-sm text-muted-foreground">{settings.business}</div>
         </div>
       </div>
-      <BasicInfoForm key={`${settings.owner}|${settings.business}|${settings.xhs_name}`} settings={settings} />
+      <BasicInfoForm key={`${settings.owner}|${settings.business}|${(settings.module_settings ?? []).map((d) => `${d.key}=${d.value}`).join('|')}`} settings={settings} />
       <div className="grid gap-2">
         <div className="text-sm font-medium">AI 读到的你</div>
         <p className="text-xs text-muted-foreground">AI 助手和 Codex 每次都先读这几份。要改，直接跟 Codex 说“更新一下我的基本情况：……”，它会改知识库里的原文。</p>

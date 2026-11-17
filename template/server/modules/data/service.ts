@@ -11,11 +11,11 @@ import { all, get, run, ROOT, logChange } from '../../db.ts'
 import { demoDate } from '../../clock.ts'
 import { BadRequest, NotFound } from '../../services/common.ts'
 import type { Alert } from '../biz/service.ts'
-import { CHANNELS, NOTE_TARGETS, targetLabel, FIELD } from './fields.ts'
+import { CHANNELS, targetLabel, FIELD } from './fields.ts'
 import { sampleTrashRows } from './batches.ts'
 import { listRules, getRule, writeRuleFile } from './rules.ts'
 import { provenance } from './origin.ts'
-import { notesState, NOTES_SOURCE } from './notes.ts'
+import { importTargets, targetById, targetOfSource } from './targets.ts'
 import { stamp, md, whenText } from './time.ts'
 
 const json = <T extends { detail?: unknown }>(r: T) => ({ ...r, detail: r.detail ? JSON.parse(String(r.detail)) : null })
@@ -32,7 +32,7 @@ export const WAY: Record<string, string> = { 平台导出: '导入文件', 飞�
 /** 提醒、命令行里用的短名字 */
 const SHORT: Record<string, string> = {
   src_douyin: '抖店经营数据', src_tmall: '天猫经营数据', src_xhs_shop: '小红书店经营数据', src_wechat: '视频号小店经营数据', src_store: '门店日报',
-  src_xhs_notes: '小红书笔记数据', src_lark: '飞书日历与妙记', src_kb: '知识库', src_rss: 'RSS 订阅', src_codex: 'Codex 定时任务',
+  src_lark: '飞书日历与妙记', src_kb: '知识库', src_rss: 'RSS 订阅', src_codex: 'Codex 定时任务',
 }
 const GRACE_MIN = 30
 /** 示例里没连真账号的来源（演示日期开着时不会再跑）：写“示例没连飞书” */
@@ -149,10 +149,12 @@ export function sources() {
     const next = nextOf(s, now)
     const live = s.kind === '知识库文件夹' ? kbNow() : null
     return {
-      ...s, ...displayOf(s, now), way: WAY[s.kind] ?? s.kind, short: SHORT[s.id] ?? s.name, rule: rule ? { id: rule.id, name: `${rule.platform} · ${rule.report}` } : null,
+      ...s, ...displayOf(s, now), way: WAY[s.kind] ?? s.kind, short: SHORT[s.id] ?? targetOfSource(s.id)?.name ?? s.name, rule: rule ? { id: rule.id, name: `${rule.platform} · ${rule.report}` } : null,
       next_text: next.text, overdue_min: next.overdue_min, next_held: next.held, auto: autoText(s, now), realtime: s.kind === '知识库文件夹',
       sample_rows: s.channel_id ? sampleTrashRows(s.channel_id) : 0,
       kb: live ? { notes: live.notes, latest: live.latest } : null,
+      // 别的模块登记的导入目标：用哪个菜单项的图标
+      nav: targetOfSource(s.id)?.nav ?? null,
       parts: s.kind === '飞书日历与妙记' ? larkParts(s.id) : [],
     }
   })
@@ -216,7 +218,7 @@ export function source(id: string) {
   if (!s) throw new NotFound('找不到这个数据源')
   return {
     ...s, strip: s.realtime ? [] : strip(s), runs: runs({ source: id, limit: 40 }), mappings: mappings(id), rules: listRules().filter((r) => r.source_id === id),
-    notes: id === NOTES_SOURCE ? notesState() : null,
+    target: targetState(id),
   }
 }
 
@@ -227,7 +229,7 @@ export type RunRow = {
   batch_status: string | null; batch_origin: string | null; batch_label: string | null; batch_file: string | null; batch_rows: number | null
 }
 export function runs({ source, limit, origin, files }: { source?: string; limit?: number | string; origin?: string; files?: boolean } = {}) {
-  return all<RunRow>(`SELECT r.*, s.name AS source_name, s.kind AS source_kind, b.status AS batch_status, b.origin AS batch_origin, b.label AS batch_label, b.file_name AS batch_file, b.rows AS batch_rows,
+  return all<RunRow>(`SELECT r.*, s.name AS source_name, s.kind AS source_kind, b.status AS batch_status, b.origin AS batch_origin, b.label AS batch_label, b.file_name AS batch_file, b.rows AS batch_rows, b.target AS batch_target,
       (SELECT platform || ' · ' || report FROM import_rules WHERE id = r.rule_id) AS rule_name
     FROM import_runs r JOIN data_sources s ON s.id = r.source_id LEFT JOIN data_batches b ON b.id = r.batch_id
     WHERE (:s IS NULL OR r.source_id = :s) AND (:o IS NULL OR r.origin = :o) AND (:files = 0 OR r.file_name IS NOT NULL) ORDER BY r.started_at DESC, r.rowid DESC LIMIT :n`,
@@ -244,20 +246,39 @@ export function mappings(sourceId?: string) {
     .map((m) => ({ ...m, target_label: targetLabel(m.target) }))
 }
 
-export const mappingTargets = () => ({ notes: NOTE_TARGETS, daily: Object.values(FIELD).map((f) => ({ value: `channel_daily.${f.key}`, label: f.label })) })
+/** 对字段时能选什么：daily 是经营每天的数；targets 按数据源列出别的模块登记的导入目标的字段 */
+export const mappingTargets = () => ({
+  daily: Object.values(FIELD).map((f) => ({ value: `channel_daily.${f.key}`, label: f.label })),
+  targets: Object.fromEntries(importTargets().map((t) => [t.source, t.fields])) as Record<string, { value: string; label: string }[]>,
+  /** 按导入目标的 id：规则页用 */
+  by_target: Object.fromEntries(importTargets().map((t) => [t.id, { writes: t.writes, nav: t.nav ?? null, fields: t.fields }])) as Record<string, { writes: string; nav: string | null; fields: { value: string; label: string }[] }>,
+})
+
+/** 这个数据源是不是别的模块登记的导入目标：是就带上它的名字、去哪看、现在能不能导；不是返回 null */
+export function targetState(sourceId: string) {
+  const t = targetOfSource(sourceId)
+  return t ? { id: t.id, name: t.name, writes: t.writes, page: t.page ?? null, how: t.how, ...t.state() } : null
+}
+/** 按确认过的对照导入（网页的“按对照导入”、命令行 import-target） */
+export function runTarget(sourceId: string, actor: string) {
+  const t = targetOfSource(sourceId)
+  if (!t) throw new NotFound('这个数据源没有登记导入目标（写它的模块没装，或者它是经营数据：经营数据用“导入文件”或“立即同步”）')
+  return t.run(actor)
+}
 
 /** 确认一条字段对照：采用建议 / 改成别的 / 不导 / 改回（回到“等你确认”，按 AI 原来的建议） */
 export function decideMapping(id: string, input: unknown, actor: string) {
   const m = get<{ id: string; source_id: string; source_field: string; target: string | null; status: string; suggested_by: string | null; suggested_target: string | null }>('SELECT * FROM field_mappings WHERE id = :id', { id })
   if (!m) throw new NotFound('找不到这条对照')
   const b = (input ?? {}) as { action?: string; target?: string | null }
-  const valid = new Set([...NOTE_TARGETS.map((t) => t.value), ...Object.keys(FIELD).map((k) => `channel_daily.${k}`)])
+  const other = targetOfSource(m.source_id)
+  const valid = new Set([...(other?.fields ?? []).map((t) => t.value), ...Object.keys(FIELD).map((k) => `channel_daily.${k}`)])
   const at = stamp()
   if (b.action === 'revert') {
     if (!m.suggested_by) throw new BadRequest('这一列原来就对好了，没有可以改回的建议')
-    if (m.source_id === NOTES_SOURCE && notesState().file?.imported_at) throw new BadRequest('已经按这套对照重新导入了：要改，先在运行记录里撤销那次导入')
+    if (other?.state().file?.imported_at) throw new BadRequest('已经按这套对照重新导入了：要改，先在运行记录里撤销那次导入')
     run(`UPDATE field_mappings SET target = :t, status = CASE WHEN :t IS NULL THEN '未匹配' ELSE 'AI 建议' END, decided_by = NULL, decided_at = NULL, updated_at = :at WHERE id = :id`, { t: m.suggested_target, at, id })
-    run(`UPDATE import_rules SET note = :n, updated_at = :at WHERE source_id = :s AND target = 'xhs_note_stats'`, { n: `「${m.source_field}」改回等你确认，对照还没定`, at, s: m.source_id })
+    if (other) run(`UPDATE import_rules SET note = :n, updated_at = :at WHERE source_id = :s AND target = :t`, { t: other.id, n: `「${m.source_field}」改回等你确认，对照还没定`, at, s: m.source_id })
     logChange('网页', 'data', m.source_id, '改回', `字段对照「${m.source_field}」改回“等你确认”`)
     return mappings(m.source_id)
   }
@@ -269,15 +290,17 @@ export function decideMapping(id: string, input: unknown, actor: string) {
   else throw new BadRequest('要说清是采用、改成别的、不导，还是改回')
   run('UPDATE field_mappings SET target = :t, status = :st, decided_by = :by, decided_at = :at, updated_at = :at WHERE id = :id', { t: target, st: status, by: actor, at, id })
   logChange('网页', 'data', m.source_id, '确认', `字段对照「${m.source_field}」→ ${targetLabel(target)}（${status === '忽略' ? '不导' : b.action === 'accept' ? '采用了建议' : '改了'}）`)
-  settleNotesRule(m.source_id)
+  settleTargetRule(m.source_id)
   return mappings(m.source_id)
 }
 
-/** 小红书笔记数据：等确认的都确认完了，就把规则换成新表头（下次按新列名导） */
-function settleNotesRule(sourceId: string) {
+/** 别的模块登记的导入目标：等确认的都确认完了，就把规则换成新表头（下次按新列名导） */
+function settleTargetRule(sourceId: string) {
+  const other = targetOfSource(sourceId)
+  if (!other) return
   const left = get<{ n: number }>("SELECT COUNT(*) AS n FROM field_mappings WHERE source_id = :s AND status IN ('AI 建议','未匹配')", { s: sourceId })?.n ?? 0
   if (left) return
-  const rule = listRules().find((r) => r.source_id === sourceId && r.target === 'xhs_note_stats')
+  const rule = listRules().find((r) => r.source_id === sourceId && r.target === other.id)
   if (!rule) return
   const maps = all<{ source_field: string; target: string | null; status: string; decided_by: string | null; decided_at: string | null }>('SELECT source_field, target, status, decided_by, decided_at FROM field_mappings WHERE source_id = :s ORDER BY id', { s: sourceId })
   const at = stamp()
@@ -285,9 +308,9 @@ function settleNotesRule(sourceId: string) {
   run(`UPDATE import_rules SET signature = :sig, mapping = :map, updated_at = :at, note = :note WHERE id = :id`, {
     id: rule.id, sig: JSON.stringify(maps.map((x) => x.source_field)), at,
     map: JSON.stringify(maps.map((x) => ({ col: x.source_field, field: x.target, how: '你选的', by: who(x.decided_by), at: x.decided_at ?? undefined }))),
-    note: `${md(at.slice(0, 10))} ${at.slice(11)} 按平台新表头改了对照（原来的曝光、阅读、新增关注改名了）`,
+    note: `${md(at.slice(0, 10))} ${at.slice(11)} 按平台新表头改了对照`,
   })
-  run("UPDATE data_sources SET note = :n WHERE id = :s AND status = '失败'", { s: sourceId, n: `字段对照 ${at.slice(11)} 确认完了、规则已换成新表头；今天这份还没重新导入，笔记数据仍停在 ${md(get<{ d: string }>('SELECT data_through AS d FROM data_sources WHERE id = :s', { s: sourceId })?.d)}。点“按新规则重新导入”就能补上` })
+  run("UPDATE data_sources SET note = :n WHERE id = :s AND status = '失败'", { s: sourceId, n: `字段对照 ${at.slice(11)} 确认完了、规则已换成新表头；今天这份还没重新导入，数据仍停在 ${md(get<{ d: string }>('SELECT data_through AS d FROM data_sources WHERE id = :s', { s: sourceId })?.d)}。点“按新规则重新导入”就能补上` })
   writeRuleFile(getRule(rule.id))
 }
 
@@ -321,7 +344,7 @@ export function rulesView() {
   return listRules().map((r) => {
     const s = r.source_id ? src.get(r.source_id) : undefined
     const changed = !!s && r.status === '在用' && s.pending > 0
-    return { ...r, alert: changed ? { kind: '表头变了' as const, pending: s!.pending, source_id: s!.id, source_display: s!.display } : null }
+    return { ...r, mapping: r.mapping.map((m) => ({ ...m, label: targetLabel(m.field) })), writes: targetById(r.target)?.writes ?? null, nav: targetById(r.target)?.nav ?? null, alert: changed ? { kind: '表头变了' as const, pending: s!.pending, source_id: s!.id, source_display: s!.display } : null }
   })
 }
 export const ruleView = (id: string) => {
