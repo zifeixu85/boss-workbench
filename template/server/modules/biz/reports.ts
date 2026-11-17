@@ -52,7 +52,7 @@ const localStamp = (iso: string) => {
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`
 }
 
-/** 写回一份日报：同一天已有的就替换（一天只留一份），并记一笔“最近改动” */
+/** 写回一份日报：同一天已有的就替换（一天只留一份），并在“最近改动”里留一条 */
 export function setReport(input: unknown, actor: Actor | string) {
   const data = reportInput.parse(input)
   const d = data.date ?? latestDate()

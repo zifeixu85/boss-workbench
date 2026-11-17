@@ -30,7 +30,7 @@ function Box({ label, value, sub }: { label: string; value: string; sub?: string
 type Row = { label: string; wan: number; sub: string; light?: boolean }
 
 export function ClientOrders({ d }: { d: ClientProfile }) {
-  if (!d.orders.length) return <EmptyNote>还没有订单。{d.deals.some((x) => !['已签约', '没成'].includes(x.stage)) ? '在谈的单签下来后在这里记，累计消费会自动算。' : '签单后在这里记一笔，累计消费会自动算。'}</EmptyNote>
+  if (!d.orders.length) return <EmptyNote>还没有订单。{d.deals.some((x) => !['已签约', '没成'].includes(x.stage)) ? '在谈的单签下来后在这里记，累计消费会自动算。' : '签单后在这里记一条，累计消费会自动算。'}</EmptyNote>
   const s = d.stats
   const t = todayStr()
   const done = d.orders.filter((o) => o.status === '已完成' && o.amount > 0 && o.date <= t && !o.room_fee)

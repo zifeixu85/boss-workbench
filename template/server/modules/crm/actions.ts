@@ -9,7 +9,7 @@ import { findingAppend, findingPreview, kbDecisionNote, type FindingInput } from
 import { careInput, careUpdate, decisionInput, followInput, promiseInput, promiseUpdate, stageInput } from './schema.ts'
 import { identity } from '../../services/identity.ts'
 
-/** 记一笔改动留痕 */
+/** 留一条改动记录 */
 export function recordEdit(clientId: string, entity: '阶段' | '答应的事' | '下次跟进' | '关怀' | '商机', entityId: string | null, oldValue: string | null, newValue: string | null, reason: string, actor: Actor) {
   run(`INSERT INTO crm_edits (client_id, entity, entity_id, old_value, new_value, reason, actor, at)
        VALUES (:cid, :entity, :eid, :old, :new, :reason, :actor, :at)`, { cid: clientId, entity, eid: entityId, old: oldValue, new: newValue, reason, actor, at: nowIso() })
@@ -154,7 +154,7 @@ export function updateCare(id: string, input: unknown, actor: Actor) {
   const c = findClient(x.client_id)
   const at = nowIso()
   const status = data.status ?? x.status
-  // 老板改了草稿：来源后面记一笔“张总改过”（设置里的称呼），不把改过的话还算成 AI 写的
+  // 老板改了草稿：来源后面注明“张总改过”（设置里的称呼），不把改过的话还算成 AI 写的
   const edited = !!data.message && data.message !== x.message
   const me = identity().owner
   const author = edited && !/改过$|改过 ·/.test(x.author ?? '') ? `${x.author ?? me} · ${me}改过` : x.author

@@ -15,8 +15,8 @@ export default function FollowPage() {
   const { data } = useApi<FollowUps>('/follow')
   return (
     <>
-      <PageHeader eyebrow="客户" title="跟进清单" desc="三件事：到日子该联系的客户、我在等别人回复的、别人在等我交付的。记一笔之后，客户会从“该联系了”里移走。"
-        actions={<Button onClick={() => ov.openNew('log')}><MessageSquarePlus />记一笔跟进</Button>}>
+      <PageHeader eyebrow="客户" title="跟进清单" desc="三件事：到日子该联系的客户、我在等别人回复的、别人在等我交付的。写一条跟进之后，客户会从“该联系了”里移走。"
+        actions={<Button onClick={() => ov.openNew('log')}><MessageSquarePlus />写一条跟进</Button>}>
         <SubTabs items={CLIENT_TABS} />
       </PageHeader>
       <PageBody>
@@ -30,7 +30,7 @@ export default function FollowPage() {
                     <StatusBadge value={c.overdue > 0 ? `过了 ${c.overdue} 天` : c.overdue === 0 ? '今天' : relDay(c.next_follow)} tone={c.overdue > 0 ? 'warn' : 'neutral'} />
                   </div>
                   <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">上次 {c.last_contact ? shortDate(c.last_contact) : '—'}：{c.last_summary ?? '还没有沟通记录'}</p>
-                  <div className="mt-2 flex gap-2"><Button size="xs" onClick={() => ov.openNew('log', { for: c.id })}>记一笔</Button><Button size="xs" variant="outline" onClick={() => ov.openNew('event', { for: c.id })}>约时间</Button></div>
+                  <div className="mt-2 flex gap-2"><Button size="xs" onClick={() => ov.openNew('log', { for: c.id })}>写一条跟进</Button><Button size="xs" variant="outline" onClick={() => ov.openNew('event', { for: c.id })}>约时间</Button></div>
                 </div>
               ))}
               {!data.due.length && <p className="px-3 py-6 text-center text-sm text-muted-foreground">没有到期要联系的客户</p>}

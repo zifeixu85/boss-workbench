@@ -39,9 +39,18 @@ node scripts/codex-plugin.mjs install
 
 - `workbench_capabilities`：页面来自菜单（`src/app/nav.ts`），模块的页面、对象和命令来自模块的 `module.json`；模块开关收起来的不列，它的命令也不读不写（要用先请老板打开模块开关）。
 - `workbench_open`：把页面或对象换成带 `?embed=1` 的地址（例：`http://127.0.0.1:4517/projects?embed=1&project=p_spring`）。项目、客户先核对存在再给地址（认名字和简称）；工作台没在运行会先在后台拉起来（日志在 `程序/日志/服务.log`）。
+- `workbench_edit_mode`：切换“只改内容 / 放开改”，要带老板的原话（见下面“只改内容”）。
 - `workbench_read`、`workbench_write`、`workbench_apply`、`workbench_help`、`kb_list`、`kb_read`、`kb_search`：读写工作台（走命令行 `server/cli.ts`，和网页同一套规则，记进“最近改动”，操作人是 Codex）、只读查知识库。
 
 所以**工作台装了新模块、加了新页面，不用重装插件**：新开一个对话就带上了。怎么登记见 [加减模块.md](加减模块.md) 的“让 Codex 也会用”。
+
+## 只改内容（默认带上）
+
+搭建时最后写上 `settings-set --edit content`（2026-11-17 定，课上第一天就是这样）：Codex 只更新工作台里的内容（进展、待办、日程、项目、收件箱、资讯），不动工作台本身，不装、不换、不拿掉模块，不开关模块，不改页面、菜单、功能和程序文件。`workbench_capabilities` 里的 `edit_mode` 是 `content` 就是这个状态；命令行 `modules --on/--off`、`settings-set --modules`、`node scripts/module.mjs add/update/remove` 这时会停下并说怎么放开。
+
+- 老板说“工作台放开改页面”：Codex 调 `workbench_edit_mode`（`mode="open"`，带他的原话），或在程序文件夹里运行 `node server/cli.ts settings-set --edit open`，再去装模块、改页面。
+- 老板说“工作台回到只改内容”：`mode="content"`（`--edit content`）。
+- 以前搭的工作台没写过这一项，算放开。老板自己在网页“设置 → 模块”里开关模块不受它管。
 
 ## 更新进展：先拆给老板核对，确认后再写
 

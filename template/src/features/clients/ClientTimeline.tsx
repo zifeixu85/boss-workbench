@@ -1,7 +1,7 @@
 // “往来和答应”页签：最上面是还没做到的答应（标黄的当场能定），下面是往来时间线（日期、渠道、和谁、说了什么、答应了什么、对方的状态和顾虑），
 // 最下面折起来的是做到了的答应和改动留痕。归属：大客户模块
 // 第二轮：只有具体原件（电话纪要、聊天记录）才挂来源链接；建库导入的在时间线顶上说一句。
-// 第三轮（产品评审 #10 #24）：页签里不再重复“记一笔跟进”“提取进来”两个按钮（头部、蓝条里有）；没有没做到的答应时收成一行灰字；
+// 第三轮（产品评审 #10 #24）：页签里不再重复“写一条跟进”“提取进来”两个按钮（头部、蓝条里有）；没有没做到的答应时收成一行灰字；
 //   时间线里还没做到、上面已经列着的答应只写一句“见上方”，不再把日期、状态再说一遍。
 import { shortDate, weekday } from '@/lib/format'
 import { StatusBadge } from '@/components/status'
@@ -37,7 +37,7 @@ export function ClientTimeline({ d, openPromises }: { d: ClientProfile; openProm
           <span className="text-xs text-muted-foreground">新的在上{lastInterview ? ` · ${shortDate(lastInterview)}以前的 ${fromInterview.length} 条来自建库采访（${owner}口述）` : ''}</span>
           {fromInterview[0]?.source_file && <SourceLink path={fromInterview[0].source_file} label="看采访原文" className="ml-auto" />}
         </div>
-        {!d.interactions.length ? <EmptyNote>还没有往来记录。聊完随手“记一笔跟进”，或者把聊天、纪要丢进知识库收件箱让 Codex 提取。</EmptyNote> : (
+        {!d.interactions.length ? <EmptyNote>还没有往来记录。聊完随手“写一条跟进”，或者把聊天、纪要丢进知识库收件箱让 Codex 提取。</EmptyNote> : (
           <ol className="relative ml-[68px] border-l pl-5">
             {d.interactions.map((i) => (
               <li key={i.id} className="relative mb-5 last:mb-1">

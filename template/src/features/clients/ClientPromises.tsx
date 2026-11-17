@@ -55,7 +55,7 @@ function ConflictLine({ p, clientName }: { p: ClientPromise; clientName: string 
 export function OpenPromises({ d }: { d: ClientProfile }) {
   const [dlg, setDlg] = useState<{ p: ClientPromise; mode: '已兑现' | '取消' | '改日期' } | null>(null)
   const open = d.promises.filter((p) => p.status === '待兑现')
-  if (!open.length) return <p className="rounded-lg border border-dashed px-3 py-3 text-[13px] text-muted-foreground">没有答应了还没做的事。聊天里答应对方的事（发效果图、寄样品、哪天送到），记一笔跟进或从新材料提取时会记进来。</p>
+  if (!open.length) return <p className="rounded-lg border border-dashed px-3 py-3 text-[13px] text-muted-foreground">没有答应了还没做的事。聊天里答应对方的事（发效果图、寄样品、哪天送到），写一条跟进或从新材料提取时会记进来。</p>
   return (
     <>
       <ul className="grid gap-2">

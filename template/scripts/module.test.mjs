@@ -101,6 +101,27 @@ test('module.json 登记写入命令和能打开的对象：进服务端清单�
   bad({ open: [{ key: 'memo-a', label: '甲', to: '/memo/a' }, { key: 'memo-a', label: '乙', to: '/memo/b' }] }, /memo-a 写了两次/)
 })
 
+test('只改内容（数据库里 edit_mode=content）：不装、不换、不拿掉模块，说清怎么放开；放开后照常装', async () => {
+  const db = process.env.WORKBENCH_DB
+  assert.ok(!existsSync(db), '这组测试开始时还没有数据库')
+  mkdirSync(dirname(db), { recursive: true })
+  const { DatabaseSync } = await import('node:sqlite')
+  const d = new DatabaseSync(db)
+  d.exec("CREATE TABLE settings (key TEXT PRIMARY KEY, value TEXT); INSERT INTO settings VALUES ('edit_mode', 'content')")
+  d.close()
+  try {
+    const app = makeApp('app-locked')
+    assert.equal(M.editLocked(app), true)
+    await assert.rejects(M.addModule('memo', { app, from: makePack(), noBuild: true }), /现在是“只改内容”[\s\S]*工作台放开改页面/)
+    await assert.rejects(M.removeModule('memo', { app, noBuild: true }), /只改内容/)
+    assert.ok(!existsSync(join(app, 'server/modules/memo')), '一个文件都没拷')
+    const d2 = new DatabaseSync(db)
+    d2.exec("UPDATE settings SET value = 'open' WHERE key = 'edit_mode'")
+    d2.close()
+    assert.equal(M.editLocked(app), false)
+  } finally { rmSync(db, { force: true }) }
+})
+
 test('程序里已经有、内容又不一样的文件：不装，列出来', async () => {
   const app = makeApp('app2')
   put(join(app, 'server/modules/memo/routes.ts'), '// 老板自己写的\n')

@@ -49,7 +49,9 @@ export type Settings = { nav_mode: NavMode; theme: Theme; mobile_nav: 'tabs' | '
   /** 今日页重点卡的设置原值（逗号隔开；空 = 默认） */
   home?: string
   /** 页面里的 AI 助手开没开（默认关；老服务没有这个字段 = 关） */
-  assistant_on?: boolean }
+  assistant_on?: boolean
+  /** 只改内容（content）还是放开改（open），见 server/services/edit-mode.ts */
+  edit_mode?: 'content' | 'open' }
 
 /** 提醒的设置（server/reminders/settings.ts）；改的时候 PATCH /settings 用 remind_on、notify_at、quiet_start、quiet_end、remind_demo_system */
 export type RemindSettings = { on: boolean; notify_at: string; quiet_start: string; quiet_end: string; demo_system: boolean }

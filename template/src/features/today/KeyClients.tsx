@@ -33,7 +33,7 @@ export function KeyClients({ items }: { items: FocusClient[] }) {
           </button>
           <div className="flex shrink-0 flex-col items-end gap-1.5">
             <When date={c.next_follow} />
-            <Button size="icon-sm" variant="ghost" aria-label={`给${c.name}记一笔跟进`} onClick={() => ov.openNew('log', { for: c.id })}><MessageSquarePlus /></Button>
+            <Button size="icon-sm" variant="ghost" aria-label={`给${c.name}写一条跟进`} onClick={() => ov.openNew('log', { for: c.id })}><MessageSquarePlus /></Button>
           </div>
         </div>
       ))}

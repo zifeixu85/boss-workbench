@@ -11,7 +11,7 @@ import { resolve } from "node:path";
 import { cli, die, writeTextAtomic, localStamp } from "./lib.mjs";
 
 const START = "<!-- 手机版记录 开始：由 boss-workbench 维护，别手改这两行之间 -->";
-// 并进 boss-workbench 以前写的记录（开始标记写的是 boss-deploy）照样读；下次记一笔时原地换成新标记
+// 并进 boss-workbench 以前写的记录（开始标记写的是 boss-deploy）照样读；下次写记录时原地换成新标记
 const START_RE = /<!-- 手机版记录 开始：由 boss-(?:workbench|deploy) 维护，别手改这两行之间 -->/;
 const END = "<!-- 手机版记录 结束 -->";
 const USAGE = `用法：

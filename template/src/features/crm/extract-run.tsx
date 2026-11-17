@@ -102,7 +102,7 @@ export function RunView({ id, onStarted, onBack }: { id: string; onStarted: (id:
       <section className="grid min-w-0 gap-3 rounded-xl border border-warn/30 bg-warn-soft/60 px-6 py-8 shadow-paper">
         <h2 className="flex items-center gap-2 text-[16px] font-semibold text-warn"><TriangleAlert className="size-5" />{x.status === '超时' ? `Codex ${x.timeout_s} 秒内没做完` : x.status === '不可用' ? '这台电脑上用不了 Codex' : 'Codex 没提取成'}</h2>
         <p className="text-[13.5px]">{x.error}</p>
-        <p className="text-[12.5px] text-muted-foreground">什么都没写进去。可以再提取一次；材料太长就只粘贴关键的几段；实在不行，先“记一笔跟进”手动记。</p>
+        <p className="text-[12.5px] text-muted-foreground">什么都没写进去。可以再提取一次；材料太长就只粘贴关键的几段；实在不行，先“写一条跟进”手动记。</p>
         <div className="flex flex-wrap items-center gap-2">
           <Button disabled={busy || x.status === '不可用'} onClick={retry}>{busy ? <LoaderCircle className="animate-spin" /> : <RefreshCw />}再提取一次</Button>
           {x.prepared && x.source_path && <Button variant="outline" disabled={busy} onClick={() => again(() => startPrepared(x.source_path!))}>用事先跑好的结果（不是现场生成）</Button>}

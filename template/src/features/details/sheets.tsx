@@ -33,7 +33,7 @@ export function EventSheet({ id }: { id: string }) {
   return (
     <DetailSheet open onClose={() => ov.closeDetail('event')} eyebrow="日程" title={e?.title}
       meta={e && <><span className="inline-flex h-5 items-center rounded-md px-1.5 text-[12px] font-medium" style={{ background: color?.bg, color: color?.text }}>{e.kind}</span>{e.source !== '手动' && !synced && <span>来自 {e.source}</span>}</>}
-      actions={e && <>{!synced && <EditToggle editing={editing} onChange={setEditing} />}{e.client_id && <Button size="sm" variant="outline" onClick={() => ov.openNew('log', { for: e.client_id! })}>会后记一笔跟进</Button>}</>}>
+      actions={e && <>{!synced && <EditToggle editing={editing} onChange={setEditing} />}{e.client_id && <Button size="sm" variant="outline" onClick={() => ov.openNew('log', { for: e.client_id! })}>会后写一条跟进</Button>}</>}>
       {e && (synced || !editing) && (
         <div className="grid gap-5">
           {synced && (

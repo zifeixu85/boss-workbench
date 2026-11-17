@@ -68,7 +68,7 @@ export function FollowDialog({ client, onClose }: { client: { id: string; name: 
       <FormField label="为什么改（可不写）"><TextInput value={reason} onChange={(e) => setReason(e.target.value)} placeholder="例如：陈静说合伙人 11/2 才开会" /></FormField>
       <p className="flex items-start gap-2 rounded-lg bg-accent/60 px-3 py-2 text-[13px] text-accent-foreground">
         <BellRing className="mt-0.5 size-4 shrink-0" />
-        {date ? `保存后有一条待办“跟进${client.name}”，${shortDate(date)}那天出现在今日页；改日期它跟着改。到了那天记一笔跟进，它自动完成（提前聊过、日子没变，它还留着）。` : '日期清空后，之前自动建的跟进待办会取消。'}
+        {date ? `保存后有一条待办“跟进${client.name}”，${shortDate(date)}那天出现在今日页；改日期它跟着改。到了那天写一条跟进，它自动完成（提前聊过、日子没变，它还留着）。` : '日期清空后，之前自动建的跟进待办会取消。'}
       </p>
     </FormDialog>
   )

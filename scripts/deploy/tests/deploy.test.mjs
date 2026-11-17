@@ -421,7 +421,7 @@ test("改名以前留下的东西照样认：旧快照、旧页面、旧记录�
   const c = run("check_dist.mjs", [join(d, "dist-mobile"), "--terms", join(d, "t.json"), "--snapshot", join(d, "old.json"), "--json"]);
   assert.equal(c.status, 0, c.stdout);
   assert.ok(!JSON.parse(c.stdout).warnings.join("").includes("没有快照指纹"));
-  // 旧版写的记录：开始标记是 boss-deploy 的，照样读得出在线；再记一笔时原地换成新标记，不多出一段
+  // 旧版写的记录：开始标记是 boss-deploy 的，照样读得出在线；再写一次记录时原地换成新标记，不多出一段
   const file = join(d, "手机版", "记录.md");
   const R = (...a) => run("record.mjs", [...a, "--file", file]);
   const p = JSON.parse(R("reserve", "--env", "demo-env", "--json").stdout).path;

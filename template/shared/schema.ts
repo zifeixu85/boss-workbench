@@ -160,6 +160,8 @@ export const settingsInput = z.object({
   kb_name: z.string().trim().max(12).optional(),
   /** 今日页顶上的重点卡（shared/home.ts 的 id，逗号隔开；空 = 默认） */
   home: z.string().trim().max(80).optional(),
+  /** 只改内容（content）还是放开改（open）：server/services/edit-mode.ts。搭建时默认 content */
+  edit_mode: z.enum(['content', 'open']).optional(),
   /** AI 助手开关（设置页）：'0' 关；没设过 = 开（本机 Codex 能用时） */
   assistant_on: z.enum(['0', '1']).optional(),
   // 提醒（2026-10-12 加，见 server/reminders/）：总开关、每天看汇总的时间、免打扰时段、演示模式下弹不弹系统通知

@@ -66,7 +66,7 @@ export default function TodayPage() {
   return (
     <>
       <PageHeader eyebrow={fullDate(o.date)} title={`${greet()}，${s?.owner ?? '老板'}`} desc={digest(o)}
-        actions={<>{has('tasks') && <Button variant="outline" onClick={() => ov.openNew('event')}><CalendarPlus />日程</Button>}{has('clients') && <Button onClick={() => ov.openNew('log')}><MessageSquarePlus />记一笔跟进</Button>}</>} />
+        actions={<>{has('tasks') && <Button variant="outline" onClick={() => ov.openNew('event')}><CalendarPlus />日程</Button>}{has('clients') && <Button onClick={() => ov.openNew('log')}><MessageSquarePlus />写一条跟进</Button>}</>} />
       <PageBody className="grid gap-5">
         {o.module_errors.length > 0 && (
           <Alert className="border-danger/30 bg-danger-soft/50">

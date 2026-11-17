@@ -19,7 +19,7 @@ const PARAMS: [string, string][] = [
   ['?view=board ?week=2026-W41', '页面自己的视图、选中的周，也写进地址栏'],
 ]
 
-const KEYS: [string[], string][] = [[['⌘', 'K'], '全局搜索'], [['T'], '新建待办'], [['E'], '新建日程'], [['L'], '记一笔跟进'], [['C'], '新建客户'], [['N'], '随手记'], [['⌘', '↵'], '编辑框里保存'], [['Esc'], '关闭抽屉 / 弹窗']]
+const KEYS: [string[], string][] = [[['⌘', 'K'], '全局搜索'], [['T'], '新建待办'], [['E'], '新建日程'], [['L'], '写一条跟进'], [['C'], '新建客户'], [['N'], '随手记'], [['⌘', '↵'], '编辑框里保存'], [['Esc'], '关闭抽屉 / 弹窗']]
 
 function MockSheet({ title, children }: { title: string; children: React.ReactNode }) {
   return (

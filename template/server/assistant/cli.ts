@@ -16,6 +16,7 @@ import { getProject, listProjects } from '../services/projects.ts'
 import { findClient } from '../services/clients.ts'
 import { getEvent, getTodo } from '../services/schedule.ts'
 import { readKb } from '../services/kb.ts'
+import { editMode, editModeText } from '../services/edit-mode.ts'
 import { OpenError, allTargets, buildCapabilities, resolveOpen, type CapabilityInput, type Lookup, type NavLike } from './capabilities.ts'
 import { ensureRunning, recordedPort, wantedPort } from './launch.ts'
 
@@ -93,7 +94,9 @@ export async function runAssistantCli(argv: string[]): Promise<number> {
   if (cmd === 'capabilities') {
     const c = buildCapabilities(input)
     const port = recordedPort() ?? wantedPort()
-    out({ workbench: input.business, owner: input.owner, url: `http://127.0.0.1:${port}`, ...c }, capabilitiesText(c, input))
+    const mode = editMode()
+    out({ workbench: input.business, owner: input.owner, url: `http://127.0.0.1:${port}`, edit_mode: mode, edit_rule: editModeText(mode), ...c },
+      `${capabilitiesText(c, input)}\n\n现在：${editModeText(mode)}`)
     return 0
   }
   // open：两个词 = 对象（种类 + 编号或名字，名字里有空格也行）；一个词 = 页面

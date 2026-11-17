@@ -120,7 +120,7 @@ CREATE TABLE inbox (
   created_at TEXT NOT NULL, done_at TEXT, result TEXT
 );
 
--- 谁在什么时候改了什么：网页、Codex（命令行）、导入脚本都记一笔
+-- 谁在什么时候改了什么：网页、Codex（命令行）、导入脚本都留一条记录
 CREATE TABLE changes (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   at TEXT NOT NULL, actor TEXT NOT NULL,

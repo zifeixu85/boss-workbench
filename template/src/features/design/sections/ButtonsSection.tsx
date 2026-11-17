@@ -92,7 +92,7 @@ export function ButtonsSection() {
       </div>
 
       <Rules items={[
-        '按钮上的字是动词：新建待办、记一笔跟进、登记回款。不要写“确定”“提交”。',
+        '按钮上的字是动词：新建待办、写一条跟进、登记回款。不要写“确定”“提交”。',
         '危险操作（删除、清空）用 destructive，并弹出 AlertDialog 二次确认。',
         <>标签只用 <Code>StatusBadge</Code>；不要用 shadcn 的 Badge 自己配色，否则同一个词在两处颜色不一样。</>,
         '颜色之外一定有文字。只有颜色没有字的小圆点，旁边要跟说明。',

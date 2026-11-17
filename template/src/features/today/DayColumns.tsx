@@ -53,7 +53,7 @@ export function SideColumn({ o }: { o: Overview }) {
               <div className="truncate text-xs text-muted-foreground">{c.last_summary ?? '还没有沟通记录'}</div>
             </button>
             <StatusBadge value={c.overdue > 0 ? `过了 ${c.overdue} 天` : c.overdue === 0 ? '今天' : relDay(c.next_follow)} tone={c.overdue > 0 ? 'warn' : 'neutral'} />
-            <Button size="icon-sm" variant="ghost" aria-label={`给${c.name}记一笔`} onClick={() => ov.openNew('log', { for: c.id })}><MessageSquarePlus /></Button>
+            <Button size="icon-sm" variant="ghost" aria-label={`给${c.name}写一条跟进`} onClick={() => ov.openNew('log', { for: c.id })}><MessageSquarePlus /></Button>
           </div>
         ))}
         {!others.length && <p className="px-3 py-2 text-sm text-muted-foreground">没有别的要联系的人</p>}

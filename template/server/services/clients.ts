@@ -88,7 +88,7 @@ export function updateClient(id: string, input: unknown, actor: Actor) {
   return findClient(before.id)
 }
 
-/** 记一笔跟进：写沟通记录，同时更新“上次联系”“下次跟进”和“下一步”。
+/** 写一条跟进：写沟通记录，同时更新“上次联系”“下次跟进”和“下一步”。
  *  E5 修 #4：没填新的下次跟进、而原来约的日子已经到了（≤ 这次沟通的日期），就清空，客户从“该联系了”里移走；
  *  填了“下一步”同步到客户档案（列表、抽屉、今日卡片读的是 clients.next_step）；自动跟进待办算完成，有新日期再建一条。 */
 export function logInteraction(input: unknown, actor: Actor) {

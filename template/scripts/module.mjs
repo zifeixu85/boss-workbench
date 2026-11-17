@@ -349,8 +349,19 @@ function build(app) {
   if (r.status !== 0) fail(`网页没构建成功，模块的代码可能和这个工作台对不上：\n${`${r.stdout ?? ''}${r.stderr ?? ''}`.trim().split('\n').slice(-15).join('\n')}`)
 }
 
+/** “只改内容”（server/services/edit-mode.ts）：数据库里 edit_mode=content 时不装、不换、不拿掉模块。没有数据库、读不了的算放开 */
+export function editLocked(app = APP) {
+  if (!existsSync(DB_OF(app))) return false
+  const r = spawnSync(process.execPath, ['-e', "const{DatabaseSync}=require('node:sqlite');const d=new DatabaseSync(process.argv[1],{readOnly:true});try{process.stdout.write(d.prepare(\"SELECT value FROM settings WHERE key='edit_mode'\").get()?.value==='content'?'1':'0')}catch{process.stdout.write('0')}", DB_OF(app)], { encoding: 'utf8' })
+  return r.stdout === '1'
+}
+function assertUnlocked(app, what) {
+  if (editLocked(app)) fail(`现在是“只改内容”：工作台里的事照常更新，${what}这类改工作台本身的事先不做。老板要改，请他说一句“工作台放开改页面”（在程序文件夹里运行 node server/cli.ts settings-set --edit open），再来一次；改完想收回，说“工作台回到只改内容”`)
+}
+
 export async function addModule(id, o = {}) {
   const app = o.app ?? APP
+  assertUnlocked(app, '装模块')
   const lock = lockOf(app)
   if (lock.modules[id]) fail(`“${lock.modules[id].name ?? id}”已经装了。要换成新版用 update ${id}`)
   if (existsSync(join(app, MOD_DIR, id))) fail(`程序里已经有 modules/${id} 了（自己写的模块？）。换一个编号，或者先挪走它`)
@@ -404,6 +415,7 @@ function seedRun(app, id) {
 
 export async function updateModule(id, o = {}) {
   const app = o.app ?? APP
+  assertUnlocked(app, '换新版模块')
   const lock = lockOf(app)
   const old = lock.modules[id]
   if (!old) fail(`还没装“${id}”。要装用 add ${id}`)
@@ -431,6 +443,7 @@ export async function updateModule(id, o = {}) {
 
 export async function removeModule(id, o = {}) {
   const app = o.app ?? APP
+  assertUnlocked(app, '拿掉模块')
   const lock = lockOf(app)
   const cur = lock.modules[id]
   if (!cur) fail(`没装“${id}”这个模块（自己写在程序里的模块不归这个命令管）`)

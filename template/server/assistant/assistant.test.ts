@@ -12,7 +12,7 @@ process.env.WORKBENCH_DB = join(dir, 'wb.db')
 process.env.WORKBENCH_NO_START = '1' // workbench_open 只给地址，不真的起服务
 process.env.PORT = '4599'
 process.env.DEMO_TODAY = 'off'
-const { handle, TOOL_NAMES, WRITE_COMMANDS, planFingerprint } = await import('./mcp.ts')
+const { handle, TOOL_NAMES, WRITE_COMMANDS, planFingerprint, runCli } = await import('./mcp.ts')
 const { codexArguments, featureArguments, buildPrompt } = await import('./runner.ts')
 test.after(() => rmSync(dir, { recursive: true, force: true }))
 
@@ -24,7 +24,7 @@ test('工具清单：两个入口工具排最前，加上工作台和知识库�
   const r = await handle({ jsonrpc: '2.0', id: 1, method: 'tools/list' }) as { result: { tools: { name: string; annotations: { readOnlyHint: boolean } }[] } }
   assert.deepEqual(r.result.tools.map((t) => t.name), TOOL_NAMES)
   assert.deepEqual(TOOL_NAMES.slice(0, 2), ['workbench_capabilities', 'workbench_open'])
-  assert.deepEqual(r.result.tools.filter((t) => !t.annotations.readOnlyHint).map((t) => t.name), ['workbench_write', 'workbench_apply'])
+  assert.deepEqual(r.result.tools.filter((t) => !t.annotations.readOnlyHint).map((t) => t.name), ['workbench_write', 'workbench_apply', 'workbench_edit_mode'])
   assert.ok(!(WRITE_COMMANDS as readonly string[]).includes('settings-set'))
   assert.ok(!(WRITE_COMMANDS as readonly string[]).some((c) => c.startsWith('import')))
 })
@@ -111,6 +111,38 @@ test('模块收起来了：它的命令不读不写，清单里它的步骤也�
     assert.ok(!(await call('workbench_read', { command: 'projects' })).result.isError, '开着的模块照常')
   } finally { toggleModules(['clients'], [], 'Codex') }
   assert.ok(!(await call('workbench_read', { command: 'clients' })).result.isError)
+})
+
+test('只改内容：切换要带老板原话；锁住时开关模块、重选模块都停下，内容照常写；放开后照常', async () => {
+  const { getSettings } = await import('../services/today.ts')
+  assert.equal(getSettings().edit_mode, 'open', '没写过 = 放开（以前搭的工作台升级上来不会突然锁住）')
+  const silent = await call('workbench_edit_mode', { mode: 'content', confirmation: ' ' })
+  assert.equal(silent.result.isError, true)
+  assert.match(silent.result.content[0].text, /要有老板的原话/)
+  assert.deepEqual(await data('workbench_edit_mode', { mode: 'content', confirmation: '先只改内容' }), { edit_mode: 'content' })
+  try {
+    const caps = await data('workbench_capabilities', {})
+    assert.equal(caps.edit_mode, 'content')
+    assert.match(caps.edit_rule, /工作台放开改页面/)
+    for (const args of [['modules', '--on', 'biz'], ['settings-set', '--modules', 'clients']]) {
+      const r = await runCli(args)
+      assert.equal(r.ok, false, args.join(' '))
+      assert.match(r.text, /现在是“只改内容”[\s\S]*工作台放开改页面/)
+    }
+    assert.equal((await runCli(['modules'])).ok, true, '只看模块开关照常')
+    assert.ok(!(await call('workbench_write', { command: 'todo-add', args: ['只改内容时也能加待办'] })).result.isError, '内容照常写')
+    assert.equal((await runCli(['settings-set', '--theme', 'wood'])).ok, true, '配色这类设置照常改')
+  } finally {
+    assert.deepEqual(await data('workbench_edit_mode', { mode: 'open', confirmation: '工作台放开改页面' }), { edit_mode: 'open' })
+  }
+  const on = await runCli(['modules', '--on', 'biz'])
+  assert.equal(on.ok, true, on.text)
+  assert.equal((await runCli(['modules', '--off', 'biz,data'])).ok, true)
+  // 搭建时：同一条命令先重选模块、再锁上；锁着时重选模块要在同一条命令里放开
+  assert.equal((await runCli(['settings-set', '--modules', 'clients', '--edit', 'content'])).ok, true)
+  assert.equal(getSettings().edit_mode, 'content')
+  assert.equal((await runCli(['settings-set', '--modules', 'clients', '--edit', 'open'])).ok, true)
+  assert.equal(getSettings().edit_mode, 'open')
 })
 
 test('页面里的 AI 助手默认关着', async () => {

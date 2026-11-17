@@ -63,7 +63,7 @@ export function DemoActions({ editing, onChange }: { editing: boolean; onChange:
   return (
     <>
       <EditToggle editing={editing} onChange={onChange} />
-      {!editing && <Button size="sm" variant="outline" onClick={() => toast('实际页面会打开“记一笔跟进”弹窗')}><MessageCircleMore />记一笔跟进</Button>}
+      {!editing && <Button size="sm" variant="outline" onClick={() => toast('实际页面会打开“写一条跟进”弹窗')}><MessageCircleMore />写一条跟进</Button>}
     </>
   )
 }

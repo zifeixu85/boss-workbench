@@ -22,7 +22,7 @@
   var R = {};
 
   R.today = function (d) {
-    return '<div class="pv-h"><div><small>' + esc(d.date) + '</small><b>' + esc(d.greeting) + '</b></div><span class="pv-btn">记一笔</span></div>' +
+    return '<div class="pv-h"><div><small>' + esc(d.date) + '</small><b>' + esc(d.greeting) + '</b></div><span class="pv-btn">写一条跟进</span></div>' +
       (d.focus ? '<div class="pv-focus"><div><small>现在最该处理的一件事</small><b>' + esc(d.focus.title) + '</b><small>' + esc(d.focus.text) + '</small></div></div>' : '') +
       '<div class="pv-kpis">' + list(d.kpis, function (k) {
         return '<div class="pv-kpi' + tone(k.tone) + '"><small>' + esc(k.label) + '</small><b>' + esc(k.value) + '<em>' + esc(k.unit) + '</em></b><i>' + esc(k.note) + '</i></div>';
@@ -47,7 +47,7 @@
 
   R.clients = function (d) {
     var det = d.detail || {};
-    return '<div class="pv-h"><div><small>客户</small><b>客户跟进</b></div><span class="pv-btn">记一笔跟进</span></div>' +
+    return '<div class="pv-h"><div><small>客户</small><b>客户跟进</b></div><span class="pv-btn">写一条跟进</span></div>' +
       '<div class="pv-board">' + list(d.stages, function (s) {
         return '<div class="pv-col"><h5>' + esc(s.name) + ' · ' + (s.items || []).length + '</h5>' + list(s.items, function (c) {
           return '<div class="pv-cc"><b>' + esc(c.name) + '</b><small>' + esc(c.meta) + '</small><span class="pv-tag' + tone(c.tone) + '">' + esc(c.when) + '</span></div>';

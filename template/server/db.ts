@@ -106,7 +106,7 @@ export function localDate(d = now()) {
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`
 }
 
-/** 每次写入都记一笔，网页“最近改动”和撤回都靠它 */
+/** 每次写入都留一条记录，网页“最近改动”和撤回都靠它 */
 export function logChange(actor: string, entity: string, entityId: string, action: string, summary: string) {
   run('INSERT INTO changes (at, actor, entity, entity_id, action, summary) VALUES (:at, :actor, :entity, :id, :action, :summary)', {
     at: nowIso(), actor, entity, id: entityId, action, summary,

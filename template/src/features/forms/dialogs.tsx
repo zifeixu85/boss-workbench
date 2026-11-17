@@ -135,7 +135,7 @@ export function LogDialog({ onClose, forId, text }: Props) {
     (d) => api.post('/interactions', d), '已记下这次跟进', onClose)
   const c = clients.find((x) => x.id === f.v.client_id)
   return (
-    <FormDialog open onClose={onClose} title={c ? `记一笔：${c.name}` : '记一笔跟进'} desc="写下这次沟通说了什么。听不准的金额和结论标“（待确认）”。" onSubmit={f.onSubmit} submitting={f.pending}>
+    <FormDialog open onClose={onClose} title={c ? `写一条跟进：${c.name}` : '写一条跟进'} desc="写下这次沟通说了什么。听不准的金额和结论标“（待确认）”。" onSubmit={f.onSubmit} submitting={f.pending}>
       {!forId && <FormField label="客户" error={f.errors.client_id}><ClientChoice value={f.v.client_id} onChange={(x) => f.set('client_id')(x ?? '')} /></FormField>}
       <div className="grid grid-cols-2 gap-3">
         <FormField label="日期" error={f.errors.date}><DatePicker value={f.v.date} clearable={false} onChange={(x) => x && f.set('date')(x)} /></FormField>
@@ -153,7 +153,7 @@ export function CollectDialog({ onClose, forId }: Props) {
   const open = recs.filter((r) => r.status !== '已收清')
   const r0 = open.find((r) => r.id === forId)
   const f = useForm(collectInput, { receivable_id: forId ?? '', amount: r0?.outstanding ?? null, date: todayStr(), note: '' },
-    (d) => api.post('/collect', d), '已登记回款，同时记了一笔收入', onClose)
+    (d) => api.post('/collect', d), '已登记回款，同时记了一条收入', onClose)
   const r = open.find((x) => x.id === f.v.receivable_id)
   return (
     <FormDialog open onClose={onClose} title="登记回款" desc="回款会同时更新应收款和收支流水。" onSubmit={f.onSubmit} submitting={f.pending}>
@@ -172,10 +172,10 @@ export function CollectDialog({ onClose, forId }: Props) {
 
 export function LedgerDialog({ onClose }: Props) {
   const f = useForm(ledgerInput, { date: todayStr(), direction: '支出', category: LEDGER_CATEGORIES['支出'][0] as string, amount: null, client_id: null, project_id: null, note: '' },
-    (d) => api.post('/ledger', d), '已记一笔', onClose)
+    (d) => api.post('/ledger', d), '这条收支记好了', onClose)
   const cats = LEDGER_CATEGORIES[f.v.direction as '收入' | '支出']
   return (
-    <FormDialog open onClose={onClose} title="记一笔收支" desc="客户的货款请用“登记回款”，会自动核销应收。这里记其他收入和支出。" onSubmit={f.onSubmit} submitting={f.pending}>
+    <FormDialog open onClose={onClose} title="记一条收支" desc="客户的货款请用“登记回款”，会自动核销应收。这里记其他收入和支出。" onSubmit={f.onSubmit} submitting={f.pending}>
       <ToggleGroup type="single" variant="outline" value={f.v.direction} onValueChange={(x) => { if (x) { f.set('direction')(x); f.set('category')(LEDGER_CATEGORIES[x as '收入' | '支出'][0]) } }} className="justify-start">
         <ToggleGroupItem value="支出" className="px-5">支出</ToggleGroupItem><ToggleGroupItem value="收入" className="px-5">收入</ToggleGroupItem>
       </ToggleGroup>

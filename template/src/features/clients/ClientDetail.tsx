@@ -47,7 +47,7 @@ export function ClientMeta({ d }: { d?: ClientProfile }) {
   )
 }
 
-/** 抽屉 / 整页顶上的按钮：记一笔、改下次跟进、改阶段，其余收进“更多”。资料没取到时都先禁用 */
+/** 抽屉 / 整页顶上的按钮：写一条跟进、改下次跟进、改阶段，其余收进“更多”。资料没取到时都先禁用 */
 export function ClientActions({ id, withPageLink = true }: { id: string; withPageLink?: boolean }) {
   const ov = useOverlay()
   const { data } = useClientDetail(id)
@@ -55,7 +55,7 @@ export function ClientActions({ id, withPageLink = true }: { id: string; withPag
   const c = data?.client
   return (
     <>
-      <Button size="sm" disabled={!c} onClick={() => ov.openNew('log', { for: id })}><MessageSquarePlus />记一笔跟进</Button>
+      <Button size="sm" disabled={!c} onClick={() => ov.openNew('log', { for: id })}><MessageSquarePlus />写一条跟进</Button>
       <Button size="sm" variant="outline" disabled={!c} onClick={() => setDlg('follow')}><CalendarClock />改下次跟进</Button>
       <Button size="sm" variant="outline" disabled={!c} onClick={() => setDlg('stage')}><MoveRight />改阶段</Button>
       <DropdownMenu>

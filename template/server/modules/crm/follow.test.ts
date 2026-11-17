@@ -15,7 +15,7 @@ const { all } = await import('../../db.ts')
 
 const openTodos = (cid: string) => all<{ id: string; title: string; priority: string; due: string }>("SELECT id, title, priority, due FROM todos WHERE client_id = :cid AND status IN ('待办','进行中','等别人')", { cid })
 
-test('那天已有这家没做完的待办：记一笔、约了那天，不再建“跟进某某”', () => {
+test('那天已有这家没做完的待办：写一条跟进、约了那天，不再建“跟进某某”', () => {
   const c = clients.createClient({ name: '锦川置业', stage: '售后' }, '网页')
   schedule.createTodo({ title: '去锦川送补发 6 盒、当面道歉', due: '2030-10-28', client_id: c.id, priority: '重要' }, '网页')
   clients.logInteraction({ client_id: c.id, date: '2030-10-27', summary: '孙蕾回了：明天上午在', next_step: '送补发的 6 盒、当面道歉', next_follow: '2030-10-28' }, 'Codex')

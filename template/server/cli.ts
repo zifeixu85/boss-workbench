@@ -29,6 +29,7 @@ import { SERVER_MODULES } from './modules.gen.ts'
 import { loadHooks } from './module-hooks.ts'
 import { HOME_CARDS } from '../shared/home.ts'
 import { ASSISTANT_HELP, isAssistantCommand, runAssistantCli } from './assistant/cli.ts'
+import { EDIT_MODES, assertCanChangeWorkbench, editModeText, type EditMode } from './services/edit-mode.ts'
 
 const ACTOR = 'Codex' as const
 const HELP = `用法：node 工作台/程序/server/cli.ts <命令> [参数] [--json]
@@ -76,11 +77,13 @@ const HELP = `用法：node 工作台/程序/server/cli.ts <命令> [参数] [--
       { "do": "inbox-done", "id", "result" }                                            收件箱某条处理完了
   settings-set [--owner 称呼] [--business 店名或工作台名称] [--theme jade|wood|navy|mono|night] [--nav simple|complex|dual|top]
                [--kb-name 资料]                 “知识库”这一页在菜单和页面上叫什么；--kb-name "" 改回“知识库”
-               [--modules clients,biz|all] [--home projects,inbox,clients] [--set 设置项=值 …]
+               [--modules clients,biz|all] [--home projects,inbox,clients] [--set 设置项=值 …] [--edit content|open]
                                      改设置（搭建时按知识库写老板的称呼、店名、配色、导航）
                                      --modules 只打开这几个模块（基础版：今日、待办与日程、项目、收件箱、知识库、设置一定开着；打开经营会自动带上数据源与导入）；all = 全部打开
                                      --home 今日页顶上的重点卡，按老板“最想先看到”排，最多 3 张：projects 项目、inbox 收件箱、clients 客户、sales 经营，加上装进来的模块登记的卡
                                      --set 装进来的模块登记的设置项（module.json 的 settings），可以写几次；值写空 = 清掉。有哪些：settings-set --set help
+                                     --edit content 只改内容（搭建时默认写上：只更新内容，不装模块、不开关模块、不改页面和功能）；
+                                            open 放开改（老板说“工作台放开改页面”时）。只改内容时 modules --on/--off、--modules、装模块都会停下
   modules [--on 模块id,…] [--off 模块id,…]
                                      看每个模块开没开；--on 打开、--off 收起（只从导航、今日页、提醒里拿掉，代码和数据都留着）
   snapshot                           导出只读快照到 工作台/快照/
@@ -178,7 +181,7 @@ function parseCli() {
         label: { type: 'string' }, source: { type: 'string' }, help: { type: 'boolean', short: 'h' },
         file: { type: 'string' }, by: { type: 'string' }, home: { type: 'string' },
         kb: { type: 'string' }, owner: { type: 'string' }, goal: { type: 'string' }, milestone: { type: 'string', multiple: true },
-        project: { type: 'string' }, business: { type: 'string' }, theme: { type: 'string' }, nav: { type: 'string' }, set: { type: 'string', multiple: true }, 'kb-name': { type: 'string' },
+        project: { type: 'string' }, business: { type: 'string' }, theme: { type: 'string' }, nav: { type: 'string' }, set: { type: 'string', multiple: true }, 'kb-name': { type: 'string' }, edit: { type: 'string' },
         time: { type: 'string' }, in: { type: 'string' }, modules: { type: 'string' }, on: { type: 'string' }, off: { type: 'string' },
         why: { type: 'string' }, suggest: { type: 'string' }, result: { type: 'string' }, waiting: { type: 'string' }, yes: { type: 'boolean' },
       },
@@ -380,7 +383,10 @@ function main() {
         const defs = home.getSettings().module_settings
         return print(defs, defs.length ? defs.map((d) => `- ${d.key}：${d.label}${d.hint ? `（${d.hint}）` : ''}，现在是“${d.value}”`).join('\n') : '开着的模块没有登记设置项')
       }
-      if (![o.owner, o.business, o.theme, o.nav, o.modules, o.home, o['kb-name']].some((v) => v !== undefined) && !sets.length) throw new Error('要写改什么：--owner、--business、--kb-name、--theme、--nav、--modules、--home 或 --set 设置项=值')
+      if (![o.owner, o.business, o.theme, o.nav, o.modules, o.home, o['kb-name'], o.edit].some((v) => v !== undefined) && !sets.length) throw new Error('要写改什么：--owner、--business、--kb-name、--theme、--nav、--modules、--home、--edit 或 --set 设置项=值')
+      if (o.edit !== undefined && !(EDIT_MODES as readonly string[]).includes(o.edit)) throw new Error('--edit 写 content（只改内容）或 open（放开改）')
+      // 只改内容时不重选模块；同一条命令里放开（--edit open）的可以
+      if (o.modules !== undefined && o.edit !== 'open') assertCanChangeWorkbench('重选模块')
       if (o.home !== undefined) { const h = checkHome(o.home); if (h.unknown.length) throw new Error(`首页没有这几张卡：${h.unknown.join('、')}（能用的：${HOME_CARDS.map((c) => c.id).join('、')}）`) }
       const extra: Record<string, string> = {}
       for (const kv of sets) {
@@ -389,15 +395,16 @@ function main() {
         extra[kv.slice(0, i).trim()] = kv.slice(i + 1)
       }
       const m = o.modules !== undefined ? modules.setModules(o.modules.trim() === 'all' ? 'all' : o.modules, ACTOR) : null
-      const rest = [o.owner, o.business, o.theme, o.nav, o.home, o['kb-name']].some((v) => v !== undefined) || sets.length > 0
-      const r = rest ? home.saveSettings({ owner: o.owner, business: o.business, kb_name: o['kb-name'], theme: o.theme, nav_mode: o.nav, home: o.home, ...(sets.length ? { module_settings: extra } : {}) }, ACTOR) : home.getSettings()
+      const rest = [o.owner, o.business, o.theme, o.nav, o.home, o['kb-name'], o.edit].some((v) => v !== undefined) || sets.length > 0
+      const r = rest ? home.saveSettings({ owner: o.owner, business: o.business, kb_name: o['kb-name'], theme: o.theme, nav_mode: o.nav, home: o.home, edit_mode: o.edit as EditMode | undefined, ...(sets.length ? { module_settings: extra } : {}) }, ACTOR) : home.getSettings()
       const mText = m ? `\n${moduleText(m)}${m.added.length ? `\n（自动带上：${m.added.join('、')}）` : ''}` : ''
       const extraText = r.module_settings.filter((d) => d.value).map((d) => `，${d.label} ${d.value}`).join('')
-      return print({ ...r, modules_detail: m }, `已改设置：称呼 ${r.owner}，店名 / 工作台 ${r.business}${extraText}${r.kb_name ? `，“知识库”页叫“${r.kb}”` : ''}，配色 ${r.theme}，导航 ${r.nav_mode}${mText}`)
+      return print({ ...r, modules_detail: m }, `已改设置：称呼 ${r.owner}，店名 / 工作台 ${r.business}${extraText}${r.kb_name ? `，“知识库”页叫“${r.kb}”` : ''}，配色 ${r.theme}，导航 ${r.nav_mode}${o.edit !== undefined ? `\n${editModeText(r.edit_mode)}` : ''}${mText}`)
     }
     case 'modules': {
       const split = (v?: string) => (v ? v.split(/[\s,，、]+/).map((x) => x.trim()).filter(Boolean) : [])
       const on = split(o.on), off = split(o.off)
+      if (on.length || off.length) assertCanChangeWorkbench('打开、收起模块')
       const r = on.length || off.length ? modules.toggleModules(on, off, ACTOR) : modules.list()
       return print(r, moduleText(r))
     }

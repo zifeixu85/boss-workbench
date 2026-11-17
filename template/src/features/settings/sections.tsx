@@ -84,7 +84,7 @@ const KEYS: { keys: string[]; label: string }[] = [
   { keys: ['⌘', 'K'], label: '搜索' },
   { keys: ['T'], label: '新建待办' },
   { keys: ['E'], label: '新建日程' },
-  { keys: ['L'], label: '记一笔跟进' },
+  { keys: ['L'], label: '写一条跟进' },
   { keys: ['C'], label: '新建客户' },
   { keys: ['N'], label: '随手记' },
 ]

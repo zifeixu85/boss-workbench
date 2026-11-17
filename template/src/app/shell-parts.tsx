@@ -54,7 +54,7 @@ export function Badge({ n, tone }: { n?: number; tone?: NavItem['tone'] }) {
 /** 新建菜单和快捷键：每一项归哪个模块；模块收起来了，这一项和它的快捷键都不出现（模块开关，shared/modules.ts） */
 const QUICK = [
   { k: 'todo', label: '待办', icon: ListPlus, key: 'T', module: 'tasks' }, { k: 'event', label: '日程', icon: CalendarPlus, key: 'E', module: 'tasks' },
-  { k: 'log', label: '记一笔跟进', icon: MessageSquarePlus, key: 'L', module: 'clients' }, { k: 'client', label: '客户', icon: UserPlus, key: 'C', module: 'clients' },
+  { k: 'log', label: '写一条跟进', icon: MessageSquarePlus, key: 'L', module: 'clients' }, { k: 'client', label: '客户', icon: UserPlus, key: 'C', module: 'clients' },
   { k: 'inbox', label: '随手记', icon: Inbox, key: 'N', module: 'inbox' },
 ] as const
 
