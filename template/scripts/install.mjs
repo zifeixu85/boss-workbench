@@ -5,6 +5,7 @@
 //   node 工作台/程序/scripts/install.mjs --demo     安装并写入示例数据（虚构的茶社，演示日期 2026-10-27）
 //   node 工作台/程序/scripts/install.mjs --check    只体检，不改任何东西
 //   可选：--registry=<地址>  指定 npm 源；--mirror  直接用国内镜像；--skip-build  不重新构建
+//   装完会顺手生成 Codex 插件目录（程序/Codex插件/，只生成、不动 Codex）；接进 Codex 另跑 node scripts/codex-plugin.mjs install
 //   node 工作台/程序/scripts/install.mjs --autostart on|off|status [--name 短名]
 //                                                  开机自启：打开 / 关掉（后台服务一起停）/ 看现在是开是关、日志在哪（做法见 autostart.mjs）
 import { spawnSync } from 'node:child_process'
@@ -18,6 +19,7 @@ import { checkShell } from './shell-check.mjs'
 import { findCodex } from './codex-check.mjs'
 import { checkModules } from './module.mjs'
 import { installCalendarHelper, installedHelper } from './mac-calendar.mjs'
+import { buildPlugin, pluginStatus } from './codex-plugin.mjs'
 
 const APP = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 // 知识库根目录和数据库位置：默认 程序/../.. 和 <知识库>/工作台/数据/workbench.db；
@@ -153,6 +155,16 @@ function calendarHelper() {
   } catch (err) { warn(`日历助手没装上：${err.message}`, '接日历时可以换飞书日历或订阅链接') }
 }
 
+/** 生成 Codex 插件目录（只写 程序/Codex插件/，不动老板的 Codex）。接进 Codex 是另一步：node scripts/codex-plugin.mjs install */
+function codexPlugin() {
+  say(C.b(`\n${process.platform === 'darwin' ? '⑦' : '⑥'} Codex 插件目录`))
+  try {
+    const r = buildPlugin({ app: APP, root: ROOT, db: DB, port: PORT })
+    ok(`已生成：${C.dim(r.dir)}`)
+    say(`     ${C.dim('接进 Codex：')}node scripts/codex-plugin.mjs install（或跟 AI 说“把工作台接进 Codex”）`)
+  } catch (err) { warn(`Codex 插件目录没生成：${err.message}`, '不影响工作台本身；以后运行 node scripts/codex-plugin.mjs install 再接') }
+}
+
 async function checkInstalled() {
   say(C.b('\n② 检查安装结果'))
   existsSync(join(APP, 'node_modules')) ? ok('依赖已安装') : bad('还没装依赖', '双击“安装工作台”')
@@ -173,9 +185,13 @@ async function checkInstalled() {
   mods.problems.forEach((p) => bad(p))
   mods.notes.forEach((n) => say(`  ${C.dim('·')} ${n}`))
   if (!mods.problems.length) ok(mods.installed.length ? `装进来的模块：${mods.installed.join('、')}` : '没有装进来的模块')
-  say(C.b('\n⑤ AI 助手（本机 Codex，只报告，不算问题）'))
+  say(C.b('\n⑤ 接进 Codex（只报告，不算问题）'))
   const codex = await findCodex()
   codex.ready ? ok(`本机 Codex 能用：${codex.version}`) : warn(codex.detail, codex.fix)
+  try {
+    const plugin = await pluginStatus({ app: APP, root: ROOT, db: DB })
+    plugin.installed && plugin.enabled && !plugin.problems.length ? ok('工作台已经接进 Codex（老板工作台插件）') : warn(plugin.installed ? '工作台接进了 Codex，但要重新接一次' : '工作台还没接进 Codex', plugin.problems[0] ?? '运行 node scripts/codex-plugin.mjs install')
+  } catch (err) { warn(`没查出接没接进 Codex：${err.message}`) }
   if (process.platform === 'darwin') say(C.dim(`  日历助手（只报告，不算问题）：${existsSync(installedHelper()) ? '已装好' : '还没装（接 Mac 日历时会自动装）'}`))
   say(C.dim('  开机自启（只报告，不算问题）：'))
   await autostart('status', { app: APP, root: ROOT, db: DB, port: PORT, say: (x) => say(C.dim(`    ${x}`)) })
@@ -200,6 +216,7 @@ async function main() {
   if (!build()) return finish()
   initDb()
   calendarHelper()
+  codexPlugin()
   finish()
 }
 

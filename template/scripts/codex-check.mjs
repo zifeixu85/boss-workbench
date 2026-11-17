@@ -1,5 +1,5 @@
 import { isMain } from './is-main.mjs'
-// 找本机 Codex（2026-10-15）：工作台的 AI 助手要靠它。体检、搭建、工作台服务都用这一份。
+// 找本机 Codex（2026-10-15）：把工作台接进 Codex（scripts/codex-plugin.mjs）和页面里的 AI 助手都要靠它。体检、搭建、工作台服务都用这一份。
 // 先找命令行 codex，再找 Codex 桌面版自带的那一个；找到了再看有没有登录。只读，不改任何东西。
 // 普通 JS：老版本 Node 也能跑（install.mjs 要用）。
 import { spawn } from 'node:child_process'
@@ -40,11 +40,11 @@ export function small(bin, args, ms = 8000) {
 
 /**
  * 结果：ready 能用；bin 在哪；version；loggedIn；detail 一句人话；fix 怎么办。
- * 三种情况跟老板怎么说，见 Skill 的 references/AI助手.md
+ * 三种情况跟老板怎么说，见 Skill 的 references/接进Codex.md
  */
 export async function findCodex(env = process.env) {
   const bin = codexCandidates(env).find(runnable)
-  if (!bin) return { ready: false, bin: null, version: null, loggedIn: false, detail: '这台电脑上没找到 Codex：页面里的 AI 助手先用不了，其他功能照常', fix: '装好 Codex 桌面版（或命令行版）并登录，再跟 AI 说“打开 AI 助手”' }
+  if (!bin) return { ready: false, bin: null, version: null, loggedIn: false, detail: '这台电脑上没找到 Codex：还不能把工作台接进 Codex，工作台网页照常能用', fix: '装好 Codex 桌面版并登录，再跟 AI 说“把工作台接进 Codex”' }
   let real = bin
   try { real = realpathSync(bin) } catch { /* 用原路径 */ }
   const [ver, login] = await Promise.all([small(real, ['--version']), small(real, ['login', 'status'])])

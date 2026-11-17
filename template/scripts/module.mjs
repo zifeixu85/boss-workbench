@@ -3,6 +3,8 @@
 // 这个脚本把 files/ 里的代码按原来的相对位置拷进程序，登记在 modules.lock.json（每个文件的指纹），
 // 再生成四份清单（shared/modules.gen.ts、server/modules.gen.ts、src/app/modules.nav.gen.ts、src/app/modules.routes.gen.tsx），
 // 核心只读这四份，不写模块的名字。装完打开模块开关、重新构建网页；工作台开着也不用重开，刷新页面就有。
+// 模块在 module.json 里登记的页面（nav）、能打开的对象（open）、Codex 能读能写的命令（server.read / server.write）
+// 会自动出现在 Codex 插件的 workbench_capabilities / workbench_open / workbench_read / workbench_write 里，不用改插件。
 //
 //   node scripts/module.mjs list                       有哪些模块包可以装、装了哪些
 //   node scripts/module.mjs add <编号> [--from <包>]    装（--no-build 不重新构建网页）
@@ -29,6 +31,8 @@ const LOCK = 'modules.lock.json'
 const MOD_DIR = 'modules'
 const ID = /^[a-z][a-z0-9-]{1,30}$/
 const ICON = /^[A-Z][A-Za-z0-9]+$/
+const CMD = /^[a-z][a-z0-9-]{1,40}$/
+const OPEN_KEY = /^[a-z][a-z0-9-]{1,40}$/
 const SECTIONS = ['今日', '客户', '经营', '内容', '数据', '资料', '系统']
 const ROOTS = ['src/', 'server/', 'shared/', 'public/']
 const GEN = {
@@ -101,7 +105,32 @@ export function readManifest(dir, coreIds = []) {
   const s = m.server ?? {}
   for (const k of ['api', 'jobs']) if (s[k] && !/^server\/.+\.ts#\w+$/.test(s[k])) fail(`${where}：server.${k} 写成 server/…/文件.ts#导出名`)
   if (s.cli && (!/^server\/.+\.ts#\w+$/.test(s.cli.file ?? '') || !Array.isArray(s.cli.commands) || !s.cli.commands.length)) fail(`${where}：server.cli 写 { file: "server/…/cli.ts#导出名", commands: ["命令名"] }`)
+  // read / write：Codex 能用的命令。每项写命令名，或 { command, what }（what 是一句话：这个命令做什么）
+  const about = {}
+  for (const k of ['read', 'write']) {
+    if (s[k] === undefined) continue
+    if (!Array.isArray(s[k])) fail(`${where}：server.${k} 是一个命令列表`)
+    s[k] = s[k].map((x) => {
+      const c = typeof x === 'string' ? { command: x } : x
+      if (!c || typeof c.command !== 'string' || !CMD.test(c.command)) fail(`${where}：server.${k} 每一项写命令名，或 { "command": "命令名", "what": "一句话说它做什么" }`)
+      if (!s.cli?.commands.some((p) => c.command === p || c.command.startsWith(`${p}-`))) fail(`${where}：server.${k} 里的 ${c.command} 不是这个模块的命令（server.cli.commands 写了 ${(s.cli?.commands ?? []).join('、') || '空'}，只认它们和它们加 - 开头的）`)
+      if (c.what) about[c.command] = String(c.what)
+      return c.command
+    })
+  }
+  const both = (s.read ?? []).filter((c) => (s.write ?? []).includes(c))
+  if (both.length) fail(`${where}：${both.join('、')} 同时写在 server.read 和 server.write 里，只能放一边（会改数据的放 write）`)
+  s.about = about
   m.server = s
+  // open：菜单以外能让 Codex 打开的对象或页面
+  m.open = m.open ?? []
+  if (!Array.isArray(m.open)) fail(`${where}：open 是一个列表`)
+  for (const x of m.open) {
+    if (!x || !OPEN_KEY.test(x.key ?? '') || !x.label || typeof x.to !== 'string' || !x.to.startsWith('/')) fail(`${where}：open 每一项要写 key（小写英文、数字、短横线）、label、to（/ 开头）`)
+    if (/[?&]embed=/.test(x.to)) fail(`${where}：open 的 to 不用写 embed，打开时会自动带上（${x.to}）`)
+    if (x.to.includes('{id}') && !x.id) fail(`${where}：open 的 ${x.key} 地址里有 {id}，要再写一个 id 说清它是什么（比如 "日期，如 2026-11-12"）`)
+    if (m.open.filter((y) => y.key === x.key).length > 1) fail(`${where}：open 里 ${x.key} 写了两次`)
+  }
   return m
 }
 
@@ -167,7 +196,9 @@ export function genSources(mods) {
     const s = m.server
     const parts = [`id: ${q(m.id)}`, `name: ${q(m.name)}`, `needs: ${q(m.needs)}`, `version: ${q(m.version)}`,
       ...(s.api ? [`api: ${lazy(s.api)}`] : []), ...(s.jobs ? [`jobs: ${lazy(s.jobs)}`] : []),
-      ...(s.cli ? [`commands: ${q(s.cli.commands)}`, `cli: ${lazy(s.cli.file)}`] : []), ...(s.read?.length ? [`read: ${q(s.read)}`] : [])]
+      ...(s.cli ? [`commands: ${q(s.cli.commands)}`, `cli: ${lazy(s.cli.file)}`] : []), ...(s.read?.length ? [`read: ${q(s.read)}`] : []),
+      ...(s.write?.length ? [`write: ${q(s.write)}`] : []), ...(Object.keys(s.about ?? {}).length ? [`about: ${q(s.about)}`] : []),
+      ...(m.open?.length ? [`open: ${q(m.open.map(({ key, label, to, id }) => ({ key, label, to, ...(id ? { id } : {}) })))}`] : [])]
     return `\n  {\n    ${parts.join(',\n    ')},\n  },`
   }
   const server = `${head('装进来的模块')}import type { ServerModule } from './module-types.ts'\n\nexport const SERVER_MODULES: ServerModule[] = [${mods.map(serverItem).join('')}${mods.length ? '\n' : ''}]\n`

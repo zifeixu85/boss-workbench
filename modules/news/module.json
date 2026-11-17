@@ -1,7 +1,7 @@
 {
   "id": "news",
   "name": "行业资讯",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "summary": "每天 08:30 取一份 AIHOT 日报（只存标题、链接和一句总结），标出你关注的词；没取到就写今天没取到",
   "needs": [],
   "nav": [
@@ -10,10 +10,19 @@
   "pages": [
     { "path": "news", "file": "src/features/news/NewsPage.tsx" }
   ],
+  "open": [
+    { "key": "news-day", "label": "某一天的资讯", "to": "/news?day={id}", "id": "日期，如 2026-11-12" }
+  ],
   "server": {
     "api": "server/modules/news/routes.ts#newsRoutes",
     "jobs": "server/modules/news/jobs.ts#newsJobs",
     "cli": { "file": "server/modules/news/cli.ts#newsCli", "commands": ["news"] },
-    "read": ["news"]
+    "read": [
+      { "command": "news", "what": "某天（默认最近一期）的资讯：一句总结、关注词命中的、标题和链接" }
+    ],
+    "write": [
+      { "command": "news-fetch", "what": "现在去取一次资讯" },
+      { "command": "news-set", "what": "改资讯来源、关注词" }
+    ]
   }
 }

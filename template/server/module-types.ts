@@ -32,6 +32,23 @@ export type ServerModule = {
   /** 命令名：写 news 就认 news 和 news- 开头的 */
   commands?: string[]
   cli?: () => Promise<ModuleCli>
-  /** AI 助手能用的只读命令（workbench_read 白名单） */
+  /** Codex 能用的只读命令（workbench_read 白名单） */
   read?: string[]
+  /** Codex 能用的写入命令（workbench_write 白名单；module.json 的 server.write）。写之前照样先给老板核对 */
+  write?: string[]
+  /** 命令是做什么的（一句话），workbench_capabilities 里给 Codex 看 */
+  about?: Record<string, string>
+  /** 菜单以外能打开的对象或页面（module.json 的 open），workbench_open 用 */
+  open?: ModuleOpen[]
+}
+
+/** 模块登记的一个“能打开的东西”：to 里写 {id} 的是具体对象（哪一期、哪一单），不写的是固定页面 */
+export type ModuleOpen = {
+  /** 全局唯一，建议写成 模块编号 或 模块编号-名字，比如 news-day */
+  key: string
+  label: string
+  /** 地址，/ 开头；要带编号的写 {id}，比如 /news?day={id} */
+  to: string
+  /** to 里有 {id} 时，写清 id 是什么（“日期，如 2026-11-12”） */
+  id?: string
 }

@@ -74,6 +74,33 @@ test('装：文件按原位置拷进程序、登记指纹、生成清单；说�
   await assert.rejects(M.addModule('memo', { app, from: makePack(), noBuild: true }), /已经装了/)
 })
 
+test('module.json 登记写入命令和能打开的对象：进服务端清单，Codex 的 capabilities / open / write 自动带上', () => {
+  const server = { api: 'server/modules/memo/routes.ts#memoRoutes', cli: { file: 'server/modules/memo/cli.ts#memoCli', commands: ['memo'] } }
+  const dir = makePack('memo', {
+    server: { ...server, read: ['memo', { command: 'memo-list', what: '全部备忘' }], write: [{ command: 'memo-add', what: '加一条备忘' }, 'memo-done'] },
+    open: [{ key: 'memo-item', label: '某一条备忘', to: '/memo?item={id}', id: '备忘编号' }, { key: 'memo-archive', label: '归档', to: '/memo/archive' }],
+  })
+  const m = M.readManifest(dir, ['today', 'kb'])
+  assert.deepEqual(m.server.read, ['memo', 'memo-list'])
+  assert.deepEqual(m.server.write, ['memo-add', 'memo-done'])
+  assert.deepEqual(m.server.about, { 'memo-list': '全部备忘', 'memo-add': '加一条备忘' })
+  const gen = M.genSources([m])['server/modules.gen.ts']
+  assert.match(gen, /read: \["memo","memo-list"\]/)
+  assert.match(gen, /write: \["memo-add","memo-done"\]/)
+  assert.match(gen, /about: \{"memo-list":"全部备忘","memo-add":"加一条备忘"\}/)
+  assert.match(gen, /open: \[\{"key":"memo-item","label":"某一条备忘","to":"\/memo\?item=\{id\}","id":"备忘编号"\},\{"key":"memo-archive","label":"归档","to":"\/memo\/archive"\}\]/)
+
+  const bad = (patch, re) => assert.throws(() => M.readManifest(makePack('memo', patch), ['today', 'kb']), re)
+  bad({ server: { ...server, write: ['todo-add'] } }, /todo-add 不是这个模块的命令/)
+  bad({ server: { ...server, write: ['memo-add'], read: ['memo-add'] } }, /同时写在 server\.read 和 server\.write 里/)
+  bad({ server: { ...server, write: [{ what: '没写命令名' }] } }, /server\.write 每一项写命令名/)
+  bad({ server: { api: server.api, write: ['memo-add'] } }, /不是这个模块的命令/)
+  bad({ open: [{ key: 'memo-item', label: '某一条', to: 'memo?item={id}', id: '编号' }] }, /open 每一项要写 key/)
+  bad({ open: [{ key: 'memo-item', label: '某一条', to: '/memo?item={id}' }] }, /地址里有 \{id\}，要再写一个 id/)
+  bad({ open: [{ key: 'memo-item', label: '某一条', to: '/memo?embed=1' }] }, /不用写 embed/)
+  bad({ open: [{ key: 'memo-a', label: '甲', to: '/memo/a' }, { key: 'memo-a', label: '乙', to: '/memo/b' }] }, /memo-a 写了两次/)
+})
+
 test('程序里已经有、内容又不一样的文件：不装，列出来', async () => {
   const app = makeApp('app2')
   put(join(app, 'server/modules/memo/routes.ts'), '// 老板自己写的\n')

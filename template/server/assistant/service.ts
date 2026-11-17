@@ -1,4 +1,4 @@
-// AI 助手的对话记录和调度：一次只跑一轮；网页每 1.5 秒取一次进度（跑完以后，Codex 写的东西由实时刷新带到各页面）
+// 页面里的 AI 助手（默认关，设置里能打开）的对话记录和调度：一次只跑一轮；网页每 1.5 秒取一次进度（跑完以后，Codex 写的东西由实时刷新带到各页面）
 import { all, get, run, uid, nowIso } from '../db.ts'
 import { BadRequest } from '../services/common.ts'
 import { getSettings } from '../services/today.ts'
@@ -14,7 +14,8 @@ let starting: { cancelled: boolean } | null = null
 export async function status(force = false) {
   const { info } = await codexInfo(force)
   const s = get<{ value: string }>("SELECT value FROM settings WHERE key = 'assistant_on'")?.value
-  return { ready: info.ready, version: info.version, detail: info.detail, fix: info.fix, on: s !== '0', running: current?.id ?? null }
+  // 默认关（2026-11-12）：日常用法是在 Codex 里说、工作台开在右侧面板（Codex 插件）；页面里的对话栏要用再到设置里打开
+  return { ready: info.ready, version: info.version, detail: info.detail, fix: info.fix, on: s === '1', running: current?.id ?? null }
 }
 
 export function messages(limit = 40) {

@@ -14,6 +14,7 @@ import { errorResponse } from './module-kit.ts'
 import { moduleApi, refreshModules } from './modules-live.ts'
 import { startJobs } from './jobs/service.ts'
 import { startCalendarSync } from './calendar/service.ts'
+import { recordService } from './assistant/launch.ts'
 
 const PORT = Number(process.env.PORT || 4517) // 默认 4517；被占用时启动加 PORT=4527 这样换一个
 const HOST = '127.0.0.1'
@@ -121,6 +122,7 @@ const server = serve({ fetch: app.fetch, port: PORT, hostname: HOST }, () => {
   console.log(`工作台已启动：http://${HOST}:${PORT}`)
   console.log(`知识库：${ROOT}`)
   console.log(`数据库：${DB_PATH}`)
+  recordService(PORT) // 记下实际端口：Codex 插件打开页面时按它找（老板换过端口也找得到）
   const d = demoDate()
   if (d) console.log(`演示日期：${d}（DEMO_TODAY=off 可以换回真实日期）`)
   // 提醒：每 30 秒算一遍（不靠页面开着），见 reminders/

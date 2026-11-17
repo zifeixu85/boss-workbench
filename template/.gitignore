@@ -9,6 +9,8 @@ lerna-debug.log*
 
 node_modules
 dist
+# 接进 Codex 时生成的本地插件目录（里面是这台电脑的绝对路径，scripts/codex-plugin.mjs 生成）
+Codex插件
 dist-ssr
 *.local
 

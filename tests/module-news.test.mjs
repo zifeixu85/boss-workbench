@@ -33,7 +33,7 @@ test('装上行业资讯：读样例、命令行、定时任务、AI 助手能�
 
   const add = tool('add', 'news', '--from', PACK, '--no-build')
   assert.equal(add.code, 0, add.out)
-  assert.match(add.out, /装好了：行业资讯 0\.2\.0/)
+  assert.match(add.out, /装好了：行业资讯 0\.3\.0/)
   assert.match(cli('modules').out, /开着 {2}行业资讯（news）/, '装完模块开关是开着的')
 
   const fetched = cli('news-fetch', '--file', join(PACK, 'tests', 'fixture-daily.xml'))
@@ -49,7 +49,24 @@ test('装上行业资讯：读样例、命令行、定时任务、AI 助手能�
   assert.match(cli('--help').out, /行业资讯（装进来的模块）[\s\S]*news-fetch/)
 
   const mcp = sh(process.execPath, ['-e', "import('./server/assistant/mcp.ts').then((m) => console.log(m.READ_COMMANDS.join(',')))"])
-  assert.ok(mcp.out.trim().split(',').includes('news'), 'AI 助手的只读白名单里有 news')
+  assert.ok(mcp.out.trim().split(',').includes('news'), 'Codex 的只读白名单里有 news')
+
+  // 接进 Codex：模块在 module.json 里登记的页面、对象、读写命令自动带上，不用改插件
+  const caps = JSON.parse(cli('capabilities', '--json').out)
+  assert.deepEqual(caps.pages.find((p) => p.key === 'news'), { key: 'news', title: '行业资讯', trail: '资料 › 行业资讯', to: '/news', module: 'news' })
+  assert.deepEqual(caps.objects.find((o) => o.kind === 'news-day'), { kind: 'news-day', title: '行业资讯 · 某一天的资讯', id: '日期，如 2026-11-12', module: 'news' })
+  assert.match(caps.read.find((x) => x.command === 'news').what, /一句总结/)
+  assert.deepEqual(caps.write.filter((x) => x.module === 'news').map((x) => x.command), ['news-fetch', 'news-set'])
+  assert.equal(JSON.parse(cli('open', 'news', '--no-start', '--json').out).path, '/news?embed=1')
+  assert.equal(JSON.parse(cli('open', 'news-day', '2030-03-05', '--no-start', '--json').out).path, '/news?embed=1&day=2030-03-05')
+  const tools = sh(process.execPath, ['-e', `import('./server/assistant/mcp.ts').then(async (m) => {
+    const out = { write: await m.callTool('workbench_write', { command: 'news-set', args: ['--keywords', '补贴,茶礼'] }) }
+    try { await m.callTool('workbench_write', { command: 'news-nope' }) } catch (e) { out.refused = e.message }
+    console.log(JSON.stringify(out))
+  })`])
+  const called = JSON.parse(tools.out.trim().split('\n').pop())
+  assert.deepEqual(JSON.parse(called.write).keywords, ['补贴', '茶礼'], '模块登记的写入命令，Codex 能用')
+  assert.match(called.refused, /不开放给 Codex：news-nope/)
 
   const tsApp = sh(join(APP, 'node_modules', '.bin', 'tsc'), ['-b'])
   assert.equal(tsApp.code, 0, `网页类型检查：${tsApp.out}`)
@@ -61,6 +78,9 @@ test('装上行业资讯：读样例、命令行、定时任务、AI 助手能�
   const rm = tool('remove', 'news', '--no-build')
   assert.equal(rm.code, 0, rm.out)
   assert.ok(!existsSync(join(APP, 'server', 'modules', 'news')))
+  const after = JSON.parse(cli('capabilities', '--json').out)
+  assert.ok(!after.pages.some((p) => p.key === 'news') && !after.write.some((x) => x.module === 'news'), '拿掉模块，Codex 那边也跟着没有')
+  assert.notEqual(cli('open', 'news', '--no-start').code, 0)
   assert.equal(readFileSync(join(APP, 'server', 'modules.gen.ts'), 'utf8'), readFileSync(join(TEMPLATE, 'server', 'modules.gen.ts'), 'utf8'))
   const again = tool('add', 'news', '--from', PACK, '--no-build')
   assert.equal(again.code, 0, again.out)

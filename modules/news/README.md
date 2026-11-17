@@ -23,7 +23,7 @@ node scripts/module.mjs remove news       # 拿掉：代码和菜单拿掉，数
 
 | 文件 | 管什么 |
 |---|---|
-| `module.json` | 编号、名字、菜单、页面、接口、定时任务、命令、AI 助手能读的命令 |
+| `module.json` | 编号、名字、菜单、页面、接口、定时任务、命令；Codex 能读的（`news`）、能写的（`news-fetch`、`news-set`）、能打开的对象（`news-day`：某一天的资讯） |
 | `files/server/modules/news/rss.ts` | 拆 RSS（纯函数）：一句总结、按类的标题和链接；链接只认 http(s) |
 | `files/server/modules/news/service.ts` | 去取、存、按天读；来源和关注词存在设置里 |
 | `files/server/modules/news/routes.ts` | 接口，挂在 `/api/m/news/` |

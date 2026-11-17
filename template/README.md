@@ -16,7 +16,7 @@
 在复制好的 `<工作台位置>/程序` 里：
 
 ```bash
-node scripts/install.mjs            # 体检（Node、端口、知识库）→ 选下载源 → 装依赖 → 构建网页 → 建空数据库
+node scripts/install.mjs            # 体检（Node、端口、知识库）→ 选下载源 → 装依赖 → 构建网页 → 建空数据库 → 生成 Codex 插件目录
 node scripts/install.mjs --check    # 只体检，不改任何东西（= npm run doctor）
 # 可选：--mirror 直接用国内镜像；--registry=<地址> 指定源；--skip-build 已有网页时不重新构建
 ```
@@ -51,7 +51,9 @@ node server/cli.ts todo-add "给星禾出两版礼盒方案" --due 2026-11-18 --
 node server/cli.ts todo-add "定开业活动" --project 新店开业 --status 进行中
 node server/cli.ts inbox "星禾电话纪要：问年底礼盒能不能 12/10 前到" --kind 材料 --why "在问交期，涉及承诺" --suggest "问老板 12/10 能不能交，默认先答 12/15" --client 星禾科技 --from "00-收件箱/2026-11-10-星禾科技-电话纪要.md"
 node server/cli.ts todo-add "出年底礼盒效果图" --owner 小艾 --due 2026-11-15 --client 星禾科技 --source "00-收件箱/2026-11-10-星禾科技-电话纪要.md"
-node server/cli.ts apply 清单.json            # 进内容：老板在对话里确认了一张清单，先预演；没问题再加 --yes 一次写入（格式见 server/services/apply.ts）
+node server/cli.ts apply 清单.json            # 更新进展：一张清单先预演给老板核对；他确认后再加 --yes 一次写入（格式见 --help 里 apply 那一段）
+node server/cli.ts capabilities               # 现在有哪些页面、能打开哪些对象、Codex 能读什么、能写什么（装了新模块自动带上）
+node server/cli.ts open project "新店开业"     # 给出侧边栏地址（带 ?embed=1）；工作台没在运行会先拉起来。open todos 打开某一页
 node server/cli.ts modules --off biz          # 模块开关：收起 / 打开（--on），代码和数据都留着；settings-set --modules 整组设
 node server/cli.ts backup                                   # 改功能、换数据前先备份数据库
 node server/cli.ts todo-add "给星禾回电话" --due 2026-11-18 --time 15:30   # 填了到期时间，到期前 1 小时提醒；--in 5 = 今天、5 分钟后到期（试提醒用）
@@ -64,6 +66,22 @@ node server/cli.ts reminders                                # 最近的提醒、
 **备份**：都放在数据库旁边的 `备份/`（默认 `<知识库>/工作台/数据/备份/`；程序和数据库放在知识库外面时，就在库外那份数据库旁边，不随知识库同步）。`node server/cli.ts backup` 把数据库存成 `备份/workbench-<日期>T<时分秒>.db`（工作台开着也能备份）；工作台往知识库文件里写之前，原文件先存到 `备份/知识库/<日期时间>-<文件名>`。要回到某个备份：先停掉工作台，把现在的 `workbench.db` 挪开（旁边的 `workbench.db-wal`、`workbench.db-shm` 一起挪），再把那份备份复制回去、改名成 `workbench.db`，然后启动。
 
 客户阶段只能是：新线索、需求确认、方案中、报价中、待签约、交付中、售后、待复购、合作中、维护中、暂停、流失。项目阶段：筹备、进行中、收尾、已完成、暂停。待办状态：待办、进行中、等别人、完成、取消。配色：jade（松石）、wood（原木）、navy（墨蓝）、mono（素白）、night（夜墨）。写错了命令会说“没办成：……只能是……”。
+
+## 接进 Codex（日常用法）
+
+老板在 Codex 里说，工作台通过一个本地 Codex 插件接进去，页面开在 Codex 右侧面板（地址带 `?embed=1`，不显示导航）。说“把工作台接进 Codex”就在程序文件夹里运行：
+
+```bash
+node scripts/codex-plugin.mjs install [--port 4517]   # 生成 Codex插件/ → 加本地插件市场 → 装插件；重复运行 = 重新接一次
+node scripts/codex-plugin.mjs status                  # 接上没有、接的是不是这一个、工作台在不在运行
+node scripts/codex-plugin.mjs uninstall               # 从 Codex 里拿掉，工作台和数据不动
+```
+
+- 插件目录 `Codex插件/`（不进版本库）：`.agents/plugins/marketplace.json`、`plugins/boss-workbench/` 下的 `.codex-plugin/plugin.json`、`.mcp.json`（绝对路径的 node 跑 `server/assistant/mcp.ts`，带知识库位置、数据库位置、端口）、`skills/workbench/SKILL.md`（源头是 `scripts/codex-plugin-skill.md`）。
+- 插件只是外壳。工具在 `server/assistant/`：`mcp.ts`（MCP，stdio）、`capabilities.ts`（现在有什么：页面来自 `src/app/nav.ts`，模块的命令和对象来自 `module.json`）、`cli.ts`（`capabilities`、`open` 两条命令，每次新进程现算）、`launch.ts`（认出这一个工作台、没在运行就后台拉起；工作台启动时把实际端口记在 `数据/服务.json`）。所以装了新模块、加了新页面不用重装插件。
+- 写入规矩有程序兜底：`workbench_apply` 只收预演过的同一张清单，并且要带老板确认的原话（预演记录在 `数据/预演记录.json`，留 24 小时）。
+- 页面里的 AI 助手对话栏（`src/features/assistant`、`server/assistant/runner.ts`）默认关，“设置 → AI 助手”里能打开；关着时按钮和 ⌘J 都不出现。
+- 测试用假的 codex 和临时 `CODEX_HOME`（`scripts/codex-plugin.test.mjs`），不碰这台电脑真的 Codex。细则见 Skill 的 `references/接进Codex.md`。
 
 ## 提醒和开机自启
 
@@ -90,6 +108,7 @@ Mac 写 `~/Library/LaunchAgents/com.boss-workbench.<短名>.plist` 并用 `launc
 - **关掉开机自启**：双击工作台文件夹里的“关掉开机自启”；或者在程序文件夹里运行 `node scripts/install.mjs --autostart off`。后台服务会一起停，下次开机不会再自动开。想再打开：`node scripts/install.mjs --autostart on`。
 - **停后台服务**：开了开机自启的，用上面那条（Mac 上直接结束 node 进程会被系统拉起来）。没开自启、是双击“启动工作台”开的，关掉那个窗口就停了。看现在开没开：`node scripts/install.mjs --autostart status`。
 - **日志在哪**：开机自启的后台服务写在程序文件夹的 `日志/服务.log`（出错的在 `服务-错误.log`）；安装过程的日志是程序文件夹的 `install.log`。
+- **不想在 Codex 里用工作台了**：在程序文件夹里运行 `node scripts/codex-plugin.mjs uninstall`，再重开 Codex。工作台和数据都不动；想再接：`node scripts/codex-plugin.mjs install`。
 - **卸载两个 Skill（老板知识库、老板工作台）**：双击课程包里的“装环境-Mac”（Windows 是“装环境-Windows”），输入 3“清空课程环境”，再输入“清空”两个字确认。它会把两个 Skill、全局规则里记知识库的那一段、工作台的开机自启都挪进备份（`~/.boss-kb/备份/`，不删除，里面的 `说明.txt` 写着怎么恢复）。知识库和工作台的数据一个字不动；不想要了自己删“工作台”文件夹。
 
 ## 示例数据（--demo）
@@ -109,8 +128,9 @@ node server/seed/index.ts --only biz # 只重灌一个模块（biz、content、d
 
 | 模块 | 网址 | 网页 | 服务端 | 数据库升级文件 |
 |---|---|---|---|---|
-| 基础版（每个工作台都有，关不掉）：今日、日程、待办、项目、收件箱、知识库、设置（我的资料、配色、导航、模块、提醒、AI 助手）；组件规范给开发看 | `/` `/calendar` `/todos` `/projects` `/inbox` `/kb` `/settings` `/design` | `src/features/today` 等 | `server/services/`、`server/routes.ts` | `001_init.sql` |
-| AI 助手（每页右边的对话栏，调本机 Codex；`?embed=1` 不显示导航，给 Codex 右边的浏览器用） | ⌘J；设置页“AI 助手” | `src/features/assistant` | `server/assistant/`（`mcp.ts` 工作台工具、`runner.ts` 调 Codex）、`scripts/codex-check.mjs` | `019_ai助手.sql` |
+| 基础版（每个工作台都有，关不掉）：今日、日程、待办、项目、收件箱、知识库、设置（我的资料、配色、导航、模块、提醒、页面里的 AI 助手开关）；组件规范给开发看 | `/` `/calendar` `/todos` `/projects` `/inbox` `/kb` `/settings` `/design` | `src/features/today` 等 | `server/services/`、`server/routes.ts` | `001_init.sql` |
+| 接进 Codex（本地 Codex 插件；`?embed=1` 侧边栏模式不显示导航，给 Codex 右侧面板用） | 任何页面加 `?embed=1`；命令 `capabilities`、`open` | `src/app/AppShell.tsx`（`useEmbed`） | `server/assistant/`（`mcp.ts` 工具、`capabilities.ts`、`cli.ts`、`launch.ts`）、`scripts/codex-plugin.mjs`、`scripts/codex-check.mjs` | — |
+| 页面里的 AI 助手（每页右边的对话栏，调本机 Codex；默认关） | 设置页“AI 助手”打开后 ⌘J | `src/features/assistant` | `server/assistant/`（`runner.ts` 调 Codex、`service.ts`） | `019_ai助手.sql` |
 | 公共：提醒（规则、浏览器通知、电脑系统通知） | `/reminders`；设置页“提醒” | `src/features/reminders`、`src/lib/reminders.ts` | `server/reminders/` | `016_reminders.sql` |
 | 客户与跟进（大客户：客户列表、跟进看板、关怀与回访、新材料提取、跟进清单、应收款） | `/clients…` | `src/features/clients`、`src/features/crm` | `server/modules/crm` | `002_crm.sql`、`015_crm_*.sql` |
 | 经营（汇总 + 每个渠道一页、经营早报、异常） | `/biz`、`/channel/<渠道>` | `src/features/biz` | `server/modules/biz` | `003_biz.sql`、`012_biz_reports.sql` |
@@ -125,9 +145,9 @@ node server/seed/index.ts --only biz # 只重灌一个模块（biz、content、d
 - 菜单只有一个来源：`src/app/nav.ts`，分三层：分区（今日 / 客户 / 经营 / 内容 / 数据 / 资料；设置、组件规范从头像菜单进）→ 页面（可以分组）→ 页内 Tab，不嵌第四层。页面登记在 `src/app/router.tsx`。加模块 = `nav.ts` 加一项（写上 `section` 和 `module`）+ `router.tsx` 用 `gate('<id>', …)` 登记 + `shared/modules.ts` 登记模块 id。不用的模块用模块开关收起（`node server/cli.ts modules --off <id>`，或网页“设置 → 模块”）：菜单、手机底栏、搜索里都不出现，空了的分区自动不显示，代码和数据都留着，随时打开；不用改 `nav.ts`。外壳从 `src/app/nav-sections.ts` 的 `useNav()` 取菜单。细则见 `规范/导航与Tab.md`。
 - 数据库升级文件（`server/migrations/`）只加不改，程序打开数据库时自动执行没跑过的。
 - 改界面先读 `规范/README.md` 和另外 6 篇，对照网页里的“组件规范”页（`/design`）；加减模块按 Skill 里的 `references/加减模块.md`。
-- 外壳不删不换：导航、顶栏、设置页、AI 助手和基础版页面一直在，业务模块往里挂。`npm run doctor` 会跑 `scripts/shell-check.mjs`，外壳被拆了就报错。
+- 外壳不删不换：导航、顶栏、设置页、基础版页面一直在（页面里的 AI 助手默认关，代码留着），业务模块往里挂。`npm run doctor` 会跑 `scripts/shell-check.mjs`，外壳被拆了就报错。
 - 今日页顶上的重点卡（最多 3 张）按设置 `home` 排：`node server/cli.ts settings-set --home projects,inbox`（卡片 id 见 `shared/home.ts`）。
-- 检查：`npm run build`（网页）、`npm run lint`、`npm run check:server`（服务端严格类型检查）、`npm test`（提醒规则、开机自启、自动跟进待办、菜单、外壳、AI 助手、定时任务、装模块）、`npm run doctor`（含外壳检查、装进来的模块和本机 Codex 检查）。
+- 检查：`npm run build`（网页）、`npm run lint`、`npm run check:server`（服务端严格类型检查）、`npm test`（提醒规则、开机自启、自动跟进待办、菜单、外壳、接进 Codex 的工具和插件、定时任务、装模块）、`npm run doctor`（含外壳检查、装进来的模块和本机 Codex 检查）。
 
 ## 和示例数据（--demo）的关系
 

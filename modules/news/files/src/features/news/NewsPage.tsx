@@ -74,7 +74,8 @@ function Runs({ runs, schedule }: { runs: Run[]; schedule: Overview['schedule'] 
 }
 
 export default function NewsPage() {
-  const [day, setDay] = useState<string | null>(null)
+  // 地址带 ?day=2026-11-12 就先看那一天（Codex 的 workbench_open 用 news-day 打开某一期）
+  const [day, setDay] = useState<string | null>(() => { const d = new URLSearchParams(window.location.search).get('day'); return d && /^\d{4}-\d{2}-\d{2}$/.test(d) ? d : null })
   const { data, isLoading, error } = useApi<Overview>(`/m/news${day ? `?day=${day}` : ''}`)
   const pull = useWrite(() => api.post<FetchResult>('/m/news/fetch', {}), (r) => r.note)
   const groups = (data?.items ?? []).reduce<{ name: string; items: Item[] }[]>((acc, x) => {

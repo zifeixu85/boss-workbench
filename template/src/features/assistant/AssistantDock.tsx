@@ -1,6 +1,7 @@
-// AI 助手（2026-10-15）：每一页右边都能打开的对话栏（⌘J 或右下角按钮）。它知道你正在看哪一页，
+// 页面里的 AI 助手（2026-10-15）：每一页右边都能打开的对话栏（⌘J 或右下角按钮）。它知道你正在看哪一页，
 // 后台调本机 Codex，用工作台工具读写（server/assistant/）；写完页面自动刷新。宽屏时和页面并排，不挡内容；窄屏时盖在上面。
-// 本机没有 Codex、没登录、或在设置里关了，就在这里说清怎么办，其他功能照常。
+// 默认关（2026-11-12）：日常用法是在 Codex 里说、工作台开在右侧面板（Codex 插件）。关着时按钮和 ⌘J 都不出现；
+// 到“设置 → AI 助手”打开后才有。打开了但本机没有 Codex、没登录，就在这里说清怎么办，其他功能照常。
 import { useEffect, useRef, useState } from 'react'
 import { useLocation } from 'react-router'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
@@ -11,6 +12,7 @@ import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { Kbd } from '@/components/ui/kbd'
 import { useIdentity } from '@/lib/identity'
+import type { Settings } from '@/lib/types'
 
 type Step = { tool: string; label: string; state: 'running' | 'ok' | 'failed'; detail?: string }
 type Msg = { id: string; role: 'user' | 'assistant'; text: string; status: 'running' | 'done' | 'failed' | 'cancelled'; error: string | null; steps: Step[]; page_title: string | null; created_at: string }
@@ -31,7 +33,9 @@ const SUGGEST = ['今天我先做哪件事？', '整理一下收件箱', '这页
 
 export function AssistantDock() {
   const kb = useIdentity().kb
-  const [open, setOpen] = useState(readOpen)
+  const enabled = useApi<Settings>('/settings').data?.assistant_on === true
+  const [wantOpen, setOpen] = useState(readOpen)
+  const open = wantOpen && enabled
   const [text, setText] = useState('')
   const [sending, setSending] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -49,7 +53,7 @@ export function AssistantDock() {
 
   // 记住开关；宽屏时把页面往左让出位置
   useEffect(() => {
-    try { localStorage.setItem(OPEN_KEY, open ? '1' : '0') } catch { /* 隐私模式 */ }
+    if (enabled) try { localStorage.setItem(OPEN_KEY, open ? '1' : '0') } catch { /* 隐私模式 */ }
     const apply = () => { document.body.style.paddingRight = open && window.matchMedia(WIDE).matches ? '400px' : '' }
     if (open) document.body.dataset.assistant = 'open'; else delete document.body.dataset.assistant // 右下角的提示让开对话栏（index.css）
     apply()
@@ -57,13 +61,14 @@ export function AssistantDock() {
     mq.addEventListener('change', apply)
     if (open) setTimeout(() => inputRef.current?.focus(), 50)
     return () => { mq.removeEventListener('change', apply); document.body.style.paddingRight = ''; delete document.body.dataset.assistant }
-  }, [open])
-  // ⌘J / Ctrl+J 开关
+  }, [open, enabled])
+  // ⌘J / Ctrl+J 开关（助手关着时不占这个快捷键）
   useEffect(() => {
+    if (!enabled) return
     const on = (e: KeyboardEvent) => { if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'j') { e.preventDefault(); setOpen((v) => !v) } }
     window.addEventListener('keydown', on)
     return () => window.removeEventListener('keydown', on)
-  }, [])
+  }, [enabled])
   // 新消息滚到底；一轮答完刷新全部数据（AI 写的东西马上出现在页面上）
   useEffect(() => { listRef.current?.scrollTo({ top: listRef.current.scrollHeight }) }, [msgs])
   useEffect(() => { if (wasRunning.current && !running) qc.invalidateQueries(); wasRunning.current = running }, [running, qc])
@@ -81,6 +86,7 @@ export function AssistantDock() {
   const stop = async () => { await api.post('/assistant/stop', {}).catch(() => {}); qc.invalidateQueries({ queryKey: ['assistant-messages'] }) }
   const restart = async () => { await api.del('/assistant/messages').catch(() => {}); qc.invalidateQueries({ queryKey: ['assistant-messages'] }) }
 
+  if (!enabled) return null
   if (!open) {
     return (
       <button onClick={() => setOpen(true)} className="fixed right-4 bottom-[calc(76px+env(safe-area-inset-bottom))] z-40 flex items-center gap-1.5 rounded-full border border-primary/25 bg-card px-3.5 py-2 text-sm font-medium text-primary shadow-paper hover:bg-accent md:bottom-5" aria-label="打开 AI 助手">

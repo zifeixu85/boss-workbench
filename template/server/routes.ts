@@ -16,6 +16,7 @@ import { reminderRoutes } from './reminders/routes.ts'
 import * as assistant from './assistant/service.ts'
 import { calendarRoutes } from './calendar/routes.ts'
 import { maybeSync } from './calendar/service.ts'
+import { APP_DIR, DB_PATH } from './db.ts'
 
 const WEB = '网页' as const
 export const routes = new Hono()
@@ -30,6 +31,8 @@ routes.get('/follow', (c) => c.json(ok(home.followUps())))
 routes.get('/changes', (c) => c.json(ok(home.recentChanges(50))))
 routes.get('/search', (c) => c.json(ok(home.search(c.req.query('q') ?? ''))))
 routes.get('/settings', (c) => c.json(ok(home.getSettings())))
+// 这是哪一个工作台（2026-11-12）：Codex 插件打开页面前核对端口上开着的是不是自己这一个（server/assistant/launch.ts）
+routes.get('/instance', (c) => c.json(ok({ app: APP_DIR, db: DB_PATH })))
 // AI 助手（2026-10-15）：每页右边的对话栏，后台调本机 Codex（assistant/runner.ts）
 routes.get('/assistant/status', async (c) => c.json(ok(await assistant.status(c.req.query('refresh') === '1'))))
 routes.get('/assistant/messages', (c) => c.json(ok(assistant.messages())))

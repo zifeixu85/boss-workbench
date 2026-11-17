@@ -28,7 +28,7 @@ export function ProjectsBrief({ o }: { o: Overview }) {
       {!items.length && (
         <div className="grid gap-2 px-3 py-2">
           <EmptyNote>还没有在推进的项目。</EmptyNote>
-          <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground"><Button size="sm" variant="outline" onClick={() => ov.openNew('project')}>新建项目</Button>也可以对 AI 助手说“建个项目：……”</div>
+          <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground"><Button size="sm" variant="outline" onClick={() => ov.openNew('project')}>新建项目</Button>也可以在 Codex 里说“建个项目：……”</div>
         </div>
       )}
     </Panel>
@@ -47,7 +47,7 @@ export function InboxBrief({ o }: { o: Overview }) {
         </Link>
       ))}
       {left > 0 && <p className="px-3 pt-1 pb-2 text-xs text-muted-foreground">还有 {left} 份</p>}
-      {!items.length && <div className="px-3 py-2"><EmptyNote>收件箱是空的。随手记、聊天截图、会议纪要都可以先丢进来，对 AI 助手说“整理收件箱”，它会拆好再问你。</EmptyNote></div>}
+      {!items.length && <div className="px-3 py-2"><EmptyNote>收件箱是空的。随手记、聊天截图、会议纪要都可以先丢进来，在 Codex 里说“整理收件箱”，它会拆好再问你。</EmptyNote></div>}
     </Panel>
   )
 }
