@@ -28,7 +28,7 @@ export function ObjectSheet({ path, onClose }: { path: string | null; onClose: (
       {!d && !error && <div className="grid gap-3"><Skeleton className="h-16" /><Skeleton className="h-40" /></div>}
       {d && o && (
         <>
-          {o.missing.length > 0 && <p className="mb-4 rounded-lg bg-warn-soft px-3 py-2 text-xs text-warn">这份文件开头还缺：{o.missing.join('、')}。</p>}
+          {(o.missing.length > 0 || o.warnings.length > 0) && <p className="mb-4 rounded-lg bg-warn-soft px-3 py-2 text-xs text-warn">{[o.missing.length ? `这份文件开头还缺：${o.missing.join('、')}` : '', ...o.warnings].filter(Boolean).join('；')}。</p>}
           <SheetSection title="现在">
             <p className="rounded-lg bg-accent px-3.5 py-3 text-sm leading-relaxed text-accent-foreground">{o.now || '文件里还没写“现在”这一节。'}</p>
           </SheetSection>

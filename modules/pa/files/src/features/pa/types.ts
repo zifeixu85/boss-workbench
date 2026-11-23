@@ -1,9 +1,9 @@
 // 接口返回的数据形状（服务端在 server/modules/pa/）
-export type FocusClass = { name: string; folder: string; statuses: string[]; fields: string[]; confirmed: boolean }
+export type FocusClass = { name: string; folder: string; statuses: string[]; fields: string[]; links: string[]; icon: string; rename: Record<string, string>; confirmed: boolean }
 export type Field = { key: string; value: string }
 export type ObjectRow = {
   path: string; name: string; status: string; status_known: boolean; updated: string; confirm: string; privacy: string
-  fields: Field[]; now: string; missing: string[]; type_mismatch: boolean; sessions: number; unread: number; last_at: string | null
+  fields: Field[]; now: string; missing: string[]; warnings: string[]; type_mismatch: boolean; sessions: number; unread: number; last_at: string | null
 }
 export type FocusList = { class: FocusClass; items: ObjectRow[]; counts: Record<string, number>; problems: string[] }
 
@@ -33,7 +33,7 @@ export type ObjectDetail = {
   class: FocusClass
   object: {
     name: string; path: string; type: string; status: string; updated: string; confirm: string; privacy: string; aliases: string[]; workdirs: string[]
-    now: string; next: { text: string; done: boolean }[]; missing: string[]; fields_shown: Field[]
+    now: string; next: { text: string; done: boolean }[]; missing: string[]; warnings: string[]; fields_shown: Field[]
   }
   timeline: { kind: '往来' | 'AI'; date: string; at: string; title: string; sub: string; pending: boolean; session: string | null }[]
   sessions: Session[]; files: Output[]; files_total: number
@@ -43,15 +43,15 @@ export type ObjectDetail = {
 }
 
 export type Stats = { from: string; to: string; sessions: number; done: number; unread: number; waiting: number; outputs: { total: number; images: number; files: number }; top: { name: string; n: number; object: boolean } | null }
-export type ReportView = {
-  kind: string; period: string; range: { from: string; to: string }; prev: string; next: string | null
+export type ReportView = { on: string[]; kind: null } | {
+  on: string[]; kind: string; period: string; range: { from: string; to: string }; prev: string; next: string | null
   counts: Record<string, number>; periods: string[]
   report: { path: string; by: string; updated: string; confirm: string; sections: { title: string; text: string }[]; problems: string[]; registered_at: string | null } | null
   stats: Stats; prev_stats: Stats
 }
 
-export type RoleFile = { name: string; path: string; exists: boolean; updated: string; confirm: string; problems: string[] }
-export type Role = { role: '总助' | '分身' | '合伙人'; name: string; folder: string; exists: boolean; files: RoleFile[]; complete: boolean; updated: string }
+export type RoleFile = { name: string; path: string; exists: boolean; updated: string; confirm: string; lines?: number; problems: string[] }
+export type Role = { role: '总助' | '分身' | '合伙人'; name: string; folder: string; display: string; legacy: boolean; exists: boolean; files: RoleFile[]; complete: boolean; updated: string }
 export type Roles = { base: string; exists: boolean; roles: Role[] }
 
 export type CardData = { count: number; items: { id?: string; title: string; sub: string; at?: string; link?: string | null; to?: string; kind?: string }[] } | null

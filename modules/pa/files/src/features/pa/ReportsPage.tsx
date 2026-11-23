@@ -26,14 +26,15 @@ function periodName(kind: string, period: string, range: { from: string; to: str
 
 export default function ReportsPage() {
   const [sp, setSp] = useSearchParams()
-  const kind = sp.get('kind') ?? '周报'
+  const asked = sp.get('kind')
   const period = sp.get('period')
-  const { data: d, error, refetch } = useApi<ReportView>(`/m/pa/reports?${new URLSearchParams({ kind, ...(period ? { period } : {}) })}`)
+  const { data: d, error, refetch } = useApi<ReportView>(`/m/pa/reports?${new URLSearchParams({ ...(asked ? { kind: asked } : {}), ...(period ? { period } : {}) })}`)
   const go = (next: Record<string, string | null>) => setSp((p) => { const n = new URLSearchParams(p); for (const [k, v] of Object.entries(next)) { if (v === null) n.delete(k); else n.set(k, v) } return n }, { replace: true })
 
   const head = <PageHeader eyebrow="我的助理" title="报告" desc="总助、分身写的日报、周报、月报，放在知识库里；顶上几个数来自进展和产出。" />
   if (error && !d) return <>{head}<PageBody><Failed message={error.message} onRetry={() => refetch()} /></PageBody></>
   if (!d) return <>{head}<PageBody className="grid gap-3"><Skeleton className="h-9 w-72" /><Skeleton className="h-24" /><Skeleton className="h-72" /></PageBody></>
+  if (!d.kind) return <>{head}<PageBody><Panel><EmptyNote>日报、周报、月报都关着。要看哪种，在知识库档案.md 的“报告”表里把它改成“开”（比如“| 周报 | 开 | 每周五 18:00 |”），刷新这一页就有。</EmptyNote></Panel></PageBody></>
   const s = d.stats
   const groups = d.report ? [{ who: '总助写的', items: d.report.sections.filter((x) => !TWIN.has(x.title)) }, { who: '分身写的', items: d.report.sections.filter((x) => TWIN.has(x.title)) }].filter((g) => g.items.length) : []
   return (
@@ -41,7 +42,7 @@ export default function ReportsPage() {
       {head}
       <PageBody className="grid gap-4">
         <div className="flex flex-wrap items-center gap-3">
-          <ViewTabs label="哪一种报告" value={kind} onChange={(v) => go({ kind: v, period: null })} items={KINDS.map((k) => ({ value: k, label: k, count: d.counts[k] ?? 0 }))} />
+          <ViewTabs label="哪一种报告" value={d.kind} onChange={(v) => go({ kind: v, period: null })} items={KINDS.filter((k) => d.on.includes(k)).map((k) => ({ value: k, label: k, count: d.counts[k] ?? 0 }))} />
           <div className="flex items-center gap-1">
             <Button variant="outline" size="icon" aria-label="上一期" onClick={() => go({ period: d.prev })}><ChevronLeft /></Button>
             <span className="min-w-40 px-2 text-center text-sm font-medium">{periodName(d.kind, d.period, d.range)}</span>
@@ -58,7 +59,7 @@ export default function ReportsPage() {
         <p className="-mt-1 text-xs text-muted-foreground">这几个数按对话最后活动的时间算在哪一期；“做完的事”数的是 AI 把一轮做完了的对话，是推断的。只算这台电脑上 Codex、Claude Code 的对话。</p>
 
         {!d.report && (
-          <Panel><EmptyNote>这一期还没有{d.kind}。在对话里让总助写：写进知识库 90-日志与报告/{d.kind}/ 下，再运行 pa-report-add 登记，这里就能看到。</EmptyNote></Panel>
+          <Panel><EmptyNote>这一期还没有{d.kind}。在对话里让总助写：写进知识库 90-日志与报告/{d.kind}/ 下，再运行 pa-report-add 登记，这里就能看到。只显示知识库档案“报告”表里开着的几种。</EmptyNote></Panel>
         )}
         {d.report && (
           <>

@@ -16,11 +16,14 @@ export function focusNav() {
   return classes.map((c) => ({ name: c.name, to: `/focus/${encodeURIComponent(c.name)}`, confirmed: c.confirmed }))
 }
 
+/** 状态显示成本人的叫法（文件里写原名或新叫法都认） */
+const shown = (cls: FocusClass, status: string) => cls.rename[status] ?? status
+
 function summary(cls: FocusClass, o: KbObject, sessions: SessionView[]) {
   const mine = sessions.filter((s) => s.object?.path === o.path)
   return {
-    path: o.path, name: o.name, status: o.status, status_known: !cls.statuses.length || cls.statuses.includes(o.status), updated: o.updated, confirm: o.confirm, privacy: o.privacy,
-    fields: cls.fields.map((k) => ({ key: k, value: fieldOf(o, k) })), now: o.now, missing: o.missing, type_mismatch: !!o.type && o.type !== cls.name,
+    path: o.path, name: o.name, status: shown(cls, o.status), status_known: cls.statuses.includes(shown(cls, o.status)), updated: o.updated, confirm: o.confirm, privacy: o.privacy,
+    fields: cls.fields.map((k) => ({ key: k, value: fieldOf(o, k) })), now: o.now, missing: o.missing, warnings: o.warnings, type_mismatch: !!o.type && o.type !== cls.name,
     sessions: mine.length, unread: mine.filter((s) => s.status === '做完未读' || s.status === '在等我').length, last_at: mine[0]?.last_at ?? null,
   }
 }
@@ -55,11 +58,14 @@ export function focusObject(path: string) {
   const backlinks = allObjects().filter((x) => x.object.path !== o.path && x.object.links.some((l) => findObject(l)?.object.path === o.path))
     .map((x) => ({ path: x.object.path, name: x.object.name, type: x.cls.name, to: `/focus/${encodeURIComponent(x.cls.name)}?o=${encodeURIComponent(x.object.path)}` }))
   return {
-    class: cls, object: { ...o, fields_shown: cls.fields.map((k) => ({ key: k, value: fieldOf(o, k) })) },
+    class: cls, object: { ...o, status: shown(cls, o.status), fields_shown: cls.fields.map((k) => ({ key: k, value: fieldOf(o, k) })) },
     timeline, sessions, files: files.items, files_total: files.total, links, backlinks,
-    kb_files: [...new Set([o.path, ...o.source, ...o.sources])],
+    kb_files: [...new Set([o.path, ...o.source, ...o.sources].map(mdPath))],
   }
 }
+
+/** 双链里的路径不带 .md：补上，知识库页才打得开 */
+const mdPath = (p: string) => (/\.[a-z0-9]+$/i.test(p) ? p : `${p}.md`)
 
 const localDay = (iso: string) => { const d = new Date(iso); const p = (n: number) => String(n).padStart(2, '0'); return Number.isNaN(d.getTime()) ? '' : `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}` }
 

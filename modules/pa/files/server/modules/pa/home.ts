@@ -2,11 +2,9 @@
 import type { ModuleHooks } from '../../module-types.ts'
 import { focusClasses, inboxFiles } from './kb.ts'
 import { pendingItems } from './focus.ts'
-import { latestDaily } from './reports.ts'
+import { latestNote } from './reports.ts'
 import { listSessions, type SessionView } from './store.ts'
 import { scan, scannedAt } from './scan.ts'
-
-const ICONS: Record<string, string> = { 项目: 'FolderKanban', 客户: 'Users', 产品: 'Package', 案例: 'FileText', 作品: 'PenLine', 渠道: 'Megaphone', 门店: 'Store', 学科: 'GraduationCap', 合作方: 'Handshake', 目标: 'Target' }
 
 /** 离上次扫超过 5 分钟：后台悄悄扫一遍（不等它，今日页先用现有的数） */
 function refreshSoon() {
@@ -32,12 +30,12 @@ export function homeCards() {
 
 export const paHooks: ModuleHooks = {
   home: { 'pa-done': () => homeCards()['pa-done'], 'pa-waiting': () => homeCards()['pa-waiting'], 'pa-confirm': () => homeCards()['pa-confirm'] },
-  nav: () => focusClasses().classes.map((c) => ({ key: `focus-${c.name}`, to: `/focus/${encodeURIComponent(c.name)}`, label: c.name, icon: ICONS[c.name] ?? 'Folder', section: '我关注的' })),
+  nav: () => focusClasses().classes.map((c) => ({ key: `focus-${c.name}`, to: `/focus/${encodeURIComponent(c.name)}`, label: c.name, icon: c.icon, section: '我关注的' })),
   badges: () => { const list = recent(); return { 'pa-progress': list.filter((s) => s.status === '做完未读' || s.status === '在等我').length } },
   note: () => {
-    const d = latestDaily()
+    const d = latestNote()
     if (!d || !d.lines.length) return null
-    return { title: `${d.report.by.includes('总助') || !d.report.by ? '总助' : d.report.by}的话 · ${d.report.period}`, lines: d.lines, by: `来自日报 ${d.report.path}${d.report.confirm === '待确认' ? '（待确认）' : ''}`, ...(d.twin ? { foot: `分身的一句：${d.twin}` } : {}), to: `/reports?kind=${encodeURIComponent('日报')}&period=${d.report.period}` }
+    return { title: `总助的话 · ${d.report.kind} ${d.report.period}`, lines: d.lines, by: `来自 ${d.report.path}${d.report.confirm === '待确认' ? '（待确认）' : ''}`, ...(d.twin ? { foot: `分身的一句：${d.twin}` } : {}), to: `/reports?kind=${encodeURIComponent(d.report.kind)}&period=${d.report.period}` }
   },
   today: () => {
     const list = recent()

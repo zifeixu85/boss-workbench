@@ -45,5 +45,5 @@ paRoutes.get('/outputs/:id/file', (c) => {
   return new Response(Readable.toWeb(createReadStream(f.path)) as ReadableStream, { headers: { 'content-type': f.type, 'content-length': String(f.size), 'cache-control': 'private, max-age=3600', 'x-content-type-options': 'nosniff' } })
 })
 
-paRoutes.get('/reports', async (c) => { await scanIfStale(); return c.json(ok(reportView((c.req.query('kind') || '周报') as ReportKind, c.req.query('period') || undefined))) })
+paRoutes.get('/reports', async (c) => { await scanIfStale(); return c.json(ok(reportView((c.req.query('kind') || undefined) as ReportKind | undefined, c.req.query('period') || undefined))) })
 paRoutes.get('/roles', (c) => c.json(ok(roles())))

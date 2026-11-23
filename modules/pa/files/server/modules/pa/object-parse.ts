@@ -1,9 +1,10 @@
 // 对象文件（约定第 3 节）：开头几行固定信息 + 现在 / 下一步 / 往来记录 / 来源 四个小节。项目和“我关注的”各类对象都是这一种格式。
-import { bullets, front, sections, splitList } from './text.ts'
+import { bullets, front, list, sections, str, unlink } from './text.ts'
+import { typeDef } from './type-library.ts'
 import type { KbObject } from './types.ts'
 
 export const REQUIRED = ['类型', '名称', '状态', '更新', '确认', '隐私', '来源']
-const KNOWN = new Set([...REQUIRED, '别名', '关联', '工作文件夹'])
+const KNOWN = new Set([...REQUIRED, 'aliases', '别名', '关联', '工作文件夹'])
 
 /** 对象叫什么：<文件夹>/<名称>.md 取文件名；<文件夹>/<名称>/README.md 取文件夹名 */
 export function objectNameFromPath(path: string): string {
@@ -22,16 +23,24 @@ function logLine(text: string): KbObject['log'][number] {
 export function parseObject(md: string, path: string): KbObject {
   const { meta, body } = front(md)
   const sec = Object.fromEntries(sections(body).map((s) => [s.title, s.text]))
-  const fields = Object.fromEntries(Object.entries(meta).filter(([k]) => !KNOWN.has(k)))
+  const fields = Object.fromEntries(Object.entries(meta).filter(([k]) => !KNOWN.has(k)).map(([k, v]) => [k, Array.isArray(v) ? v.map(unlink).join('、') : unlink(v)]))
+  const warnings: string[] = []
+  if (meta['别名'] !== undefined) warnings.push('“别名”要改成 aliases（Obsidian 只认这个名字）')
+  if (['aliases', '别名', '关联', '工作文件夹', '来源'].some((k) => typeof meta[k] === 'string' && /[、,，]/.test(meta[k] as string))) warnings.push('多个值要写成列表（每行一个“  - ”），不用顿号')
+  if (list(meta['关联']).some((v) => !/^\[\[.+\]\]$/.test(v))) warnings.push('关联要写成带引号的双链，比如 "[[02-项目/春节茶礼]]"')
+  const type = str(meta['类型'])
+  if (type && !typeDef(type)) warnings.push(`类型“${type}”不在类型库里`)
   return {
-    type: meta['类型'] ?? '', name: meta['名称'] || objectNameFromPath(path), path,
-    status: meta['状态'] ?? '', updated: meta['更新'] ?? '', confirm: meta['确认'] ?? '', privacy: meta['隐私'] ?? '',
-    source: splitList(meta['来源']), aliases: splitList(meta['别名']), links: splitList(meta['关联']).map((l) => l.replace(/\.md$/i, '')), workdirs: splitList(meta['工作文件夹']),
+    type, name: str(meta['名称']) || objectNameFromPath(path), path,
+    status: str(meta['状态']), updated: str(meta['更新']), confirm: str(meta['确认']), privacy: str(meta['隐私']),
+    source: list(meta['来源']).map(unlink), aliases: list(meta['aliases'] ?? meta['别名']).map(unlink),
+    links: list(meta['关联']).map(unlink).map((l) => l.replace(/\.md$/i, '')), workdirs: list(meta['工作文件夹']),
     fields,
     now: sec['现在'] ?? '',
     next: bullets(sec['下一步'] ?? '').map((l) => { const m = l.match(/^\[( |x|X)\]\s*(.*)$/); return m ? { text: m[2], done: m[1] !== ' ' } : { text: l, done: false } }),
     log: bullets(sec['往来记录'] ?? '').map(logLine),
-    sources: bullets(sec['来源'] ?? ''),
-    missing: REQUIRED.filter((k) => !meta[k]),
+    sources: bullets(sec['来源'] ?? '').map(unlink),
+    missing: REQUIRED.filter((k) => !str(meta[k])),
+    warnings,
   }
 }

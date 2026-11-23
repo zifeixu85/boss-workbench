@@ -3,20 +3,23 @@ import { existsSync, readdirSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import { ROOT } from '../../db.ts'
 import { canReadKbPath, readKbTextFile } from '../../services/kb.ts'
-import { parseFocusTable } from './profile.ts'
+import { DEFAULT_REPORTS, parseProfile, type ReportSwitch } from './profile.ts'
 import { parseObject } from './object-parse.ts'
-import { front } from './text.ts'
+import { front, sections, str } from './text.ts'
 import type { FocusClass, KbObject } from './types.ts'
 
 export const PROFILE_FILE = '知识库档案.md'
 const readable = (rel: string) => { const abs = join(ROOT, rel); return existsSync(abs) && canReadKbPath(abs) }
 export const readRel = (rel: string) => readKbTextFile(join(ROOT, rel))
 
-/** “我关注的”有哪几类。没有知识库档案、表头不对都写进 problems，页面上告诉用户怎么补 */
-export function focusClasses(): { classes: FocusClass[]; problems: string[]; hasProfile: boolean } {
-  if (!readable(PROFILE_FILE)) return { classes: [], problems: [`知识库根目录没有 ${PROFILE_FILE}（“我关注的”有哪几类写在这份文件里）`], hasProfile: false }
-  try { return { ...parseFocusTable(readRel(PROFILE_FILE)), hasProfile: true } } catch (err) { return { classes: [], problems: [`读不了 ${PROFILE_FILE}：${(err as Error).message}`], hasProfile: true } }
+export type Profile = ReturnType<typeof parseProfile> & { hasProfile: boolean }
+/** 知识库档案：“我关注的”有哪几类、候选类型、报告开关。没有档案、表头不对都写进 problems，页面上告诉用户怎么补 */
+export function profile(): Profile {
+  if (!readable(PROFILE_FILE)) return { classes: [], problems: [`知识库根目录没有 ${PROFILE_FILE}（“我关注的”有哪几类、开哪几种报告写在这份文件里）`], candidates: [], reports: { ...DEFAULT_REPORTS }, reportsSet: false, hasProfile: false }
+  try { return { ...parseProfile(readRel(PROFILE_FILE)), hasProfile: true } } catch (err) { return { classes: [], problems: [`读不了 ${PROFILE_FILE}：${(err as Error).message}`], candidates: [], reports: { ...DEFAULT_REPORTS }, reportsSet: false, hasProfile: true } }
 }
+export const focusClasses = () => profile()
+export const reportSwitch = (): ReportSwitch => profile().reports
 
 const SKIP_FILES = /^(readme|index|agents|claude)\.md$/i
 
@@ -61,26 +64,46 @@ export function inboxFiles(): { path: string; name: string; updated: string }[] 
     .sort((a, b) => b.updated.localeCompare(a.updated))
 }
 
-// ───────────────────────────── 角色文件（约定第 5 节）
+// ───────────────────────────── 角色文件（约定 v0.2 第 5 节：每个角色两份，角色.md 一页纸 + 记忆.md）
 
-const ROLE_FILES = ['身份', '性格', '记忆']
-export type RoleFile = { name: string; path: string; exists: boolean; updated: string; confirm: string; problems: string[] }
-export type Role = { role: '总助' | '分身' | '合伙人'; name: string; folder: string; exists: boolean; files: RoleFile[]; complete: boolean; updated: string }
+export const ROLE_SECTIONS = ['我是谁', '我管什么，不管什么', '我怎么想', '我怎么说话', '什么时候我会反对你', '我不碰的']
+const PARTNER_SECTIONS = ['专业或思路来源', '边界']
+export type RoleFile = { name: string; path: string; exists: boolean; updated: string; confirm: string; lines?: number; problems: string[] }
+export type Role = { role: '总助' | '分身' | '合伙人'; name: string; folder: string; display: string; exists: boolean; files: RoleFile[]; complete: boolean; updated: string; legacy: boolean }
 
 function roleAt(role: Role['role'], name: string, folder: string): Role {
   const exists = existsSync(join(ROOT, folder))
-  const files = ROLE_FILES.map((f): RoleFile => {
-    const path = `${folder}/${f}.md`
-    if (!readable(path)) return { name: f, path, exists: false, updated: '', confirm: '', problems: [] }
-    const { meta } = front(readRel(path))
+  let display = ''
+  const card = ((): RoleFile => {
+    const path = `${folder}/角色.md`
+    if (!readable(path)) return { name: '角色', path, exists: false, updated: '', confirm: '', problems: [] }
+    const md = readRel(path)
+    const { meta, body } = front(md)
+    display = str(meta['名称'])
+    const have = sections(body).map((x) => x.title)
+    const need = [...ROLE_SECTIONS, ...(role === '合伙人' ? PARTNER_SECTIONS : [])]
+    const missing = need.filter((t) => !have.includes(t))
     const problems = [
-      ...(meta['类型'] === '角色文件' ? [] : ['开头的“类型”要写“角色文件”']),
-      ...(meta['角色'] && meta['角色'] !== role ? [`开头的“角色”写的是“${meta['角色']}”`] : []),
-      ...(meta['更新'] ? [] : ['没写“更新”日期']),
+      ...(str(meta['类型']) === '角色' ? [] : ['开头的“类型”要写“角色”']),
+      ...(str(meta['角色']) && str(meta['角色']) !== role ? [`开头的“角色”写的是“${str(meta['角色'])}”`] : []),
+      ...(str(meta['更新']) ? [] : ['没写“更新”日期']),
+      ...(missing.length ? [`缺小节：${missing.join('、')}`] : []),
     ]
-    return { name: f, path, exists: true, updated: meta['更新'] || statSync(join(ROOT, path)).mtime.toISOString().slice(0, 10), confirm: meta['确认'] ?? '', problems }
-  })
-  return { role, name, folder, exists, files, complete: files.every((f) => f.exists), updated: files.map((f) => f.updated).filter(Boolean).sort().pop() ?? '' }
+    return { name: '角色', path, exists: true, updated: str(meta['更新']) || statSync(join(ROOT, path)).mtime.toISOString().slice(0, 10), confirm: str(meta['确认']), problems }
+  })()
+  const memory = ((): RoleFile => {
+    const path = `${folder}/记忆.md`
+    if (!readable(path)) return { name: '记忆', path, exists: false, updated: '', confirm: '', problems: [] }
+    const md = readRel(path)
+    const { meta, body } = front(md)
+    const lines = body.split(/\r?\n/).filter((l) => /^\s*[-*]\s+\S/.test(l)).length
+    return { name: '记忆', path, exists: true, updated: str(meta['更新']) || statSync(join(ROOT, path)).mtime.toISOString().slice(0, 10), confirm: str(meta['确认']), lines, problems: [] }
+  })()
+  // v0.1 的三份（身份、性格、记忆）：还认得出来，提示合成一份
+  const legacy = !card.exists && (readable(`${folder}/身份.md`) || readable(`${folder}/性格.md`))
+  if (legacy) card.problems.push('还是旧的“身份.md + 性格.md”，要合成一份“角色.md”')
+  const files = [card, memory]
+  return { role, name, folder, display, exists, files, complete: files.every((f) => f.exists), updated: files.map((f) => f.updated).filter(Boolean).sort().pop() ?? '', legacy }
 }
 
 /** 总助、分身各一个；合伙人有几个算几个（合伙人-<名称>/） */

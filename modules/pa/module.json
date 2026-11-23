@@ -42,7 +42,7 @@
     ],
     "write": [
       { "command": "pa-scan", "what": "现在扫一遍本机 Codex、Claude Code 的对话记录（只读；只存元信息）" },
-      { "command": "pa-report-add", "what": "登记一份已经写进知识库 90-日志与报告/ 的报告（args 写路径）；只检查格式、记一笔，不改报告" },
+      { "command": "pa-report-add", "what": "登记一份已经写进知识库 90-日志与报告/ 的报告（args 写路径）；只检查格式、记下登记时间，不改报告" },
       { "command": "pa-mark", "what": "给一次对话标已看、手动改状态、手动归到某个对象（只记在工作台里）" }
     ]
   }

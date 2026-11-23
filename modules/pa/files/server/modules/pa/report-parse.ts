@@ -1,5 +1,5 @@
 // 报告文件（约定第 6 节）：90-日志与报告/日报|周报|月报/<期间>.md。只解析，不读写文件。
-import { bullets, front, sections } from './text.ts'
+import { bullets, front, sections, str } from './text.ts'
 
 export type ReportKind = '日报' | '周报' | '月报'
 export const REPORT_KINDS: ReportKind[] = ['日报', '周报', '月报']
@@ -14,13 +14,13 @@ export function parseReport(md: string, path: string): Report {
   const parts = path.split('/')
   const folder = parts[parts.length - 2] as ReportKind
   const problems: string[] = []
-  const kind = REPORT_KINDS.includes(meta['类型'] as ReportKind) ? (meta['类型'] as ReportKind) : folder
-  if (!meta['类型']) problems.push('开头没写“类型”')
-  else if (meta['类型'] !== folder && REPORT_KINDS.includes(folder)) problems.push(`开头写的是“${meta['类型']}”，却放在“${folder}”文件夹里`)
-  const period = meta['期间'] || parts[parts.length - 1].replace(/\.md$/i, '')
+  const t = str(meta['类型'])
+  const kind = REPORT_KINDS.includes(t as ReportKind) ? (t as ReportKind) : folder
+  if (!t) problems.push('开头没写“类型”')
+  else if (t !== folder && REPORT_KINDS.includes(folder)) problems.push(`开头写的是“${t}”，却放在“${folder}”文件夹里`)
+  const period = str(meta['期间']) || parts[parts.length - 1].replace(/\.md$/i, '')
   if (!periodOf(kind, period)) problems.push(`期间“${period}”认不出来（日报写 2026-11-25，周报写 2026-W48，月报写 2026-11）`)
-  if (!meta['写的人'] && meta['类型']) problems.push('开头没写“写的人”')
-  return { path, kind, period, by: meta['写的人'] ?? '', updated: meta['更新'] ?? '', confirm: meta['确认'] ?? '', privacy: meta['隐私'] ?? '', sections: sections(body), problems }
+  return { path, kind, period, by: str(meta['写的人']), updated: str(meta['更新']), confirm: str(meta['确认']), privacy: str(meta['隐私']), sections: sections(body), problems }
 }
 
 const iso = (d: Date) => d.toISOString().slice(0, 10)

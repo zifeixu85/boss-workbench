@@ -1,6 +1,7 @@
 // 这个模块里来回传的数据形状。对话记录只取这些元信息，不取正文。
 
-export type FocusClass = { name: string; folder: string; statuses: string[]; fields: string[]; confirmed: boolean }
+/** “我关注的”里启用的一类：类型库里的定义 + 这份库的文件夹、叫法、确认 */
+export type FocusClass = { name: string; folder: string; statuses: string[]; fields: string[]; links: string[]; icon: string; rename: Record<string, string>; confirmed: boolean }
 
 export type KbObject = {
   type: string; name: string
@@ -16,6 +17,8 @@ export type KbObject = {
   sources: string[]
   /** 缺的必填字段 */
   missing: string[]
+  /** 写法上要改的（旧写法、不在类型库的类型……），照样能读 */
+  warnings: string[]
 }
 
 export type Tool = 'codex' | 'claude'

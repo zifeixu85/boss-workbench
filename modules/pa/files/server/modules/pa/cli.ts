@@ -19,7 +19,7 @@ const HELP = `  pa [--json]                           个人助理一览：我�
   pa-reports [--kind 周报] [--period 2026-W48] [--json]   某一期的报告和这一期的几个数
   pa-roles [--json]                     总助、分身、合伙人的角色文件齐不齐、哪天更新的
   pa-scan [--force]                     现在扫一遍本机的 Codex、Claude Code 对话记录（只读；只存元信息，不存正文）
-  pa-report-add <路径>                  登记一份写好的报告：文件要先写进知识库 90-日志与报告/日报|周报|月报/，这里检查格式、记一笔，报告页就能看到
+  pa-report-add <路径>                  登记一份写好的报告：文件要先写进知识库 90-日志与报告/日报|周报|月报/，这里检查格式、记下登记时间，报告页就能看到
   pa-mark <对话编号> (--read | --status 停了|auto | --object 路径|auto|none)   标已看、手动改状态、手动归到某个对象（只记在工作台里）`
 
 const local = (iso: string) => { const d = new Date(iso); const p = (n: number) => String(n).padStart(2, '0'); return Number.isNaN(d.getTime()) ? '—' : `${d.getMonth() + 1}/${d.getDate()} ${p(d.getHours())}:${p(d.getMinutes())}` }
@@ -64,13 +64,14 @@ async function runCli(argv: string[]): Promise<number> {
       return print(v, [`近 ${days} 天：${Object.entries(v.counts).filter(([, n]) => n).map(([k, n]) => `${k} ${n}`).join('，') || '没有'}`, ...v.items.map((i) => `${i.kind}｜${i.name}｜${i.object?.name ?? '未归类'}｜${i.tool_name}｜${local(i.at)}｜${i.path}`)].join('\n'))
     }
     case 'pa-reports': {
-      const v = reportView((o.kind ?? '周报') as ReportKind, o.period)
+      const v = reportView(o.kind as ReportKind | undefined, o.period)
+      if (!v.kind) return print(v, '日报、周报、月报都关着。在知识库档案.md 的“报告”表里把要的那种改成“开”。')
       return print(v, [`${v.kind} ${v.period}（${v.range.from} — ${v.range.to}）`, `AI 对话 ${v.stats.sessions} 个，做完 ${v.stats.done} 件（${v.stats.unread} 件没看），产出 ${v.stats.outputs.total} 个（图 ${v.stats.outputs.images}），用得最多：${v.stats.top?.name ?? '—'}`,
         v.report ? v.report.sections.map((s) => `## ${s.title}\n${s.text}`).join('\n\n') : `这一期还没有${v.kind}`].join('\n'))
     }
     case 'pa-roles': {
       const v = roles()
-      return print(v, v.roles.map((r) => `${r.role}${r.role === '合伙人' ? ` · ${r.name}` : ''}：${r.files.map((f) => `${f.name}${f.exists ? `（${f.updated}）` : '（没有）'}`).join('，')}`).join('\n'))
+      return print(v, v.roles.map((r) => `${r.role}${r.role === '合伙人' ? ` · ${r.name}` : ''}${r.display ? `（${r.display}）` : ''}：${r.files.map((f) => `${f.name}${f.exists ? `（${f.updated}）` : '（没有）'}`).join('，')}${r.legacy ? '；还是旧的三份，要合成角色.md' : ''}`).join('\n'))
     }
     case 'pa-scan': {
       const found = sources()

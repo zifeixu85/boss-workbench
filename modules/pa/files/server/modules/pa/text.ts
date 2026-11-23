@@ -1,20 +1,60 @@
 // 小工具：文件开头那几行、Markdown 小节、第一句摘要、遮掉像密钥的串、按后缀分文件类型。只做文字处理，不读写文件。
 
-/** 文件开头 --- 之间的“键: 值”和正文（容忍 BOM、Windows 换行、全角冒号；“  - 值”的列表并进上一项，用顿号连） */
-export function front(md: string): { meta: Record<string, string>; body: string } {
-  const text = md.replace(/^﻿/, '')
-  const m = text.match(/^---\r?\n([\s\S]*?)\r?\n---[ \t]*(?:\r?\n|$)/)
+export type MetaValue = string | string[]
+export type Meta = Record<string, MetaValue>
+
+/** 一个属性值：去掉引号；行内列表 [a, "b"] 拆开 */
+function scalar(raw: string): MetaValue {
+  const v = raw.trim()
+  if (/^\[.*\]$/.test(v)) {
+    const inner = v.slice(1, -1).trim()
+    if (!inner) return []
+    const out: string[] = []
+    let cur = ''
+    let quote = ''
+    for (const ch of inner) {
+      if (quote) { if (ch === quote) quote = ''; else cur += ch; continue }
+      if (ch === '"' || ch === "'") { quote = ch; continue }
+      if (ch === ',') { if (cur.trim()) out.push(cur.trim()); cur = ''; continue }
+      cur += ch
+    }
+    if (cur.trim()) out.push(cur.trim())
+    return out
+  }
+  const q = v.match(/^"((?:[^"\\]|\\.)*)"$/) ?? v.match(/^'((?:[^']|'')*)'$/)
+  if (q) return q[1].replace(/''/g, "'").replace(/\\"/g, '"')
+  return v.replace(/\s+#.*$/, '')
+}
+
+/** 文件开头两行 --- 之间的属性（Obsidian 的写法，是 YAML 的一小部分）：
+ *  “键: 值”；值可以带引号；“键:” 下面每行“  - 值”是列表；也认行内列表 [a, b]。容忍 BOM、Windows 换行、全角冒号。
+ *  不认多行文本、嵌套对象（约定里没有这些）。 */
+export function front(md: string): { meta: Meta; body: string } {
+  const text = md.replace(/^\uFEFF/, '')
+  const m = text.match(/^---\r?\n([\s\S]*?)\r?\n?---[ \t]*(?:\r?\n|$)/)
   if (!m) return { meta: {}, body: text }
-  const meta: Record<string, string> = {}
+  const meta: Meta = {}
   let last = ''
   for (const raw of m[1].split(/\r?\n/)) {
-    const item = raw.match(/^\s+-\s+(.*)$/)
-    if (item && last) { meta[last] = [meta[last], item[1].trim()].filter(Boolean).join('、'); continue }
-    const kv = raw.match(/^([^\s:：#][^:：]*)[:：]\s*(.*)$/)
-    if (kv) { last = kv[1].trim(); meta[last] = kv[2].trim().replace(/^["'`]|["'`]$/g, '') }
+    const item = raw.match(/^\s*-\s+(.*)$/)
+    if (item && last) {
+      const cur = meta[last]
+      const v = scalar(item[1]) as string
+      meta[last] = Array.isArray(cur) ? [...cur, v] : cur ? [cur, v] : [v]
+      continue
+    }
+    const kv = raw.match(/^([^\s:：#-][^:：]*)[:：](?:\s+(.*))?$/)
+    if (kv) { last = kv[1].trim(); meta[last] = scalar(kv[2] ?? '') }
   }
   return { meta, body: text.slice(m[0].length) }
 }
+
+/** 属性值当一个字符串用（列表取第一个） */
+export const str = (v: MetaValue | undefined) => (Array.isArray(v) ? v[0] ?? '' : v ?? '')
+/** 属性值当列表用；旧写法（v0.1）的“甲、乙”也拆开 */
+export const list = (v: MetaValue | undefined) => (Array.isArray(v) ? v : splitList(v))
+/** 双链 [[路径|显示名]] → 路径；不是双链的原样 */
+export const unlink = (v: string) => v.trim().replace(/^\[\[([^\]|]+)(?:\|[^\]]*)?\]\]$/, '$1').trim()
 
 /** 按二级标题拆正文：[{ title, text }]，标题前面的内容不算 */
 export function sections(body: string): { title: string; text: string }[] {

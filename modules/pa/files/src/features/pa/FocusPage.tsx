@@ -34,7 +34,7 @@ export default function FocusPage() {
   const items = status === 'all' ? data.items : data.items.filter((i) => (i.status || '没写状态') === status)
   return (
     <>
-      <PageHeader eyebrow="我关注的" title={cls.name} desc={`知识库 ${cls.folder}/ 里的每一份文件是一个${cls.name}。这一页只读；要改，在对话里让助理改知识库。`} />
+      <PageHeader eyebrow="我关注的" title={cls.name} desc={`知识库 ${cls.folder}/ 里的每一份文件是一个${cls.name}（类型库：${cls.name}的状态有${cls.statuses.join('、')}）。这一页只读；要改，在对话里让助理改知识库。`} />
       <PageBody className="grid gap-4">
         {!cls.confirmed && (
           <Alert><AlertTitle>这一类还没确认</AlertTitle><AlertDescription>“{cls.name}”是 AI 按你的资料提的分类，知识库档案里还标着待确认。看着对就在对话里说一声“{cls.name}这一类确认”。</AlertDescription></Alert>
@@ -59,6 +59,7 @@ export default function FocusPage() {
                           {o.confirm === '待确认' && <StatusBadge value="待确认" tone="warn" />}
                           {o.confirm === '已过期' && <StatusBadge value="已过期" tone="danger" />}
                           {o.privacy === '私密' && <StatusBadge value="私密" tone="neutral" />}
+                          {(o.missing.length > 0 || o.warnings.length > 0) && <span title={[...o.missing.map((m) => `缺 ${m}`), ...o.warnings].join('；')}><StatusBadge value="写法要改" tone="warn" /></span>}
                         </span>
                       </TableCell>
                       <TableCell><ObjectStatus value={o.status} known={o.status_known} /></TableCell>

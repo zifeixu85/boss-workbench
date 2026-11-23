@@ -27,13 +27,15 @@ function setup() {
   const now = new Date()
   const ago = (min) => new Date(now.getTime() - min * 60000).toISOString()
   // 知识库：档案 + 两类对象 + 一份周报 + 总助角色
-  put(join(KB, '知识库档案.md'), '## 我关注的\n\n| 类名 | 文件夹 | 状态可选值 | 列表上显示 | 确认 |\n|---|---|---|---|---|\n| 项目 | 02-项目 | 进行中、搁着 | 截止、负责人 | 已确认 |\n| 客户 | 10-客户 | 在谈、合作中 | 上次联系 | 待确认 |\n')
-  put(join(KB, '02-项目', '春节茶礼.md'), `---\n类型: 项目\n名称: 春节茶礼\n状态: 进行中\n更新: 2026-11-24\n确认: 已确认\n隐私: 内部\n来源: 99-原始材料/a.md\n截止: 2026-12-20\n负责人: 孙蕾\n工作文件夹: ${WORK}\n---\n\n## 现在\n报价单做完待看。\n\n## 往来记录\n- 2026-11-24｜电话｜要 120 份（AI 记录，待确认）\n`)
-  put(join(KB, '10-客户', '云杉物流.md'), '---\n类型: 客户\n名称: 云杉物流\n状态: 合作中\n更新: 2026-11-24\n确认: 待确认\n隐私: 内部\n来源: 99-原始材料/a.md\n别名: 云杉\n---\n\n## 现在\n等报价。\n')
+  put(join(KB, '知识库档案.md'), '## 我关注的\n\n| 类型 | 文件夹 | 确认 |\n|---|---|---|\n| 项目 | 02-项目 | 已确认 |\n| 客户 | 10-客户 | 待确认 |\n\n## 报告\n\n| 报告 | 开关 | 什么时候出 |\n|---|---|---|\n| 日报 | 关 | 每天 22:00 |\n| 周报 | 开 | 每周五 18:00 |\n| 月报 | 关 | 每月最后一天 |\n')
+  put(join(KB, '02-项目', '春节茶礼.md'), `---\n类型: 项目\n名称: 春节茶礼\n状态: 进行中\n更新: 2026-11-24\n确认: 已确认\n隐私: 内部\n来源: "[[99-原始材料/a]]"\n截止: 2026-12-20\n负责人: 孙蕾\n关联:\n  - "[[10-客户/云杉物流]]"\n工作文件夹:\n  - ${WORK}\n---\n\n## 现在\n报价单做完待看。\n\n## 往来记录\n- 2026-11-24｜电话｜要 120 份（AI 记录，待确认）\n`)
+  put(join(KB, '10-客户', '云杉物流.md'), '---\n类型: 客户\n名称: 云杉物流\n状态: 合作中\n更新: 2026-11-24\n确认: 待确认\n隐私: 内部\n来源: "[[99-原始材料/a]]"\naliases:\n  - 云杉\n---\n\n## 现在\n等报价。\n')
   const week = (() => { const d = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate())); const thu = new Date(d.getTime() + (3 - ((d.getUTCDay() + 6) % 7)) * 864e5); const j4 = new Date(Date.UTC(thu.getUTCFullYear(), 0, 4)); const w = 1 + Math.round(((thu - j4) / 864e5 - 3 + ((j4.getUTCDay() + 6) % 7)) / 7); return `${thu.getUTCFullYear()}-W${String(w).padStart(2, '0')}` })()
-  put(join(KB, '90-日志与报告', '周报', `${week}.md`), `---\n类型: 周报\n期间: ${week}\n写的人: 总助、分身\n更新: 2026-11-24\n确认: 待确认\n隐私: 内部\n---\n\n## 做了什么\n- 春节茶礼报价单\n\n## 这周的你\n还行。\n`)
+  put(join(KB, '90-日志与报告', '周报', `${week}.md`), `---\n类型: 周报\n期间: ${week}\n更新: 2026-11-24\n确认: 待确认\n隐私: 内部\n---\n\n## 做了什么\n- 春节茶礼报价单\n\n## 这周的你\n还行。\n`)
   put(join(KB, '90-日志与报告', '日报', '2026-11-24.md'), '---\n类型: 日报\n期间: 2026-11-24\n写的人: 总助\n更新: 2026-11-24\n确认: 待确认\n隐私: 内部\n---\n\n## 摘要\n- 报价单做完了，还没看。\n')
-  for (const f of ['身份', '性格', '记忆']) put(join(KB, '01-关于我', '助理', '总助', `${f}.md`), `---\n类型: 角色文件\n角色: 总助\n名称: 总助\n更新: 2026-11-24\n确认: 已确认\n隐私: 私密\n---\n\n内容\n`)
+  put(join(KB, '01-关于我', '助理', '总助', '角色.md'), `---\n类型: 角色\n角色: 总助\n名称: 小茶\n更新: 2026-11-24\n确认: 已确认\n隐私: 私密\n---\n\n${['我是谁', '我管什么，不管什么', '我怎么想', '我怎么说话', '什么时候我会反对你', '我不碰的'].map((t) => `## ${t}\n内容\n`).join('\n')}`)
+  put(join(KB, '01-关于我', '助理', '总助', '记忆.md'), '---\n类型: 记忆\n角色: 总助\n更新: 2026-11-24\n---\n\n- 2026-11-20 定了两档价位\n')
+  for (const f of ['身份', '性格']) put(join(KB, '01-关于我', '助理', '分身', `${f}.md`), '---\n类型: 角色文件\n---\n旧格式\n')
   // 假的 Codex：一个在春节茶礼文件夹里、做完了的对话（写了一个文件）；一个问了问题的
   const cx = (ts, type, payload) => J({ timestamp: ts, type, payload })
   put(join(CODEX, 'sessions', '2026', '11', '24', 'rollout-a.jsonl'), [
@@ -73,7 +75,7 @@ test('装上个人助理：我关注的、进展、产出、报告、助理都�
   const add = tool('add', 'pa', '--from', PACK, '--no-build')
   assert.equal(add.code, 0, add.out)
 
-  assert.deepEqual(json('pa-focus').classes.map((c) => [c.name, c.confirmed]), [['项目', true], ['客户', false]])
+  assert.deepEqual(json('pa-focus').classes.map((c) => [c.name, c.confirmed, c.statuses.length]), [['项目', true, 3], ['客户', false, 3]])
   const list = json('pa-focus', '项目')
   assert.deepEqual(list.items[0].fields, [{ key: '截止', value: '2026-12-20' }, { key: '负责人', value: '孙蕾' }])
 
@@ -104,6 +106,8 @@ test('装上个人助理：我关注的、进展、产出、报告、助理都�
   // 对象详情：时间线里有往来记录和 AI 对话
   const obj = json('pa-object', '02-项目/春节茶礼.md')
   assert.deepEqual(obj.timeline.map((t) => t.kind).sort(), ['AI', '往来'])
+  assert.deepEqual(obj.links.map((l) => [l.name, l.type]), [['云杉物流', '客户']], '双链关联认得出')
+  assert.ok(obj.kb_files.includes('99-原始材料/a.md'), '双链来源补上 .md')
 
   // 手动改：标已看、改状态、归类
   assert.match(cli('pa-mark', 'codex:thread-a', '--read').out, /标已看/)
@@ -121,7 +125,12 @@ test('装上个人助理：我关注的、进展、产出、报告、助理都�
 
   // 助理
   const roles = json('pa-roles').roles
-  assert.deepEqual(roles.map((r) => [r.role, r.complete]), [['总助', true], ['分身', false]])
+  assert.deepEqual(roles.map((r) => [r.role, r.display, r.complete, r.legacy]), [['总助', '小茶', true, false], ['分身', '', false, true]])
+  assert.deepEqual(roles[0].files.map((f) => [f.name, f.problems.length, f.lines ?? null]), [['角色', 0, null], ['记忆', 0, 1]])
+
+  // 报告开关：只开周报，日报那一份不显示，“总助的话”取周报
+  assert.deepEqual(rep.on, ['周报'])
+  assert.equal(json('pa-reports', '--kind', '日报').kind, '周报', '日报关着：给开着的那种')
 
   // 今日概况：三张卡的数、菜单、总助的话
   const ov = sh(process.execPath, ['-e', "import('./server/module-hooks.ts').then(async (h) => { await h.loadHooks(); const t = await import('./server/services/today.ts'); const o = t.overview(); console.log(JSON.stringify({ cards: o.cards, nav: o.nav_extra.map((n) => n.label), notes: o.module_notes.map((n) => n.title), badges: o.nav_badges })) })"])

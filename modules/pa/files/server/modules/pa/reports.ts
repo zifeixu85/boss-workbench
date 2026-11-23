@@ -1,11 +1,11 @@
 // 报告：读知识库 90-日志与报告/ 下的日报、周报、月报（总助、分身写的）；顶上几个数来自进展和产出。
-// AI 写完报告用 pa-report-add 登记：检查格式、记一笔登记时间。工作台不替 AI 写报告，也不改报告原文。
+// AI 写完报告用 pa-report-add 登记：检查格式、记下登记时间。工作台不替 AI 写报告，也不改报告原文。
 import { existsSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { ROOT, all, get, run, logChange, nowIso } from '../../db.ts'
 import { canReadKbPath } from '../../services/kb.ts'
 import { BadRequest, NotFound, type Actor } from '../../services/common.ts'
-import { readRel } from './kb.ts'
+import { readRel, reportSwitch } from './kb.ts'
 import { parseReport, periodOf, reportLine, reportSummary, weekOf, REPORT_KINDS, type Report, type ReportKind } from './report-parse.ts'
 import { listSessions, now } from './store.ts'
 import { outputStats } from './outputs.ts'
@@ -53,8 +53,13 @@ const shift = (kind: ReportKind, period: string, n: number): string => {
 const currentPeriod = (kind: ReportKind) => { const day = localDay(now()); return kind === '日报' ? day : kind === '周报' ? weekOf(day) : day.slice(0, 7) }
 
 /** 报告页要的全部：这一种报告的清单、选中的这一期（没有这一期的文件也给数）、上一期的数、前后翻页 */
-export function reportView(kind: ReportKind, period?: string) {
-  if (!REPORT_KINDS.includes(kind)) throw new BadRequest(`报告只有：${REPORT_KINDS.join('、')}`)
+export function reportView(asked: ReportKind | undefined, period?: string) {
+  const sw = reportSwitch()
+  const on = REPORT_KINDS.filter((k) => sw[k])
+  if (asked && !REPORT_KINDS.includes(asked)) throw new BadRequest(`报告只有：${REPORT_KINDS.join('、')}`)
+  // 只给开着的；全关时给 null，页面说怎么打开
+  const kind = asked && on.includes(asked) ? asked : on.includes('周报') ? '周报' : on[0]
+  if (!kind) return { on, kind: null }
   const list = listReports(kind)
   const cur = period && periodOf(kind, period) ? period : list[0]?.period && periodOf(kind, list[0].period) ? list[0].period : currentPeriod(kind)
   const range = periodOf(kind, cur)!
@@ -63,22 +68,25 @@ export function reportView(kind: ReportKind, period?: string) {
   const prevRange = periodOf(kind, prevP)!
   const registered = report ? get<{ registered_at: string }>('SELECT registered_at FROM pa_reports WHERE path = :p', { p: report.path })?.registered_at ?? null : null
   return {
-    kind, period: cur, range, prev: prevP, next: cur >= currentPeriod(kind) ? null : shift(kind, cur, 1),
-    counts: Object.fromEntries(REPORT_KINDS.map((k) => [k, k === kind ? list.length : listReports(k).length])),
+    on, kind, period: cur, range, prev: prevP, next: cur >= currentPeriod(kind) ? null : shift(kind, cur, 1),
+    counts: Object.fromEntries(on.map((k) => [k, k === kind ? list.length : listReports(k).length])),
     periods: list.map((r) => r.period),
     report: report ? { ...report, registered_at: registered } : null,
     stats: periodStats(range.from, range.to), prev_stats: periodStats(prevRange.from, prevRange.to),
   }
 }
 
-/** 最新一份日报：今日页“总助的话”用。没有日报就没有这一段 */
-export function latestDaily(): { report: Report; lines: string[]; twin: string } | null {
-  const r = listReports('日报')[0]
-  if (!r) return null
-  return { report: r, lines: reportSummary(r, 4), twin: reportLine(r, '分身的一句') }
+/** 今日页“总助的话”：开着日报就取最新一份日报，没开就取最新一份周报；摘要取“摘要”或“做了什么”，分身的一句取“分身的一句”或“这周的你” */
+export function latestNote(): { report: Report; lines: string[]; twin: string } | null {
+  const sw = reportSwitch()
+  for (const kind of (['日报', '周报'] as const).filter((k) => sw[k])) {
+    const r = listReports(kind)[0]
+    if (r) return { report: r, lines: reportSummary(r, 4), twin: reportLine(r, '分身的一句') || reportLine(r, '这周的你') }
+  }
+  return null
 }
 
-/** AI 写好报告后登记：文件要在知识库的 90-日志与报告/<日报|周报|月报>/ 里，开头字段要齐。登记只记一笔，不改文件 */
+/** AI 写好报告后登记：文件要在知识库的 90-日志与报告/<日报|周报|月报>/ 里，开头字段要齐。登记只记下时间，不改文件 */
 export function registerReport(path: string, actor: Actor) {
   const rel = path.replace(/\\/g, '/').replace(/^\.?\//, '')
   const m = rel.match(/^90-日志与报告\/(日报|周报|月报)\/[^/]+\.md$/)
