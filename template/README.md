@@ -161,6 +161,8 @@ node server/seed/index.ts --only biz # 只重灌一个模块（biz、data、crm-
 | 自带示例数据（只在示例库里写） | `server.hooks` 的 `seed` | `server/seed/index.ts`（`--only <编号>`） |
 | 接手以前模板自带时建的表和文件（老工作台升级） | 迁移第一行 `-- 接手：旧文件名.sql`；`replaces.files` | `server/db.ts`、`scripts/module.mjs add`、`scripts/upgrade.mjs` |
 
+| 运行时的菜单项（有几页要看数据才知道）、菜单角标、今日页重点卡上面的一段话（2026-11-24） | `server.hooks` 的 `nav`、`badges`、`note` | `server/services/today.ts` 的 `nav_extra`、`nav_badges`、`module_notes`；`src/app/nav.ts` 的 `withDynamicNav`、`withBadges`；`src/app/nav-sections.ts`；`src/app/nav-icons.ts`；今日页 |
+
 类型都在 `server/module-types.ts`（`ModuleHooks`）；接入点文件启动时就加载（`server/module-hooks.ts`），所以要小。写法和规矩见 Skill 的 `modules/README.md`。
 
 ## 和示例数据（--demo）的关系

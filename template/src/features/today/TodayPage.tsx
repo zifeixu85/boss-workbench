@@ -6,7 +6,8 @@ import type { Overview, Settings } from '@/lib/types'
 import { dueText, fullDate, yuan } from '@/lib/format'
 import { now } from '@/lib/clock'
 import { useOverlay } from '@/app/overlay'
-import { PageHeader, PageBody } from '@/components/page'
+import { Link } from 'react-router'
+import { PageHeader, PageBody, Panel } from '@/components/page'
 import { Failed } from '@/components/chart-kit'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
@@ -90,6 +91,14 @@ export default function TodayPage() {
             </div>
           </section>
         )}
+
+        {/* 模块放在重点卡上面的一段话（server.hooks 的 note，比如总助昨晚写的日报摘要） */}
+        {(o.module_notes ?? []).map((n) => (
+          <Panel key={n.module} title={n.title} desc={n.by} action={n.to ? <Button asChild variant="ghost" size="sm"><Link to={n.to}>看全文</Link></Button> : undefined}>
+            <ul className="grid gap-1.5 text-sm">{n.lines.map((line) => <li key={line} className="flex gap-2"><span aria-hidden className="mt-2 size-1 shrink-0 rounded-full bg-primary" />{line}</li>)}</ul>
+            {n.foot && <p className="mt-3 border-t pt-3 text-sm text-muted-foreground">{n.foot}</p>}
+          </Panel>
+        ))}
 
         {/* 重点卡：老板“最想先看到”的，最多 3 张；三张且第一张是经营时经营那张更宽 */}
         {focus.length > 0 && (

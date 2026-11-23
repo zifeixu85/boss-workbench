@@ -7,7 +7,7 @@ import { useNavMode } from '@/app/nav-mode'
 /** 没有左栏时（顶部导航、双层里只有一页的分区）正文居中：外壳提供 true，页头和正文加 mx-auto（2026-10-17） */
 export const PageCenterContext = createContext(false)
 /** 分区名：复杂导航的顶栏已经写了位置（分区 › 分组 › 页面），页头上方的小字是分区名时，电脑上不再重复 */
-const SECTION_NAMES = new Set(['今日', '客户', '经营', '内容', '数据', '资料', '系统'])
+const SECTION_NAMES = new Set(['今日', '我关注的', '我的助理', '客户', '经营', '内容', '数据', '资料', '系统'])
 
 /** className 用来限宽（比如 max-w-5xl），和下面 PageBody 的宽度对齐；居中时一起居中 */
 export function PageHeader({ eyebrow, title, desc, actions, children, className }: { eyebrow?: string; title: string; desc?: ReactNode; actions?: ReactNode; children?: ReactNode; className?: string }) {

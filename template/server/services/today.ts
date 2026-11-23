@@ -21,7 +21,7 @@ import { searchKb } from './kb.ts'
 import { homeFocus, HOME_CARDS } from '../../shared/home.ts'
 import { MODULE_SETTINGS } from '../../shared/modules.ts'
 import { moduleHooks, hookErrors } from '../module-hooks.ts'
-import type { TodaySection } from '../module-types.ts'
+import type { ModuleNavItem, TodayNote, TodaySection } from '../module-types.ts'
 import { BadRequest } from './common.ts'
 import { editMode } from './edit-mode.ts'
 
@@ -74,6 +74,9 @@ export function overview() {
   // 装进来的模块：重点卡的数（键是卡片 id）、今日概况里的一段。模块收着的不调；出错只影响它自己那一块
   const cards: Record<string, unknown> = {}
   const moduleToday: (TodaySection & { module: string; name: string })[] = []
+  const navExtra: (ModuleNavItem & { module: string })[] = []
+  const navBadges: Record<string, number> = {}
+  const moduleNotes: (TodayNote & { module: string; name: string })[] = []
   for (const h of moduleHooks()) {
     if (!on.has(h.module)) continue
     for (const [id, fn] of Object.entries(h.hooks.home ?? {})) {
@@ -81,6 +84,11 @@ export function overview() {
     }
     const section = h.hooks.today ? safe(h.name, () => h.hooks.today!(t), null) : null
     if (section) moduleToday.push({ module: h.module, name: h.name, ...section })
+    // 运行时的菜单项、角标、今日页上的一段话（2026-11-24）
+    if (h.hooks.nav) navExtra.push(...safe(h.name, () => h.hooks.nav!(), []).map((n) => ({ ...n, module: h.module })))
+    if (h.hooks.badges) Object.assign(navBadges, safe(h.name, () => h.hooks.badges!(), {}))
+    const note = h.hooks.note ? safe(h.name, () => h.hooks.note!(t), null) : null
+    if (note) moduleNotes.push({ module: h.module, name: h.name, ...note })
   }
   for (const e of hookErrors()) moduleErrors.push(e)
   const dueRecs = listReceivables().filter((r) => r.status === '7天内到期')
@@ -90,7 +98,7 @@ export function overview() {
   const homeSetting = get<{ value: string }>("SELECT value FROM settings WHERE key = 'home'")?.value
   return {
     date: t,
-    sales, alerts, key_clients: keyClients, cards, module_today: moduleToday, module_errors: [...moduleErrors],
+    sales, alerts, key_clients: keyClients, cards, module_today: moduleToday, nav_extra: navExtra, nav_badges: navBadges, module_notes: moduleNotes, module_errors: [...moduleErrors],
     headline: top ? { id: top.id, title: top.title, due: top.due, due_time: top.due_time } : null,
     events, upcoming,
     todos: { today: todayTodos, week: weekTodos, open: todos.length },

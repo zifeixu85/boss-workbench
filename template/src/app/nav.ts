@@ -12,13 +12,14 @@
 import {
   BellRing, BookHeart, BookOpen, CalendarDays, ChartNoAxesCombined, Clapperboard, Database, FileCog, FileUp, FolderKanban,
   HandCoins, HeartHandshake, History, Inbox, LayoutDashboard, ListChecks, ListTodo, NotebookPen, Palette, 
-  ScanText, Settings, ShoppingBag, SquareKanban, Store, Users, Video, type LucideIcon,
+  ScanText, Settings, ShoppingBag, SquareKanban, Star, Store, Users, Video, Bot, type LucideIcon,
 } from 'lucide-react'
 import type { Overview } from '@/lib/types'
 import { MODULE_NAV } from './modules.nav.gen.ts'
 
 /** 一级分区。系统不占顶栏，从头像菜单进 */
-export type NavSectionKey = '今日' | '客户' | '经营' | '内容' | '数据' | '资料' | '系统'
+/** 2026-11-24 加两个分区（个人助理版）：我关注的（按知识库里“我关注的”有几类出几页）、我的助理（AI 做了什么）。没有页面时自动不显示 */
+export type NavSectionKey = '今日' | '我关注的' | '客户' | '经营' | '内容' | '我的助理' | '数据' | '资料' | '系统'
 /** 模块的一个子页面。icon 不写就用模块的图标 */
 export type NavChild = { to: string; label: string; icon?: LucideIcon; end?: boolean }
 export type NavItem = {
@@ -95,12 +96,35 @@ export const MOBILE_TABS = ['today', 'clients', 'biz']
 /** 模块开关打开着的菜单项：没写 module 的照常显示（shared/modules.ts 定义模块；网页里用 nav-sections.ts 的 useNav） */
 export const navWithModules = (on: (id: string) => boolean, nav: NavItem[] = NAV): NavItem[] => nav.filter((n) => !n.module || on(n.module))
 
+/** 模块运行时给的菜单项（server.hooks 的 nav，经 /api/overview 的 nav_extra 传来）：页面有几个要看数据的那种，
+ *  比如“我关注的”有几类出几页。icon 是 lucide 图标名，只认 nav-icons.ts 里登记的，不认识的用文件夹图标 */
+export type DynamicNav = { key: string; to: string; label: string; icon?: string; section: NavSectionKey; sub?: string; module: string; badge?: number; tone?: 'warn' | 'quiet' }
+
+/** 把运行时的菜单项并进菜单：同一个模块的排在它固定菜单项后面；模块没有固定菜单项的排在知识库前面。key 重复的不加 */
+export function withDynamicNav(nav: NavItem[], extra: DynamicNav[], icon: (name?: string) => LucideIcon): NavItem[] {
+  let out = [...nav]
+  for (const d of extra) {
+    if (out.some((n) => n.key === d.key) || !SECTION_META.some((m) => m.key === d.section)) continue
+    const item: NavItem = { key: d.key, to: d.to, label: d.label, icon: icon(d.icon), section: d.section, module: d.module, ...(d.sub ? { sub: d.sub } : {}), ...(d.badge ? { badge: () => d.badge, tone: d.tone ?? 'quiet' } : {}) }
+    const last = out.findLastIndex((n) => n.module === d.module)
+    const at = last >= 0 ? last + 1 : Math.max(out.findIndex((n) => n.key === 'kb'), 0)
+    out = [...out.slice(0, at), item, ...out.slice(at)]
+  }
+  return out
+}
+
+/** 模块运行时给的角标（server.hooks 的 badges）：键是菜单项的 key，只给没写过 badge 的项加 */
+export function withBadges(nav: NavItem[], badges: Record<string, number> | undefined): NavItem[] {
+  if (!badges) return nav
+  return nav.map((n) => (!n.badge && badges[n.key] ? { ...n, badge: () => badges[n.key], tone: n.tone ?? 'warn' } : n))
+}
+
 // ───────────────────────────── 分区、二级分组、页面
 
 /** 分区的顺序、图标；hidden = 不占顶栏（系统） */
 const SECTION_META: { key: NavSectionKey; icon: LucideIcon; hidden?: boolean }[] = [
-  { key: '今日', icon: LayoutDashboard }, { key: '客户', icon: Users }, { key: '经营', icon: ChartNoAxesCombined },
-  { key: '内容', icon: NotebookPen }, { key: '数据', icon: Database }, { key: '资料', icon: BookOpen }, { key: '系统', icon: Settings, hidden: true },
+  { key: '今日', icon: LayoutDashboard }, { key: '我关注的', icon: Star }, { key: '客户', icon: Users }, { key: '经营', icon: ChartNoAxesCombined },
+  { key: '内容', icon: NotebookPen }, { key: '我的助理', icon: Bot }, { key: '数据', icon: Database }, { key: '资料', icon: BookOpen }, { key: '系统', icon: Settings, hidden: true },
 ]
 
 /** 一个页面：没有子页面的模块就是它自己；有子页面的模块，每个子页面一个 */

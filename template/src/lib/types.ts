@@ -86,6 +86,10 @@ export type Overview = {
   key_clients: FocusClient[]
   /** 装进来的模块的重点卡要的数（键是卡片 id，模块的 server.hooks 给的）、今日概况里各模块的一段（brief 进页头那句话）。2026-11-12 */
   cards?: Record<string, unknown>
+  /** 模块运行时给的菜单项、角标、今日页上的一段话（server.hooks 的 nav / badges / note，2026-11-24） */
+  nav_extra?: import('@/app/nav').DynamicNav[]
+  nav_badges?: Record<string, number>
+  module_notes?: { module: string; name: string; title: string; lines: string[]; by?: string; foot?: string; to?: string }[]
   module_today?: { module: string; name: string; title: string; lines: string[]; brief?: string | null }[]
   module_errors: { module: string; error: string }[]
   /** 提醒页没读的条数（菜单角标）、数据源有几个（数据异常面板的空状态用）。10-12 加 */

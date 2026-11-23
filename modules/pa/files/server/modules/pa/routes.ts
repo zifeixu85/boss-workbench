@@ -1,0 +1,49 @@
+// 个人助理模块的接口：核心挂在 /api/m/pa/ 下。读的居多；写的只有三种标记（标已看、改状态、归类），都只记在工作台数据库里。
+import { createReadStream } from 'node:fs'
+import { Readable } from 'node:stream'
+import { moduleApp, ok, body } from '../../module-kit.ts'
+import { focusClasses, roles } from './kb.ts'
+import { focusList, focusObject, pendingItems } from './focus.ts'
+import { getSession, listSessions, markRead, setObject, setStatus, statusCounts } from './store.ts'
+import { imageFile, listOutputs, thumbFile } from './outputs.ts'
+import { reportView } from './reports.ts'
+import { scan, scanIfStale, scannedAt, sources, SCAN_DAYS } from './scan.ts'
+import { allObjects } from './kb.ts'
+import { DONE_HOURS, RUNNING_MIN, STALE_DAYS } from './status.ts'
+import type { ReportKind } from './report-parse.ts'
+
+export const paRoutes = moduleApp()
+
+paRoutes.get('/focus', (c) => c.json(ok(focusClasses())))
+paRoutes.get('/focus/:name', (c) => c.json(ok(focusList(decodeURIComponent(c.req.param('name'))))))
+paRoutes.get('/object', (c) => c.json(ok(focusObject(c.req.query('path') ?? ''))))
+paRoutes.get('/pending', (c) => c.json(ok(pendingItems())))
+
+paRoutes.get('/progress', async (c) => {
+  const scanned = await scanIfStale()
+  const list = listSessions({ days: Number(c.req.query('days')) || 30, all: c.req.query('all') === '1' })
+  return c.json(ok({
+    sessions: list, counts: statusCounts(list), scanned_at: scannedAt(), left: scanned?.left ?? 0, errors: scanned?.errors ?? [], sources: sources(),
+    rules: { running_min: RUNNING_MIN, stale_days: STALE_DAYS, done_hours: DONE_HOURS, scan_days: SCAN_DAYS },
+    objects: allObjects().map((x) => ({ path: x.object.path, name: x.object.name, type: x.cls.name })),
+  }))
+})
+paRoutes.post('/scan', async (c) => c.json(ok(await scan({ budgetMs: 8000, force: (await body(c) as { force?: boolean }).force === true }))))
+paRoutes.get('/sessions/:id', (c) => c.json(ok(getSession(c.req.param('id')))))
+paRoutes.post('/sessions/:id/read', (c) => c.json(ok(markRead(c.req.param('id'), '网页'))))
+paRoutes.post('/sessions/:id/status', async (c) => c.json(ok(setStatus(c.req.param('id'), ((await body(c)) as { status?: string | null }).status ?? null, '网页'))))
+paRoutes.post('/sessions/:id/object', async (c) => c.json(ok(setObject(c.req.param('id'), ((await body(c)) as { path?: string | null }).path ?? null, '网页'))))
+
+paRoutes.get('/outputs', async (c) => {
+  await scanIfStale()
+  const q = (k: string) => c.req.query(k) || undefined
+  return c.json(ok(listOutputs({ days: Number(q('days')) || 30, kind: q('kind'), object: q('object'), tool: q('tool'), session: q('session'), edits: q('edits') === '1', limit: Math.min(Number(q('limit')) || 60, 200), offset: Number(q('offset')) || 0 })))
+})
+// 看一张图：只按清单里的编号给，原文件只读
+paRoutes.get('/outputs/:id/file', (c) => {
+  const f = c.req.query('size') === 'thumb' ? thumbFile(c.req.param('id')) : imageFile(c.req.param('id'))
+  return new Response(Readable.toWeb(createReadStream(f.path)) as ReadableStream, { headers: { 'content-type': f.type, 'content-length': String(f.size), 'cache-control': 'private, max-age=3600', 'x-content-type-options': 'nosniff' } })
+})
+
+paRoutes.get('/reports', async (c) => { await scanIfStale(); return c.json(ok(reportView((c.req.query('kind') || '周报') as ReportKind, c.req.query('period') || undefined))) })
+paRoutes.get('/roles', (c) => c.json(ok(roles())))

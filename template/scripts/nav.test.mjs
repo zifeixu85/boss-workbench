@@ -132,3 +132,28 @@ test('外壳：菜单都从 useNav 取（关掉的模块不出现）；复杂导
   assert.doesNotMatch(dual, /HoverCard/)
   assert.match(dual, /g\.pages\.map/)
 })
+
+test('模块运行时给的菜单项（我关注的有几类出几页）：并进对应分区、排在同一模块的固定项后面、key 重复不加；角标只加给没写过的', async () => {
+  const { withDynamicNav, withBadges } = await import('../src/app/nav.ts')
+  const icon = () => 'I'
+  const base = [...NAV.filter((n) => n.section !== '经营'), { key: 'pa-progress', to: '/progress', label: '进展', icon: 'I', section: '我的助理', module: 'pa' }]
+  const extra = [
+    { key: 'focus-项目', to: '/focus/项目', label: '项目', icon: 'FolderKanban', section: '我关注的', module: 'pa' },
+    { key: 'focus-客户', to: '/focus/客户', label: '客户', section: '我关注的', module: 'pa' },
+    { key: 'focus-客户', to: '/focus/客户2', label: '重复', section: '我关注的', module: 'pa' },
+    { key: 'bad', to: '/x', label: '没有这个分区', section: '乱写', module: 'pa' },
+  ]
+  const nav = withDynamicNav(base, extra, icon)
+  const secs = sectionsOf(nav)
+  assert.deepEqual(secs.map((s) => s.key).slice(0, 2), ['今日', '我关注的'], '“我关注的”紧跟在今日后面')
+  assert.deepEqual(secs.find((s) => s.key === '我关注的').pages.map((p) => p.label), ['项目', '客户'])
+  assert.ok(secs.some((s) => s.key === '我的助理'))
+  assert.equal(nav.filter((n) => n.key === 'focus-客户').length, 1)
+  assert.equal(nav.some((n) => n.key === 'bad'), false)
+  const r = resolveNav('/focus/客户', secs)
+  assert.deepEqual([r.section?.key, r.page?.label], ['我关注的', '客户'])
+  const withB = withBadges(nav, { 'pa-progress': 3, todos: 9 })
+  assert.equal(withB.find((n) => n.key === 'pa-progress').badge({}), 3)
+  const todos = withB.find((n) => n.key === 'todos')
+  assert.equal(todos.badge, NAV.find((n) => n.key === 'todos').badge, '自己有角标的不被盖掉')
+})

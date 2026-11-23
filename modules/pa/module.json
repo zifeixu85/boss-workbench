@@ -1,0 +1,49 @@
+{
+  "id": "pa",
+  "name": "个人助理",
+  "version": "0.1.0",
+  "summary": "使用个人助理的工作台：一半按你关心的对象看（知识库“我关注的”有几类出几页），一半按 AI 做了什么看（进展、产出、报告、助理）。只读本机 Codex、Claude Code 的对话记录，只取标题、文件夹、时间和写文件的路径",
+  "needs": [],
+  "nav": [
+    { "key": "pa-progress", "to": "/progress", "label": "进展", "icon": "Activity", "section": "我的助理" },
+    { "key": "pa-outputs", "to": "/outputs", "label": "产出", "icon": "Images", "section": "我的助理" },
+    { "key": "pa-reports", "to": "/reports", "label": "报告", "icon": "FileBarChart", "section": "我的助理" },
+    { "key": "pa-roles", "to": "/roles", "label": "助理", "icon": "Bot", "section": "我的助理" }
+  ],
+  "pages": [
+    { "path": "focus/:name", "file": "src/features/pa/FocusPage.tsx" },
+    { "path": "progress", "file": "src/features/pa/ProgressPage.tsx" },
+    { "path": "outputs", "file": "src/features/pa/OutputsPage.tsx" },
+    { "path": "reports", "file": "src/features/pa/ReportsPage.tsx" },
+    { "path": "roles", "file": "src/features/pa/RolesPage.tsx" }
+  ],
+  "home": [
+    { "id": "pa-done", "name": "AI 做完了等你看的", "file": "src/features/pa/DoneCard.tsx" },
+    { "id": "pa-waiting", "name": "AI 在等你回话的", "file": "src/features/pa/WaitingCard.tsx" },
+    { "id": "pa-confirm", "name": "知识库里要你确认的资料", "file": "src/features/pa/ConfirmCard.tsx" }
+  ],
+  "open": [
+    { "key": "pa-focus", "label": "“我关注的”里的一类（列表）", "to": "/focus/{id}", "id": "类名，如 客户（pa-focus 命令列出有哪几类）" },
+    { "key": "pa-session", "label": "一次 AI 对话的详情", "to": "/progress?s={id}", "id": "对话编号，如 codex:01a2…（pa-progress 每行最后那一段）" },
+    { "key": "pa-report", "label": "某一种报告（最新一期）", "to": "/reports?kind={id}", "id": "日报、周报或月报" }
+  ],
+  "server": {
+    "api": "server/modules/pa/routes.ts#paRoutes",
+    "hooks": "server/modules/pa/hooks.ts#paHooks",
+    "cli": { "file": "server/modules/pa/cli.ts#paCli", "commands": ["pa"] },
+    "read": [
+      { "command": "pa", "what": "个人助理一览：我关注的有哪几类、AI 对话各状态几个、要确认的资料几条" },
+      { "command": "pa-focus", "what": "“我关注的”有哪几类；args 写类名就列这一类的对象" },
+      { "command": "pa-object", "what": "一个对象的详情（args 写它在知识库里的路径）：现在、下一步、时间线、相关文件和对话" },
+      { "command": "pa-progress", "what": "本机 AI 对话做到哪了：标题、归到哪个对象、工具、时间、状态（状态是推断的）；没有对话内容" },
+      { "command": "pa-outputs", "what": "AI 生成的图片和写出来的文件（只有路径）" },
+      { "command": "pa-reports", "what": "某一期的日报 / 周报 / 月报和这一期的几个数" },
+      { "command": "pa-roles", "what": "总助、分身、合伙人的角色文件齐不齐、哪天更新的" }
+    ],
+    "write": [
+      { "command": "pa-scan", "what": "现在扫一遍本机 Codex、Claude Code 的对话记录（只读；只存元信息）" },
+      { "command": "pa-report-add", "what": "登记一份已经写进知识库 90-日志与报告/ 的报告（args 写路径）；只检查格式、记一笔，不改报告" },
+      { "command": "pa-mark", "what": "给一次对话标已看、手动改状态、手动归到某个对象（只记在工作台里）" }
+    ]
+  }
+}

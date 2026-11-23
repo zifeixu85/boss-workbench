@@ -34,7 +34,7 @@ const ID = /^[a-z][a-z0-9-]{1,30}$/
 const ICON = /^[A-Z][A-Za-z0-9]+$/
 const CMD = /^[a-z][a-z0-9-]{1,40}$/
 const OPEN_KEY = /^[a-z][a-z0-9-]{1,40}$/
-const SECTIONS = ['今日', '客户', '经营', '内容', '数据', '资料', '系统']
+const SECTIONS = ['今日', '我关注的', '客户', '经营', '内容', '我的助理', '数据', '资料', '系统']
 const ROOTS = ['src/', 'server/', 'shared/', 'public/']
 const GEN = {
   shared: 'shared/modules.gen.ts',

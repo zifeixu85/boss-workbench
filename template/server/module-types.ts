@@ -73,10 +73,23 @@ export type TodaySection = {
 /** 模块的示例数据（只在演示时写：seed --demo）。tables 是重灌前要清空的表（按删除顺序），只能是这个模块自己的表 */
 export type ModuleSeed = { tables: string[]; seed: () => void }
 
+/** 模块运行时给的菜单项（2026-11-24）：页面有几个要看数据才知道的那种，比如“我关注的”有几类出几页。
+ *  icon 写 lucide 图标名（网页只认 src/app/nav-icons.ts 里登记的）；section 是 src/app/nav.ts 里的分区名 */
+export type ModuleNavItem = { key: string; to: string; label: string; icon?: string; section: string; sub?: string; badge?: number; tone?: 'warn' | 'quiet' }
+
+/** 模块放在今日页重点卡上面的一段话（2026-11-24）：标题、几行字、谁写的、底下一句小字、点了去哪 */
+export type TodayNote = { title: string; lines: string[]; by?: string; foot?: string; to?: string }
+
 /** server.hooks 导出的东西。每一项都可以不写；模块开关收起来时，核心不调它们 */
 export type ModuleHooks = {
   /** 今日页重点卡要的数：键是 module.json 的 home 里登记的卡片 id，值是“某一天”的数。出错只影响这一张卡 */
   home?: Record<string, (day: string) => unknown>
+  /** 运行时的菜单项：每次算今日概况时调，要快（读一个小文件、查一次库），出错就当没有 */
+  nav?: () => ModuleNavItem[]
+  /** 菜单角标：键是菜单项的 key（固定的、运行时的都行），值是“要你处理”的数；0 不显示 */
+  badges?: () => Record<string, number>
+  /** 今日页重点卡上面的一段话；没有要说的返回 null */
+  note?: (day: string) => TodayNote | null
   /** 今日概况里这个模块的一段 */
   today?: (day: string) => TodaySection | null
   /** 往“数据源与导入”登记的导入目标（要 needs 里写 data）。类型见 server/modules/data/targets.ts */
