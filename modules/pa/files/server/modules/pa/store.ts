@@ -17,6 +17,8 @@ export type SessionView = {
   id: string; tool: string; tool_name: string; kind: string; title: string; title_from: string; first: string; cwd: string; folder: string
   started_at: string; last_at: string; turns: number
   status: Status; why: string; inferred: boolean
+  /** 状态是你手动改的（对话之后没再动过） */
+  manual: boolean
   /** 归到哪个对象；by：文件夹 / 名字 / 手动；null = 未归类 */
   object: { path: string; name: string; type: string; by: string } | null
   /** 能跳回对话的链接：Codex 是 codex://threads/<编号>；Claude 桌面版里开的是 claude://code/continue?session=<桌面版编号>；命令行开的 Claude Code 没有链接，给一条命令 */
@@ -43,7 +45,7 @@ function view(r: Row, outputs: number): SessionView {
   }
   return {
     id: r.id, tool: r.tool, tool_name: TOOL_NAMES[r.tool] ?? r.tool, kind: r.kind, title, title_from: r.title ? r.title_from : r.first ? '第一句' : '', first: r.first, cwd: r.cwd, folder: basename(r.cwd) || r.cwd,
-    started_at: r.started_at, last_at: r.last_at, turns: r.turns, ...st, object,
+    started_at: r.started_at, last_at: r.last_at, turns: r.turns, ...st, manual: !!(r.m_status && r.status_at && r.status_at >= r.last_at), object,
     link: r.tool === 'codex' ? `codex://threads/${r.sid}` : r.app_sid ? `claude://code/continue?session=${r.app_sid}` : null,
     resume: r.tool === 'claude' ? `claude --resume ${r.sid}` : null,
     outputs,

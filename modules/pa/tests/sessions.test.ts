@@ -148,6 +148,8 @@ test('归到对象：先看文件夹（最具体的那个），再看标题和�
   assert.equal(matchObject({ cwd: '/tmp', title: '孙蕾问云杉的折扣', first: '' }, OBJS, HOME), null, '出现两个对象：不猜')
   assert.equal(matchObject({ cwd: '/tmp', title: '随便聊聊', first: '' }, OBJS, HOME), null)
   assert.equal(matchObject({ cwd: '/Users/lin/工作/春节茶礼2', title: '', first: '' }, [OBJS[0]], HOME), null, '文件夹名只是开头一样，不算在里面')
+  assert.deepEqual(matchObject({ cwd: '/tmp', title: '航海家AI经典课 2026-10-27', first: '' }, [{ path: 'h.md', name: '航海家 AI 经典课', aliases: [], workdirs: [] }], HOME), { path: 'h.md', by: '名字' }, '名字里的空格、标点、大小写不算')
+  assert.deepEqual(matchObject({ cwd: '/tmp', title: 'openfde 的需求', first: '' }, [{ path: 'o.md', name: 'OpenFDE', aliases: [], workdirs: [] }], HOME), { path: 'o.md', by: '名字' })
   assert.deepEqual(matchObject({ cwd: '/Users/lin/a', title: '', first: '' }, [{ path: 'x.md', name: '甲', aliases: [], workdirs: ['~/a'] }], HOME), { path: 'x.md', by: '文件夹' })
 })
 

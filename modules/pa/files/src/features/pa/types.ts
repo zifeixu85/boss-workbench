@@ -10,7 +10,7 @@ export type FocusList = { class: FocusClass; items: ObjectRow[]; counts: Record<
 export type SessionStatus = '进行中' | '在等我' | '做完未读' | '已看' | '停了'
 export type Session = {
   id: string; tool: string; tool_name: string; kind: string; title: string; title_from: string; first: string; cwd: string; folder: string
-  started_at: string; last_at: string; turns: number; status: SessionStatus; why: string; inferred: boolean
+  started_at: string; last_at: string; turns: number; status: SessionStatus; why: string; inferred: boolean; manual: boolean
   object: { path: string; name: string; type: string; by: string } | null
   link: string | null; resume: string | null; outputs: number
 }

@@ -40,8 +40,8 @@ paRoutes.get('/outputs', async (c) => {
   return c.json(ok(listOutputs({ days: Number(q('days')) || 30, kind: q('kind'), object: q('object'), tool: q('tool'), session: q('session'), edits: q('edits') === '1', limit: Math.min(Number(q('limit')) || 60, 200), offset: Number(q('offset')) || 0 })))
 })
 // 看一张图：只按清单里的编号给，原文件只读
-paRoutes.get('/outputs/:id/file', (c) => {
-  const f = c.req.query('size') === 'thumb' ? thumbFile(c.req.param('id')) : imageFile(c.req.param('id'))
+paRoutes.get('/outputs/:id/file', async (c) => {
+  const f = c.req.query('size') === 'thumb' ? await thumbFile(c.req.param('id')) : imageFile(c.req.param('id'))
   return new Response(Readable.toWeb(createReadStream(f.path)) as ReadableStream, { headers: { 'content-type': f.type, 'content-length': String(f.size), 'cache-control': 'private, max-age=3600', 'x-content-type-options': 'nosniff' } })
 })
 

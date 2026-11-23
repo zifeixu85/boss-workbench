@@ -30,8 +30,8 @@ export function SessionSheet({ id, objects, onClose }: { id: string | null; obje
         <>
           <SheetSection title="状态">
             <p className="mb-3 rounded-lg bg-muted px-3.5 py-3 text-sm leading-relaxed">{s.inferred ? '推断：' : ''}{s.why}。{s.inferred && '不对的话在下面改；对话之后又有新动静时，会重新按推断来。'}</p>
-            <Choice value={s.inferred || s.status === '已看' ? AUTO : s.status} onChange={(v) => status.mutate(!v || v === AUTO ? null : v)}
-              options={[{ value: AUTO, label: '按推断来' }, ...SESSION_STATUSES.map((k) => ({ value: k, label: `改成：${k}` }))]} />
+            <Choice value={s.manual ? s.status : AUTO} onChange={(v) => status.mutate(!v || v === AUTO ? null : v)}
+              options={[{ value: AUTO, label: s.inferred ? '按推断来' : '按应用自己的记录来' }, ...SESSION_STATUSES.map((k) => ({ value: k, label: `改成：${k}` }))]} />
           </SheetSection>
 
           <SheetSection title="归到哪个对象">

@@ -7,6 +7,9 @@ import { resolve, sep } from 'node:path'
 export type MatchTarget = { path: string; name: string; aliases: string[]; workdirs: string[] }
 export type Match = { path: string; by: '文件夹' | '名字' } | null
 
+/** 比名字时不管空格、标点、全角半角和大小写（“航海家 AI 经典课”和“航海家AI经典课”算同一个） */
+export const norm = (v: string) => v.normalize('NFKC').toLowerCase().replace(/[\s\p{P}\p{S}]/gu, '')
+
 const expand = (p: string, home: string) => resolve(p.startsWith('~') ? home + p.slice(1) : p)
 
 export function matchObject(s: { cwd: string; title: string; first: string }, objects: MatchTarget[], home: string): Match {
@@ -19,7 +22,7 @@ export function matchObject(s: { cwd: string; title: string; first: string }, ob
     }
     if (best) return { path: best.path, by: '文件夹' }
   }
-  const text = `${s.title}\n${s.first}`
-  const hits = objects.filter((o) => [o.name, ...o.aliases].some((n) => n.length >= 2 && text.includes(n)))
+  const text = norm(`${s.title}\n${s.first}`)
+  const hits = objects.filter((o) => [o.name, ...o.aliases].map(norm).some((n) => n.length >= 2 && text.includes(n)))
   return hits.length === 1 ? { path: hits[0].path, by: '名字' } : null
 }

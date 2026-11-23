@@ -1,8 +1,11 @@
 // 产出：AI 生成的图片和对话里写出来的文件。数据库里只有路径；图片要看时现读原文件，别的文件只告诉你在哪。文件只读不搬。
 import { existsSync, mkdirSync, statSync } from 'node:fs'
-import { execFileSync } from 'node:child_process'
+import { execFile } from 'node:child_process'
+import { promisify } from 'node:util'
 import { basename, dirname, join } from 'node:path'
 import { DB_PATH } from '../../db.ts'
+
+const run = promisify(execFile)
 import { all, get } from '../../db.ts'
 import { NotFound, BadRequest } from '../../services/common.ts'
 import { listSessions, now, TOOL_NAMES, type SessionView } from './store.ts'
@@ -62,16 +65,26 @@ export function outputStats(from: string, to: string) {
   return { total, images, files: total - images }
 }
 
-/** 图库用的小图：Mac 上用系统自带的 sips 缩成 480 像素的 jpg，存在数据库旁边的 缩略图/（原图不动）；别的系统或缩不了就给原图 */
-export function thumbFile(id: string): { path: string; type: string; size: number } {
+/** 图库用的小图：Mac 上用系统自带的 sips 缩成 480 像素的 jpg，存在数据库旁边的 缩略图/（原图不动）；别的系统或缩不了就给原图。
+ *  异步、最多同时缩两张：同步调用会卡住整个服务（一页几十张图要卡半分钟） */
+const making = new Map<string, Promise<void>>()
+let active = 0
+const waiting: (() => void)[] = []
+const slot = async () => { if (active >= 2) await new Promise<void>((r) => waiting.push(r)); active++ }
+const release = () => { active--; waiting.shift()?.() }
+export async function thumbFile(id: string): Promise<{ path: string; type: string; size: number }> {
   const f = imageFile(id)
   if (process.platform !== 'darwin') return f
   const dir = join(dirname(DB_PATH), '缩略图')
   const out = join(dir, `${id}.jpg`)
   try {
     if (!existsSync(out) || statSync(out).mtimeMs < statSync(f.path).mtimeMs) {
-      mkdirSync(dir, { recursive: true })
-      execFileSync('/usr/bin/sips', ['-Z', '480', '-s', 'format', 'jpeg', f.path, '--out', out], { stdio: 'ignore', timeout: 15000 })
+      if (!making.has(id)) making.set(id, (async () => {
+        await slot()
+        try { mkdirSync(dir, { recursive: true }); await run('/usr/bin/sips', ['-Z', '480', '-s', 'format', 'jpeg', f.path, '--out', out], { timeout: 15000 }) }
+        finally { release(); making.delete(id) }
+      })())
+      await making.get(id)
     }
     return { path: out, type: 'image/jpeg', size: statSync(out).size }
   } catch { return f }
