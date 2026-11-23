@@ -71,7 +71,7 @@ async function runCli(argv: string[]): Promise<number> {
     }
     case 'pa-roles': {
       const v = roles()
-      return print(v, v.roles.map((r) => `${r.role}${r.role === '合伙人' ? ` · ${r.name}` : ''}${r.display ? `（${r.display}）` : ''}：${r.files.map((f) => `${f.name}${f.exists ? `（${f.updated}）` : '（没有）'}`).join('，')}${r.legacy ? '；还是旧的三份，要合成角色.md' : ''}`).join('\n'))
+      return print(v, [...v.roles.map((r) => `${r.kind} · ${r.name}${r.display && r.display !== r.name ? `（${r.display}）` : ''}：${r.files.map((f) => `${f.name}${f.exists ? `（${f.updated}${f.lines !== undefined ? `，${f.lines} 条` : ''}）` : '（没有）'}`).join('，')}${r.legacy ? '；旧格式' : ''}`), ...v.problems.map((p) => `注意：${p}`)].join('\n') || '还没有角色文件')
     }
     case 'pa-scan': {
       const found = sources()

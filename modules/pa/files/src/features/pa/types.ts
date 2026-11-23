@@ -50,8 +50,9 @@ export type ReportView = { on: string[]; kind: null } | {
   stats: Stats; prev_stats: Stats
 }
 
-export type RoleFile = { name: string; path: string; exists: boolean; updated: string; confirm: string; lines?: number; problems: string[] }
-export type Role = { role: '总助' | '分身' | '合伙人'; name: string; folder: string; display: string; legacy: boolean; exists: boolean; files: RoleFile[]; complete: boolean; updated: string }
-export type Roles = { base: string; exists: boolean; roles: Role[] }
+export type RoleKind = '总助' | '分身' | '合伙人'
+export type RoleFile = { name: '角色' | '规矩' | '记忆'; path: string; exists: boolean; updated: string; confirm: string; lines?: number; problems: string[] }
+export type Role = { kind: RoleKind; name: string; display: string; folder: string; files: RoleFile[]; complete: boolean; updated: string; legacy: boolean; problems: string[] }
+export type Roles = { base: string; exists: boolean; roles: Role[]; problems: string[] }
 
 export type CardData = { count: number; items: { id?: string; title: string; sub: string; at?: string; link?: string | null; to?: string; kind?: string }[] } | null

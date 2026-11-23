@@ -64,53 +64,73 @@ export function inboxFiles(): { path: string; name: string; updated: string }[] 
     .sort((a, b) => b.updated.localeCompare(a.updated))
 }
 
-// ───────────────────────────── 角色文件（约定 v0.2 第 5 节：每个角色两份，角色.md 一页纸 + 记忆.md）
+// ───────────────────────────── 角色文件（约定 v0.3 第 5 节）
+// 一个角色一个文件夹，名字是“类型-名字”（总助-小茶、分身-<名字>、合伙人-法务）；总助只有一个，分身和合伙人可以有多个。
+// 每个角色三份：角色.md（人设）、规矩.md（这个角色怎么做事）、记忆.md。这一页只看齐不齐、更新日期、记忆几条，不改。
 
-export const ROLE_SECTIONS = ['我是谁', '我管什么，不管什么', '我怎么想', '我怎么说话', '什么时候我会反对你', '我不碰的']
+export const ROLE_KINDS = ['总助', '分身', '合伙人'] as const
+export type RoleKind = (typeof ROLE_KINDS)[number]
+const CARD_SECTIONS = ['我是谁', '我管什么，不管什么', '我怎么想', '我怎么说话', '我会说的，和我绝不说的', '什么时候我会反对你']
 const PARTNER_SECTIONS = ['专业或思路来源', '边界']
-export type RoleFile = { name: string; path: string; exists: boolean; updated: string; confirm: string; lines?: number; problems: string[] }
-export type Role = { role: '总助' | '分身' | '合伙人'; name: string; folder: string; display: string; exists: boolean; files: RoleFile[]; complete: boolean; updated: string; legacy: boolean }
+const RULE_SECTIONS = ['每次开始先读什么', '我能自己做的', '要先问你的', '我不做的', '定期要做的']
+/** 记忆超过这么多条，提示总助提议归并 */
+export const MEMORY_MAX = 60
 
-function roleAt(role: Role['role'], name: string, folder: string): Role {
-  const exists = existsSync(join(ROOT, folder))
-  let display = ''
-  const card = ((): RoleFile => {
-    const path = `${folder}/角色.md`
-    if (!readable(path)) return { name: '角色', path, exists: false, updated: '', confirm: '', problems: [] }
-    const md = readRel(path)
-    const { meta, body } = front(md)
-    display = str(meta['名称'])
-    const have = sections(body).map((x) => x.title)
-    const need = [...ROLE_SECTIONS, ...(role === '合伙人' ? PARTNER_SECTIONS : [])]
-    const missing = need.filter((t) => !have.includes(t))
-    const problems = [
-      ...(str(meta['类型']) === '角色' ? [] : ['开头的“类型”要写“角色”']),
-      ...(str(meta['角色']) && str(meta['角色']) !== role ? [`开头的“角色”写的是“${str(meta['角色'])}”`] : []),
-      ...(str(meta['更新']) ? [] : ['没写“更新”日期']),
-      ...(missing.length ? [`缺小节：${missing.join('、')}`] : []),
-    ]
-    return { name: '角色', path, exists: true, updated: str(meta['更新']) || statSync(join(ROOT, path)).mtime.toISOString().slice(0, 10), confirm: str(meta['确认']), problems }
-  })()
-  const memory = ((): RoleFile => {
-    const path = `${folder}/记忆.md`
-    if (!readable(path)) return { name: '记忆', path, exists: false, updated: '', confirm: '', problems: [] }
-    const md = readRel(path)
-    const { meta, body } = front(md)
-    const lines = body.split(/\r?\n/).filter((l) => /^\s*[-*]\s+\S/.test(l)).length
-    return { name: '记忆', path, exists: true, updated: str(meta['更新']) || statSync(join(ROOT, path)).mtime.toISOString().slice(0, 10), confirm: str(meta['确认']), lines, problems: [] }
-  })()
-  // v0.1 的三份（身份、性格、记忆）：还认得出来，提示合成一份
-  const legacy = !card.exists && (readable(`${folder}/身份.md`) || readable(`${folder}/性格.md`))
-  if (legacy) card.problems.push('还是旧的“身份.md + 性格.md”，要合成一份“角色.md”')
-  const files = [card, memory]
-  return { role, name, folder, display, exists, files, complete: files.every((f) => f.exists), updated: files.map((f) => f.updated).filter(Boolean).sort().pop() ?? '', legacy }
+export type RoleFile = { name: '角色' | '规矩' | '记忆'; path: string; exists: boolean; updated: string; confirm: string; lines?: number; problems: string[] }
+export type Role = { kind: RoleKind; name: string; display: string; folder: string; files: RoleFile[]; complete: boolean; updated: string; legacy: boolean; problems: string[] }
+
+function roleFile(kind: RoleKind, folder: string, name: RoleFile['name']): RoleFile {
+  const path = `${folder}/${name}.md`
+  if (!readable(path)) return { name, path, exists: false, updated: '', confirm: '', problems: [] }
+  const { meta, body } = front(readRel(path))
+  const have = sections(body).map((x) => x.title)
+  const problems: string[] = []
+  let lines: number | undefined
+  if (name === '角色') {
+    const missing = [...CARD_SECTIONS, ...(kind === '合伙人' ? PARTNER_SECTIONS : [])].filter((t) => !have.includes(t))
+    if (str(meta['类型']) !== '角色') problems.push('开头的“类型”要写“角色”')
+    if (str(meta['角色']) && str(meta['角色']) !== kind) problems.push(`开头的“角色”写的是“${str(meta['角色'])}”，文件夹是${kind}`)
+    if (missing.length) problems.push(`缺小节：${missing.join('、')}`)
+    const against = sections(body).find((x) => x.title === '什么时候我会反对你')?.text ?? ''
+    if (kind !== '总助' && have.includes('什么时候我会反对你') && !against.trim()) problems.push('“什么时候我会反对你”分身和合伙人要写')
+  } else if (name === '规矩') {
+    const missing = RULE_SECTIONS.filter((t) => !have.includes(t))
+    if (missing.length) problems.push(`缺小节：${missing.join('、')}`)
+  } else {
+    lines = body.split(/\r?\n/).filter((l) => /^\s*[-*]\s+\S/.test(l)).length
+    if (lines > MEMORY_MAX) problems.push(`已经 ${lines} 条，超过 ${MEMORY_MAX} 条了，该让总助提议归并`)
+  }
+  return { name, path, exists: true, updated: str(meta['更新']) || statSync(join(ROOT, path)).mtime.toISOString().slice(0, 10), confirm: str(meta['确认']), ...(lines === undefined ? {} : { lines }), problems }
 }
 
-/** 总助、分身各一个；合伙人有几个算几个（合伙人-<名称>/） */
-export function roles(): { base: string; exists: boolean; roles: Role[] } {
+function roleAt(dir: string, base: string): Role | null {
+  const m = dir.match(/^(总助|分身|合伙人)(?:[-－—·\s]+(.+))?$/)
+  if (!m) return null
+  const kind = m[1] as RoleKind
+  const folder = `${base}/${dir}`
+  const files = (['角色', '规矩', '记忆'] as const).map((n) => roleFile(kind, folder, n))
+  // 旧格式（v0.1 的“身份 + 性格”、文件夹不带名字）：还认得出来，提示要改
+  const legacy = !m[2] || (!files[0].exists && (readable(`${folder}/身份.md`) || readable(`${folder}/性格.md`)))
+  const problems = [
+    ...(!m[2] ? [`文件夹名要写成“${kind}-名字”`] : []),
+    ...(!files[0].exists && (readable(`${folder}/身份.md`) || readable(`${folder}/性格.md`)) ? ['还是旧的“身份.md + 性格.md”，要合成“角色.md”，再加一份“规矩.md”'] : []),
+  ]
+  const display = files[0].exists ? str(front(readRel(files[0].path)).meta['名称']) : ''
+  return { kind, name: m[2]?.trim() || kind, display, folder, files, complete: files.every((f) => f.exists), updated: files.map((f) => f.updated).filter(Boolean).sort().pop() ?? '', legacy, problems }
+}
+
+/** 按文件夹列出全部角色：总助在前，再分身、合伙人，同类按名字排。不认识的文件夹写进 problems */
+export function roles(): { base: string; exists: boolean; roles: Role[]; problems: string[] } {
   const base = '01-关于我/助理'
   const dir = join(ROOT, base)
   const exists = existsSync(dir) && canReadKbPath(dir)
-  const partners = exists ? readdirSync(dir, { withFileTypes: true }).filter((e) => e.isDirectory() && /^合伙人/.test(e.name)).map((e) => e.name).sort((a, b) => a.localeCompare(b, 'zh')) : []
-  return { base, exists, roles: [roleAt('总助', '总助', `${base}/总助`), roleAt('分身', '分身', `${base}/分身`), ...partners.map((p) => roleAt('合伙人', p.replace(/^合伙人[-－—·\s]*/, '') || p, `${base}/${p}`))] }
+  if (!exists) return { base, exists, roles: [], problems: [] }
+  const dirs = readdirSync(dir, { withFileTypes: true }).filter((e) => e.isDirectory() && !e.name.startsWith('.')).map((e) => e.name)
+  const list = dirs.map((d) => roleAt(d, base)).filter((r): r is Role => !!r)
+    .sort((a, b) => ROLE_KINDS.indexOf(a.kind) - ROLE_KINDS.indexOf(b.kind) || Number(a.legacy) - Number(b.legacy) || a.name.localeCompare(b.name, 'zh'))
+  const problems = [
+    ...dirs.filter((d) => !roleAt(d, base)).map((d) => `“${d}”认不出是哪种角色（文件夹名要以 总助-、分身-、合伙人- 开头）`),
+    ...(list.filter((r) => r.kind === '总助').length > 1 ? [`总助只能有一个，现在有 ${list.filter((r) => r.kind === '总助').length} 个：${list.filter((r) => r.kind === '总助').map((r) => r.folder.split('/').pop()).join('、')}`] : []),
+  ]
+  return { base, exists, roles: list, problems }
 }
