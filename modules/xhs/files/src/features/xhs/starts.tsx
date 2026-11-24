@@ -1,4 +1,4 @@
-// 开写的起点：一句话、今天的选题、旧笔记翻新、一款茶、对标笔记。今天页和创作开始页共用。归属：小红书内容模块。
+// 开写的起点：一句话、今天的选题、旧笔记翻新、一款产品（以前叫“一款茶”）、对标笔记。今天页和创作开始页共用。归属：小红书内容模块。
 // 一句话入口只是入口：建好一篇、把这句话作为第一条消息发给 Codex，然后进创作页（对话只在创作页）。
 import { useCallback, useState, type ReactNode } from 'react'
 import { useNavigate, useSearchParams } from 'react-router'
@@ -20,8 +20,8 @@ type StartKind = 'topic' | 'note' | 'tea' | 'bench'
 export const START_ITEMS: { kind: StartKind; label: string; desc: string; icon: typeof Lightbulb }[] = [
   { kind: 'topic', label: '从今天的选题', desc: '早上 Codex 出的 10 个', icon: Lightbulb },
   { kind: 'note', label: '从我的旧笔记翻新', desc: '收藏高的再写一版', icon: NotebookPen },
-  { kind: 'tea', label: '从一款茶开始', desc: '零售商品清单里的 12 款', icon: Leaf },
-  { kind: 'bench', label: '从对标笔记开始', desc: '借结构，换成自己的茶', icon: BookMarked },
+  { kind: 'tea', label: '从一款产品开始', desc: '商品清单里挑一款', icon: Leaf },
+  { kind: 'bench', label: '从对标笔记开始', desc: '借结构，换成自己的东西', icon: BookMarked },
 ]
 
 export function useStartParam() {
@@ -59,7 +59,7 @@ export function OneLine({ className, autoFocus }: { className?: string; autoFocu
       <div className="relative rounded-xl border bg-background shadow-[inset_0_1px_0_var(--border)] focus-within:border-primary focus-within:ring-3 focus-within:ring-ring/20">
         <Textarea autoFocus={autoFocus} value={text} onChange={(e) => setText(e.target.value)} rows={2}
           onKeyDown={(e) => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); submit() } }}
-          placeholder="说一句就行，比如：降温了，写一篇办公室一个杯子泡白茶" className="min-h-[68px] resize-none border-0 bg-transparent pr-28 text-[15px] shadow-none focus-visible:ring-0" />
+          placeholder="说一句就行，比如：第一次买的人最容易踩的三个坑" className="min-h-[68px] resize-none border-0 bg-transparent pr-28 text-[15px] shadow-none focus-visible:ring-0" />
         <Button className="absolute right-2.5 bottom-2.5" onClick={submit} disabled={pending}>{pending ? <Loader2 className="animate-spin" /> : <ArrowRight />}开始</Button>
       </div>
       <div className="mt-1.5 flex items-center gap-1 text-[12px] text-muted-foreground"><CornerDownLeft className="size-3" />⌘ + 回车也能开始。进创作页后，本机 Codex 按小红书的写法翻资料，写第一版。</div>

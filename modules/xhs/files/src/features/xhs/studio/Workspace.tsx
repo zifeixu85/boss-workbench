@@ -25,7 +25,7 @@ import type { Draft } from '../types'
 
 type Tab = 'draft' | 'preview' | 'cover' | 'versions'
 type Pane = 'chat' | 'draft' | 'preview'
-const START_LABEL: Record<string, string> = { 选题: '从选题开始', 旧笔记: '翻新一篇旧笔记', 一款茶: '从一款茶开始', 对标笔记: '借一篇对标笔记', 一句话: '一句话开写' }
+const START_LABEL: Record<string, string> = { 选题: '从选题开始', 旧笔记: '翻新一篇旧笔记', 一款茶: '从一款产品开始', 对标笔记: '借一篇对标笔记', 一句话: '一句话开写' }
 
 export function Workspace({ id }: { id: string }) {
   const { data, error, refetch } = useStudio(id)

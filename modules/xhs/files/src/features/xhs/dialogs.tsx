@@ -30,7 +30,7 @@ export function NewPieceDialog({ onClose, status = '灵感池' }: { onClose: () 
   return (
     <FormDialog open onClose={onClose} title="记一个选题" desc="先放进灵感池或已选，想写的时候点开它进创作页。" submitText="放进去" submitting={create.isPending}
       onSubmit={() => create.mutate({ ...f, source: '自己想的', angle: f.angle || null, reason: f.reason || null }, { onSuccess: onClose, onError: (e) => setErr(issuesToErrors(e)) })}>
-      <FormField label="标题" error={err.title} hint="20 字以内最好，先说场景或麻烦"><TextInput autoFocus value={f.title} onChange={(e) => set('title', e.target.value)} placeholder="例：加班到 9 点，桌上那杯茶怎么续" /></FormField>
+      <FormField label="标题" error={err.title} hint="20 字以内最好，先说场景或麻烦"><TextInput autoFocus value={f.title} onChange={(e) => set('title', e.target.value)} placeholder="例：第一次买的人最容易踩的三个坑" /></FormField>
       <FormField label="切入角度"><TextInput value={f.angle} onChange={(e) => set('angle', e.target.value)} placeholder="从什么场景、什么麻烦说起" /></FormField>
       <div className="grid grid-cols-2 gap-3">
         <FormField label="形式"><ViewTabs label="形式" value={f.format} onChange={(v) => set('format', v)} items={[{ value: '图文', label: '图文' }, { value: '视频', label: '视频' }]} /></FormField>
@@ -49,7 +49,7 @@ export function TopicsDialog({ onClose, direction = '' }: { onClose: () => void;
   return (
     <FormDialog open onClose={onClose} title="让 AI 出几个选题" desc="本机 Codex 按小红书的写法读账号定位、作品索引和客户常问，写好的直接进灵感池，单独一组标“刚出的”。一般 1 分钟左右，可以先去做别的。"
       submitText="开始出选题" submitting={gen.isPending} onSubmit={() => gen.mutate({ direction: dir, count: Number(count) }, { onSuccess: onClose })}>
-      <FormField label="这次往哪个方向想？（可不填）" hint="例：降温喝热茶、双 11 囤茶、门店停业那几天"><TextInput autoFocus value={dir} onChange={(e) => setDir(e.target.value)} /></FormField>
+      <FormField label="这次往哪个方向想？（可不填）" hint="例：换季、双 11、门店停业那几天"><TextInput autoFocus value={dir} onChange={(e) => setDir(e.target.value)} /></FormField>
       <FormField label="出几个"><ViewTabs label="数量" value={count} onChange={setCount} items={[{ value: '3', label: '3 个' }, { value: '5', label: '5 个' }, { value: '10', label: '10 个' }]} /></FormField>
     </FormDialog>
   )

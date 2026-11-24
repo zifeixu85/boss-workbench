@@ -6,7 +6,7 @@ import { DocChip } from '../KbDoc'
 import type { Kit, Piece } from '../types'
 
 const ASK: Record<string, string> = {
-  选题: '这个选题，我们从哪儿下手？', 旧笔记: '翻新这篇旧笔记，换个什么角度？', 一款茶: '从这款茶写一篇，写给什么场景？', 对标笔记: '借它的结构，换成我们自己的茶和场景？', 一句话: '你说的这句，我先写一版给你看？',
+  选题: '这个选题，我们从哪儿下手？', 旧笔记: '翻新这篇旧笔记，换个什么角度？', 一款茶: '从这款产品写一篇，写给什么场景？', 对标笔记: '借它的结构，换成我们自己的东西和场景？', 一句话: '你说的这句，我先写一版给你看？',
 }
 
 export function StartCard({ piece, kit, compact }: { piece: Piece; kit?: Kit; compact: boolean }) {

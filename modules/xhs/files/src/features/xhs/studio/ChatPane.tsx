@@ -161,7 +161,7 @@ export function ChatPane({ data, ensureSaved, onShowDraft, onCover, className }:
         <div className="rounded-xl border bg-card focus-within:border-primary focus-within:ring-3 focus-within:ring-ring/20">
           <Textarea value={text} onChange={(e) => setText(e.target.value)} rows={2} disabled={!codex?.available && !!codex}
             onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); submit() } }}
-            placeholder={data.has_draft ? '告诉 Codex 想怎么改，比如：开头换成加班的场景，正文再短一点' : '说一句想怎么写，比如：降温了，写一篇办公室一个杯子泡白茶'}
+            placeholder={data.has_draft ? '告诉 Codex 想怎么改，比如：开头换成加班的场景，正文再短一点' : '说一句想怎么写，比如：第一次买的人最容易踩的三个坑'}
             className="max-h-40 min-h-[56px] resize-none border-0 bg-transparent text-[13.5px] shadow-none focus-visible:ring-0" />
           <div className="flex items-center gap-1 px-2 pb-2">
             <Popover>
