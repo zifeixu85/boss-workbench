@@ -1,5 +1,6 @@
 // 个人助理模块的命令（server/cli.ts 把 pa 和 pa- 开头的转到这里）。读的：pa、pa-focus、pa-object、pa-progress、pa-outputs、pa-reports、pa-roles；
-// 写的：pa-scan（只读扫描本机对话记录，把元信息存进工作台）、pa-report-add（登记一份写好的报告）、pa-mark（标已看 / 改状态 / 归类）。
+// 写的：pa-scan（只读扫描本机对话记录，把元信息存进工作台）、pa-report-add（登记一份写好的报告）、pa-mark（标已看 / 改状态 / 归类）、
+// pa-update（在对话里更新一个对象：先预演，老板确认后带 --confirm 原话再写）。认对象用 pa-find。
 import { parseArgs } from 'node:util'
 import type { ModuleCli } from '../../module-types.ts'
 import { focusClasses, roles } from './kb.ts'
@@ -9,9 +10,11 @@ import { listOutputs } from './outputs.ts'
 import { registerReport, reportView } from './reports.ts'
 import { scan, scannedAt, sources } from './scan.ts'
 import type { ReportKind } from './report-parse.ts'
+import { findObjects, updateObject } from './object-update.ts'
 
 const HELP = `  pa [--json]                           个人助理一览：我关注的有哪几类、AI 对话各状态几个、要确认的资料几条
   pa-focus [类名] [--json]              “我关注的”有哪几类；写了类名就列这一类的对象（状态、列表上显示的字段）
+  pa-find <名称或别名> [--json]        老板说到的是哪个对象（项目、客户……）：按名称、别名认，给出路径和打开详情用的 open
   pa-object <知识库里的路径> [--json]   一个对象的详情：现在、下一步、时间线（往来记录和 AI 对话）、相关文件
   pa-progress [--status 在等我] [--days 30] [--all] [--json]
                                         本机 AI 对话做到哪了（只有标题、文件夹、时间、状态；状态是推断的）。--all 连子任务、脚本调用也列
@@ -20,6 +23,9 @@ const HELP = `  pa [--json]                           个人助理一览：我�
   pa-roles [--json]                     总助、分身、合伙人的角色文件齐不齐、哪天更新的
   pa-scan [--force]                     现在扫一遍本机的 Codex、Claude Code 对话记录（只读；只存元信息，不存正文）
   pa-report-add <路径>                  登记一份写好的报告：文件要先写进知识库 90-日志与报告/日报|周报|月报/，这里检查格式、记下登记时间，报告页就能看到
+  pa-update <路径> [--status 收尾] [--now "一两句现在的情况"] [--next "事项 · 截止 · 谁做"]... [--done "要勾掉的下一步"]... [--log "说了什么、定了什么" --channel 微信]
+            [--confirm "老板确认的原话"]   在对话里更新一个对象：只改状态、现在、下一步、往来记录。不带 --confirm 是预演（什么都不写），
+                                        把会改哪几处列给老板核对；他确认后，同样的参数加 --confirm "他的原话" 再发一次才写。写之前备份原文件
   pa-mark <对话编号> (--read | --status 做完了|auto | --object 路径|auto|none)   标已看、手动改状态、手动归到某个对象（只记在工作台里）`
 
 const local = (iso: string) => { const d = new Date(iso); const p = (n: number) => String(n).padStart(2, '0'); return Number.isNaN(d.getTime()) ? '—' : `${d.getMonth() + 1}/${d.getDate()} ${p(d.getHours())}:${p(d.getMinutes())}` }
@@ -29,6 +35,8 @@ async function runCli(argv: string[]): Promise<number> {
   const { values: o, positionals: a } = parseArgs({ args: rest, allowPositionals: true, options: {
     json: { type: 'boolean' }, status: { type: 'string' }, days: { type: 'string' }, all: { type: 'boolean' }, kind: { type: 'string' }, period: { type: 'string' },
     force: { type: 'boolean' }, read: { type: 'boolean' }, object: { type: 'string' },
+    now: { type: 'string' }, next: { type: 'string', multiple: true }, done: { type: 'string', multiple: true }, log: { type: 'string' }, channel: { type: 'string' },
+    confirm: { type: 'string' },
   } })
   const print = (data: unknown, text: string) => { console.log(o.json ? JSON.stringify(data, null, 2) : text); return 0 }
   const days = Number(o.days) || 30
@@ -47,6 +55,19 @@ async function runCli(argv: string[]): Promise<number> {
       if (!a[0]) { const f = focusClasses(); return print(f, f.classes.map((c) => `${c.name}｜${c.folder}｜状态：${c.statuses.join('、')}｜列表上显示：${c.fields.join('、')}｜${c.confirmed ? '已确认' : '待确认'}`).join('\n') || f.problems.join('\n')) }
       const v = focusList(a[0])
       return print(v, v.items.map((i) => `${i.name}（${i.status || '没写状态'}）${i.fields.map((x) => `${x.key}：${x.value || '—'}`).join('，')}${i.sessions ? `｜AI 对话 ${i.sessions} 个` : ''}｜${i.path}`).join('\n') || '这一类还没有对象')
+    }
+    case 'pa-find': {
+      if (!a.length) throw new Error('写上老板说的名字，比如 春节茶礼、云杉')
+      const v = findObjects(a.join(' '))
+      return print(v, v.map((x) => `${x.type}｜${x.name}（${x.status || '没写状态'}）｜${x.path}${x.by === '包含' ? '｜名字只对上一部分，问一句是不是它' : ''}`).join('\n') || '“我关注的”里没有对上的对象')
+    }
+    case 'pa-update': {
+      if (!a[0]) throw new Error('写上对象的路径（pa-find 给的），比如 02-项目/春节茶礼.md')
+      const r = updateObject(a[0], { ...(o.status !== undefined ? { status: o.status } : {}), ...(o.now !== undefined ? { now: o.now } : {}), ...(o.next ? { nextAdd: o.next } : {}), ...(o.done ? { nextDone: o.done } : {}), ...(o.log !== undefined ? { log: { channel: o.channel, text: o.log } } : {}) },
+        { yes: o.confirm !== undefined, confirmation: o.confirm, actor: 'Codex' })
+      const lines = r.changes.map((c) => `- ${c.what}：${c.old ? `${c.old} → ` : ''}${c.new}`)
+      return print(r, r.written ? [`写好了：${r.type}「${r.name}」（${r.path}）`, ...lines, r.backup ? `原文件备份在：${r.backup}` : ''].filter(Boolean).join('\n')
+        : [`预演（还没写）：${r.type}「${r.name}」会改这几处：`, ...lines, '给老板核对；他确认后，同样的参数加 --confirm "他的原话" 再发一次才写。'].join('\n'))
     }
     case 'pa-object': {
       if (!a[0]) throw new Error('写上对象在知识库里的路径，比如 02-项目/春节茶礼.md')

@@ -40,12 +40,30 @@ export function objectsOf(cls: FocusClass): { objects: KbObject[]; problems: str
   return { objects, problems }
 }
 
-/** 所有类的所有对象（归类对话、解析“关联”用）。同一次请求里会用好几回，按知识库档案和文件夹的修改时间缓存 2 秒 */
-let cache: { at: number; all: { cls: FocusClass; object: KbObject }[] } | null = null
+/** 所有类的所有对象（归类对话、解析“关联”用）。同一次请求里会用好几回，所以缓存；
+ *  缓存认的是知识库档案和每份对象文件的修改时间：文件一改（对话里 pa-update、或在 Obsidian 里改）下一次读就是新的。
+ *  不能按时间缓存：网页收到“知识库变了”马上来读，几百毫秒内读到旧的，详情就不刷新了 */
+let cache: { sig: string; all: { cls: FocusClass; object: KbObject }[] } | null = null
+function signature(): string {
+  const parts: string[] = []
+  const stamp = (rel: string) => { try { parts.push(`${rel}:${statSync(join(ROOT, rel)).mtimeMs}`) } catch { parts.push(`${rel}:-`) } }
+  stamp(PROFILE_FILE)
+  for (const cls of focusClasses().classes) {
+    const dir = join(ROOT, cls.folder)
+    if (!existsSync(dir)) continue
+    for (const e of readdirSync(dir, { withFileTypes: true })) {
+      if (e.name.startsWith('.')) continue
+      if (e.isDirectory()) stamp(`${cls.folder}/${e.name}/README.md`)
+      else if (e.isFile() && e.name.endsWith('.md')) stamp(`${cls.folder}/${e.name}`)
+    }
+  }
+  return parts.join('|')
+}
 export function allObjects(): { cls: FocusClass; object: KbObject }[] {
-  if (cache && Date.now() - cache.at < 2000) return cache.all
+  const sig = signature()
+  if (cache && cache.sig === sig) return cache.all
   const all = focusClasses().classes.flatMap((cls) => objectsOf(cls).objects.map((object) => ({ cls, object })))
-  cache = { at: Date.now(), all }
+  cache = { sig, all }
   return all
 }
 export const clearKbCache = () => { cache = null }

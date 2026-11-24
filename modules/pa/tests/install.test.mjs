@@ -4,7 +4,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { spawnSync } from 'node:child_process'
-import { cpSync, existsSync, mkdirSync, mkdtempSync, symlinkSync, writeFileSync } from 'node:fs'
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, symlinkSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { DatabaseSync } from 'node:sqlite'
@@ -78,11 +78,11 @@ function setup() {
   const cli = (...a) => sh(process.execPath, ['server/cli.ts', ...a])
   const json = (...a) => { const r = cli(...a, '--json'); assert.equal(r.code, 0, r.out); return JSON.parse(r.out) }
   assert.equal(cli('modules').code, 0, '建数据库')
-  return { tmp, APP, DB, sh, cli, json, week, tool: (...a) => sh(process.execPath, ['scripts/module.mjs', ...a]) }
+  return { tmp, KB, APP, DB, sh, cli, json, week, tool: (...a) => sh(process.execPath, ['scripts/module.mjs', ...a]) }
 }
 
 test('装上个人助理：我关注的、进展、产出、报告、助理都能用；对话正文不进数据库；拿掉以后数据还在', { skip: !ready && '先在 template/ 里 npm install' }, () => {
-  const { DB, sh, cli, json, tool, week } = setup()
+  const { KB, DB, sh, cli, json, tool, week } = setup()
   const add = tool('add', 'pa', '--from', PACK, '--no-build')
   assert.equal(add.code, 0, add.out)
 
@@ -121,6 +121,32 @@ test('装上个人助理：我关注的、进展、产出、报告、助理都�
   assert.deepEqual(obj.timeline.map((t) => t.kind).sort(), ['AI', '往来'])
   assert.deepEqual(obj.links.map((l) => [l.name, l.type]), [['云杉物流', '客户']], '双链关联认得出')
   assert.ok(obj.kb_files.includes('99-原始材料/a.md'), '双链来源补上 .md')
+
+  // 在对话里认对象、打开详情、更新（先预演、确认后写）
+  const found = json('pa-find', '云杉')
+  assert.deepEqual(found.map((f) => [f.type, f.name, f.path, f.by]), [['客户', '云杉物流', '10-客户/云杉物流.md', '别名']])
+  assert.deepEqual(found[0].open, { kind: 'pa-object', id: '10-客户/云杉物流.md' })
+  const opened = sh(process.execPath, ['server/cli.ts', 'open', '--kind', 'pa-object', '--id', '10-客户/云杉物流.md', '--json', '--no-start'])
+  assert.equal(opened.code, 0, opened.out)
+  assert.equal(JSON.parse(opened.out).path, `/focus/-?embed=1&o=${encodeURIComponent('10-客户/云杉物流.md').replace(/%20/g, '+')}`)
+  const FILE = join(KB, '10-客户', '云杉物流.md')
+  const before = readFileSync(FILE, 'utf8')
+  const upd = ['pa-update', '10-客户/云杉物流.md', '--status', '合作中', '--now', '报价发过去了，等回话', '--next', '周五前问报价意见 · 11-28 · 孙蕾', '--log', '发了报价单', '--channel', '微信']
+  assert.match(cli(...upd, '--confirm', '写吧').out, /没预演过/, '没预演过的不写')
+  const pre = json(...upd)
+  assert.equal(pre.written, false)
+  assert.deepEqual(pre.changes.map((c) => c.what).filter((w) => w !== '更新'), ['现在', '下一步', '往来记录'], '状态没变就不算一处')
+  assert.equal(readFileSync(FILE, 'utf8'), before, '预演什么都不写')
+  assert.match(cli(...upd, '--confirm', '  ').out, /原话/, '原话是空的不写')
+  const done = json(...upd, '--confirm', '可以，写吧')
+  assert.equal(done.written, true)
+  const after = readFileSync(FILE, 'utf8')
+  assert.match(after, /## 现在\n报价发过去了，等回话\n/)
+  assert.match(after, /- \[ \] 周五前问报价意见 · 11-28 · 孙蕾/)
+  assert.match(after, /｜微信｜发了报价单；来源：和 AI 的对话（AI 记录，待确认）/)
+  assert.equal(readFileSync(done.backup, 'utf8'), before, '原文件有备份（备份在数据库旁边，不在知识库里）')
+  assert.match(cli(...upd, '--confirm', '再写一次').out, /没预演过/, '一次预演只能写一次')
+  assert.match(cli('pa-update', '10-客户/云杉物流.md', '--status', '飞了').out, /状态只能是/)
 
   // 手动改：标已看、改状态、归类
   assert.match(cli('pa-mark', 'codex:thread-a', '--read').out, /标已看/)

@@ -23,6 +23,7 @@
     { "id": "pa-confirm", "name": "知识库里要你确认的资料", "file": "src/features/pa/ConfirmCard.tsx" }
   ],
   "open": [
+    { "key": "pa-object", "label": "“我关注的”里的一个对象（项目、客户……）的详情", "to": "/focus/-?o={id}", "id": "对象在知识库里的路径，如 02-项目/春节茶礼.md（pa-find 给的 path）" },
     { "key": "pa-focus", "label": "“我关注的”里的一类（列表）", "to": "/focus/{id}", "id": "类名，如 客户（pa-focus 命令列出有哪几类）" },
     { "key": "pa-session", "label": "一次 AI 对话的详情", "to": "/progress?s={id}", "id": "对话编号，如 codex:01a2…（pa-progress 每行最后那一段）" },
     { "key": "pa-report", "label": "某一种报告（最新一期）", "to": "/reports?kind={id}", "id": "日报、周报或月报" }
@@ -33,6 +34,7 @@
     "cli": { "file": "server/modules/pa/cli.ts#paCli", "commands": ["pa"] },
     "read": [
       { "command": "pa", "what": "个人助理一览：我关注的有哪几类、AI 对话各状态几个、要确认的资料几条" },
+      { "command": "pa-find", "what": "老板说到某个项目、客户等对象时先用它认出是哪一个（args 写名字或别名），返回路径和打开详情用的 open（kind=pa-object）" },
       { "command": "pa-focus", "what": "“我关注的”有哪几类；args 写类名就列这一类的对象" },
       { "command": "pa-object", "what": "一个对象的详情（args 写它在知识库里的路径）：现在、下一步、时间线、相关文件和对话" },
       { "command": "pa-progress", "what": "本机 AI 对话做到哪了：标题、归到哪个对象、工具、时间、状态（状态是推断的）；没有对话内容" },
@@ -43,7 +45,8 @@
     "write": [
       { "command": "pa-scan", "what": "现在扫一遍本机 Codex、Claude Code 的对话记录（只读；只存元信息）" },
       { "command": "pa-report-add", "what": "登记一份已经写进知识库 90-日志与报告/ 的报告（args 写路径）；只检查格式、记下登记时间，不改报告" },
-      { "command": "pa-mark", "what": "给一次对话标已看、手动改状态、手动归到某个对象（只记在工作台里）" }
+      { "command": "pa-mark", "what": "给一次对话标已看、手动改状态、手动归到某个对象（只记在工作台里）" },
+      { "command": "pa-update", "what": "在对话里更新一个对象（args 第一个写路径）：只改状态、现在、下一步、往来记录。先不带 --confirm 预演，列给老板核对；他确认后同样的参数加 --confirm \"他的原话\" 再发一次才写。写之前备份；打开着的详情自己刷新" }
     ]
   }
 }

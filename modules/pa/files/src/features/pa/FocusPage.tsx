@@ -1,6 +1,9 @@
 // “我关注的”里的一页：知识库档案里有几类就出几页，都用这一个页面（/focus/<类名>）。
 // 列表：状态标签 + 知识库档案里“列表上显示”点到的两个字段；点一行在右侧抽屉看详情（地址栏 ?o=<路径>）。只读，不改知识库。
-import { useParams, useSearchParams } from 'react-router'
+// /focus/-?o=<路径>：只知道对象、不知道它是哪一类（对话里 workbench_open 打开对象用的），先查出类名再换成 /focus/<类名>?o=<路径>，别的参数（embed=1）照带。
+// 对象文件一改（对话里 pa-update、或在 Obsidian 里改），工作台盯着知识库文件，打开着的列表和详情自己刷新。
+import { useEffect } from 'react'
+import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router'
 import { useApi } from '@/lib/api'
 import { shortDate } from '@/lib/format'
 import { PageHeader, PageBody, Panel } from '@/components/page'
@@ -13,7 +16,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { ObjectSheet } from './ObjectSheet'
 import { ObjectStatus, when } from './parts'
-import type { FocusList } from './types'
+import type { FocusList, ObjectDetail } from './types'
 
 const isDate = (v: string) => /^\d{4}-\d{2}-\d{2}$/.test(v)
 
@@ -22,9 +25,15 @@ export default function FocusPage() {
   const [sp, setSp] = useSearchParams()
   const status = sp.get('status') ?? 'all'
   const open = sp.get('o')
-  const { data, error, refetch } = useApi<FocusList>(`/m/pa/focus/${encodeURIComponent(name)}`)
+  const pending = name === '-'
+  const nav = useNavigate()
+  const loc = useLocation()
+  const { data: hit, error: hitError } = useApi<ObjectDetail>(pending && open ? `/m/pa/object?path=${encodeURIComponent(open)}` : null)
+  useEffect(() => { if (pending && hit) nav(`/focus/${encodeURIComponent(hit.class.name)}${loc.search}`, { replace: true }) }, [pending, hit, nav, loc.search])
+  const { data, error, refetch } = useApi<FocusList>(pending ? null : `/m/pa/focus/${encodeURIComponent(name)}`)
   const set = (k: string, v: string | null) => setSp((p) => { const n = new URLSearchParams(p); if (v === null) n.delete(k); else n.set(k, v); return n }, { replace: k === 'status' })
 
+  if (pending) return <><PageHeader eyebrow="我关注的" title="正在找这个对象" /><PageBody>{hitError || !open ? <Failed message={hitError?.message ?? '没写要打开哪个对象'} onRetry={() => nav('/', { replace: true })} /> : <Skeleton className="h-72" />}</PageBody></>
   if (error && !data) return <><PageHeader eyebrow="我关注的" title={name} /><PageBody><Failed message={error.message} onRetry={() => refetch()} /></PageBody></>
   if (!data) return <><PageHeader eyebrow="我关注的" title={name} /><PageBody className="grid gap-3"><Skeleton className="h-9 w-72" /><Skeleton className="h-72" /></PageBody></>
 
