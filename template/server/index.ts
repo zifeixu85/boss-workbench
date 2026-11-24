@@ -12,6 +12,7 @@ import { startReminders, type PushPayload } from './reminders/service.ts'
 import { markInterrupted } from './assistant/service.ts'
 import { errorResponse } from './module-kit.ts'
 import { moduleApi, refreshModules } from './modules-live.ts'
+import { isOn as moduleOn } from './services/modules.ts'
 import { loadHooks } from './module-hooks.ts'
 import { startJobs } from './jobs/service.ts'
 import { startCalendarSync } from './calendar/service.ts'
@@ -75,6 +76,8 @@ const toModule = async (c: { req: { param: (k: string) => string; url: string; r
   const id = c.req.param('module')
   const api = await moduleApi(id)
   if (!api) return Response.json({ ok: false, error: `没有装“${id}”这个模块（或者它没有接口）` }, { status: 404 })
+  // 关着的模块接口也关着：页面、Codex 都调不到（比如个人助理关了，就不再去读对话记录）
+  if (!moduleOn(id)) return Response.json({ ok: false, error: `“${id}”这个模块关着，要用先在设置里打开` }, { status: 404 })
   const url = new URL(c.req.url)
   url.pathname = url.pathname.slice(`/api/m/${id}`.length) || '/'
   return api.fetch(new Request(url, c.req.raw))

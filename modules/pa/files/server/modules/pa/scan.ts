@@ -1,6 +1,6 @@
 // 只读扫描本机的对话记录和图片目录，把元信息存进工作台数据库（表 pa_sessions、pa_outputs）。
 // 记录文件只读不改；对话正文不存、不上传。文件的大小和修改时间没变就不再读（pa_files）。
-// 位置可以用环境变量换（测试、换机器时用）：PA_CODEX_HOME（默认 ~/.codex）、PA_CLAUDE_HOME（默认 ~/.claude）、PA_IMAGE_DIRS（多个用系统的路径分隔符隔开）。
+// 位置可以用环境变量换（测试、换机器时用）：PA_CODEX_HOME（默认跟 Codex 一样：CODEX_HOME，没设就是 ~/.codex）、PA_CLAUDE_HOME（默认 ~/.claude）、PA_IMAGE_DIRS（多个用系统的路径分隔符隔开）。
 import { closeSync, existsSync, openSync, readFileSync, readSync, readdirSync, statSync } from 'node:fs'
 import { createHash } from 'node:crypto'
 import { homedir } from 'node:os'
@@ -13,7 +13,7 @@ import { claudeParser } from './claude.ts'
 import { fileKind } from './text.ts'
 import type { SessionMeta, Tool } from './types.ts'
 
-export const codexHome = () => process.env.PA_CODEX_HOME || join(homedir(), '.codex')
+export const codexHome = () => process.env.PA_CODEX_HOME || process.env.CODEX_HOME || join(homedir(), '.codex')
 export const claudeHome = () => process.env.PA_CLAUDE_HOME || join(homedir(), '.claude')
 /** Claude 桌面版的会话信息（每个对话一个小 json：标题、最后看过的时间、最后活动时间、归档、这一轮的状态） */
 export const claudeAppDir = () => process.env.PA_CLAUDE_APP_DIR || join(homedir(), 'Library', 'Application Support', 'Claude', 'claude-code-sessions')

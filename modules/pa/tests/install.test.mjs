@@ -214,3 +214,24 @@ test('装上个人助理：我关注的、进展、产出、报告、助理都�
   const db2 = new DatabaseSync(DB, { readOnly: true })
   assert.ok((db2.prepare('SELECT COUNT(*) AS n FROM pa_sessions').get()).n >= 3)
 })
+
+test('Codex 换了位置（设了 CODEX_HOME）：照样找得到它的对话记录', { skip: !ready && '先在 template/ 里 npm install' }, () => {
+  const { tmp, KB, APP, DB, tool } = setup()
+  assert.equal(tool('add', 'pa', '--from', PACK, '--no-build').code, 0)
+  const env = { ...process.env, WORKBENCH_ROOT: KB, WORKBENCH_DB: DB, CODEX_HOME: join(tmp, 'codex'), PA_CLAUDE_HOME: join(tmp, 'claude'), PA_CLAUDE_APP_DIR: join(tmp, 'claude-app'), DEMO_TODAY: 'off', NO_COLOR: '1' }
+  delete env.PA_CODEX_HOME
+  const r = spawnSync(process.execPath, ['server/cli.ts', 'pa-scan'], { cwd: APP, env, encoding: 'utf8' })
+  assert.match(`${r.stdout}${r.stderr}`, /库里现在有 3 个对话/)
+})
+
+test('个人助理关掉以后：它的命令不跑，也不再去读对话记录', { skip: !ready && '先在 template/ 里 npm install' }, () => {
+  const { cli, tool, DB } = setup()
+  assert.equal(tool('add', 'pa', '--from', PACK, '--no-build').code, 0)
+  assert.equal(cli('modules', '--off', 'pa').code, 0)
+  const r = cli('pa-scan')
+  assert.notEqual(r.code, 0)
+  assert.match(r.out, /个人助理.*关着/)
+  const db = new DatabaseSync(DB)
+  assert.equal(db.prepare('SELECT COUNT(*) AS n FROM pa_sessions').get().n, 0, '一个对话都没读')
+  db.close()
+})

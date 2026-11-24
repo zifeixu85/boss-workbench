@@ -140,6 +140,8 @@ if (isJobCommand(process.argv.slice(2))) {
   const name = process.argv[2]
   const mod = name ? SERVER_MODULES.find((m) => m.cli && m.commands?.some((c) => name === c || name.startsWith(`${c}-`))) : undefined
   if (mod?.cli) {
+    // 关着的模块不跑它的命令（比如个人助理关了，就不再去读对话记录）
+    if (!modules.isOn(mod.id)) { console.error(`没办成：“${mod.name}”关着。要用先打开：node server/cli.ts modules --on ${mod.id}`); process.exit(1) }
     try { process.exit(await (await mod.cli()).run(process.argv.slice(2))) } catch (err) { console.error(`没办成：${(err as Error).message}`); process.exit(1) }
   }
 }

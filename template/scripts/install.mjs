@@ -20,6 +20,7 @@ import { findCodex } from './codex-check.mjs'
 import { checkModules } from './module.mjs'
 import { installCalendarHelper, installedHelper } from './mac-calendar.mjs'
 import { buildPlugin, pluginStatus } from './codex-plugin.mjs'
+import { writeMacLauncher } from './launcher.mjs'
 
 const APP = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 // 知识库根目录和数据库位置：默认 程序/../.. 和 <知识库>/工作台/数据/workbench.db；
@@ -217,6 +218,10 @@ async function main() {
   initDb()
   calendarHelper()
   codexPlugin()
+  if (process.platform === 'darwin') {
+    try { const f = writeMacLauncher({ app: APP, root: ROOT, db: DB, port: PORT }); if (f) ok(`双击启动的文件：${C.dim(f)}`) }
+    catch (err) { warn(`启动文件没写成：${err.message}`, '不影响工作台；在程序文件夹里运行 node server/index.ts 也能开') }
+  }
   finish()
 }
 
