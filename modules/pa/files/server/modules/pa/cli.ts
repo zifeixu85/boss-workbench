@@ -20,7 +20,7 @@ const HELP = `  pa [--json]                           个人助理一览：我�
   pa-roles [--json]                     总助、分身、合伙人的角色文件齐不齐、哪天更新的
   pa-scan [--force]                     现在扫一遍本机的 Codex、Claude Code 对话记录（只读；只存元信息，不存正文）
   pa-report-add <路径>                  登记一份写好的报告：文件要先写进知识库 90-日志与报告/日报|周报|月报/，这里检查格式、记下登记时间，报告页就能看到
-  pa-mark <对话编号> (--read | --status 停了|auto | --object 路径|auto|none)   标已看、手动改状态、手动归到某个对象（只记在工作台里）`
+  pa-mark <对话编号> (--read | --status 做完了|auto | --object 路径|auto|none)   标已看、手动改状态、手动归到某个对象（只记在工作台里）`
 
 const local = (iso: string) => { const d = new Date(iso); const p = (n: number) => String(n).padStart(2, '0'); return Number.isNaN(d.getTime()) ? '—' : `${d.getMonth() + 1}/${d.getDate()} ${p(d.getHours())}:${p(d.getMinutes())}` }
 

@@ -11,7 +11,8 @@ import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { SessionSheet } from './SessionSheet'
 import { SESSION_STATUSES, SessionBadge, when } from './parts'
-import type { Progress, Session } from './types'
+import { ProgressCharts, ProgressStats } from './Pulse'
+import type { Progress, Pulse, Session } from './types'
 
 type Scan = { read: number; left: number; sessions: number }
 
@@ -22,6 +23,7 @@ export default function ProgressPage() {
   const tool = sp.get('tool')
   const all = sp.get('all') === '1'
   const { data, error, refetch } = useApi<Progress>(`/m/pa/progress?days=30${all ? '&all=1' : ''}`)
+  const { data: pulse } = useApi<Pulse>('/m/pa/pulse?days=14')
   const rescan = useWrite(() => api.post<Scan>('/m/pa/scan', {}), (r) => (r.left ? `读了 ${r.read} 个记录文件，还剩 ${r.left} 个，再点一次接着读` : `扫完了，现在有 ${r.sessions} 个对话`))
   const set = (k: string, v: string | null) => setSp((p) => { const n = new URLSearchParams(p); if (v === null) n.delete(k); else n.set(k, v); return n }, { replace: k !== 's' })
 
@@ -38,7 +40,8 @@ export default function ProgressPage() {
   return (
     <>
       {head}
-      <PageBody className="grid gap-4">
+      <PageBody className="grid grid-cols-[minmax(0,1fr)] gap-4">
+        {pulse ? <><ProgressStats p={pulse} waiting={data.sessions.filter((s) => s.status === '在等我').length} /><ProgressCharts p={pulse} /></> : <Skeleton className="h-28" />}
         <div className="flex flex-wrap items-center gap-2">
           <ViewTabs label="按状态看" value={status} onChange={(v) => set('status', v === 'all' ? null : v)}
             items={[{ value: 'all', label: '全部', count: pool.length }, ...SESSION_STATUSES.map((k) => ({ value: k, label: k, count: counts[k] }))]} />
@@ -56,7 +59,7 @@ export default function ProgressPage() {
         </Panel>
 
         <p className="text-xs leading-relaxed text-muted-foreground">
-          状态大多是推断的：看最后一轮结束没有、最后一段话像不像在问你、多久没动（{data.rules.running_min} 分钟内还在动算进行中；做完两天多没动、或超过 {data.rules.stale_days} 天没动算停了）。Codex 桌面版的对话，看没看用的是 Codex 自己记的。会有不准，点开一条可以手动改，改动只记在工作台里。
+          状态大多是推断的：看最后一轮结束没有、最后一段话像不像在问你、多久没动（{data.rules.running_min} 分钟内还在动算进行中；做完两天多没动、或超过 {data.rules.stale_days} 天没动，按做完了算；最近一轮没跑完就断了的算没做完）。Codex 桌面版的对话，看没看用的是 Codex 自己记的。会有不准，点开一条可以手动改，改动只记在工作台里。
           只读得到这台电脑上的对话，网页版和云端的读不到；只读近 {data.rules.scan_days} 天动过的记录。
           {data.scanned_at && ` 上次扫描 ${when(data.scanned_at)}。`}{data.left > 0 && ` 还有 ${data.left} 个记录文件没读完，点“重新扫一遍”接着读。`}
           {missing.length > 0 && ` 这台电脑上没找到 ${missing.map((m) => m.name).join('、')} 的记录目录。`}
@@ -72,11 +75,8 @@ function Row({ s, onOpen }: { s: Session; onOpen: () => void }) {
   return (
     <button onClick={onOpen} className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left hover:bg-muted/60">
       <span className="min-w-0 flex-1">
-        <span className="flex min-w-0 items-baseline gap-2">
-          <span className={`shrink-0 text-xs ${s.object ? 'font-medium text-primary' : 'text-muted-foreground'}`}>{s.object?.name ?? '未归类'}</span>
-          <span className="truncate text-[14.5px] font-medium">{s.title}</span>
-        </span>
-        <span className="mt-0.5 block truncate text-xs text-muted-foreground">{s.tool_name}{s.kind !== '对话' ? ` · ${s.kind}` : ''} · {when(s.last_at)} · {s.folder}{s.outputs ? ` · 产出 ${s.outputs} 个` : ''}</span>
+        <span className="block truncate text-[14.5px] font-medium">{s.title}</span>
+        <span className="mt-0.5 block truncate text-xs text-muted-foreground"><span className={s.object ? 'font-medium text-primary' : ''}>{s.object?.name ?? '未归类'}</span> · {s.tool_name}{s.kind !== '对话' ? ` · ${s.kind}` : ''} · {when(s.last_at)} · {s.folder}{s.outputs ? ` · 产出 ${s.outputs} 个` : ''}</span>
       </span>
       <SessionBadge s={s} />
     </button>

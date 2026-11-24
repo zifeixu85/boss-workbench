@@ -7,7 +7,7 @@ export type ObjectRow = {
 }
 export type FocusList = { class: FocusClass; items: ObjectRow[]; counts: Record<string, number>; problems: string[] }
 
-export type SessionStatus = '进行中' | '在等我' | '做完未读' | '已看' | '停了'
+export type SessionStatus = '进行中' | '在等我' | '做完未读' | '做完了' | '没做完'
 export type Session = {
   id: string; tool: string; tool_name: string; kind: string; title: string; title_from: string; first: string; cwd: string; folder: string
   started_at: string; last_at: string; turns: number; status: SessionStatus; why: string; inferred: boolean; manual: boolean
@@ -26,8 +26,9 @@ export type Output = {
   session: { id: string; title: string; link: string | null } | null
   object: { path: string; name: string; type: string } | null
   exists: boolean
+  width?: number | null; height?: number | null
 }
-export type Outputs = { items: Output[]; total: number; counts: Record<string, number>; objects: { path: string; name: string; type: string }[]; tools: { tool: string; name: string }[] }
+export type Outputs = { items: Output[]; total: number; counts: Record<string, number>; gone: number; objects: { path: string; name: string; type: string }[]; tools: { tool: string; name: string }[] }
 
 export type ObjectDetail = {
   class: FocusClass
@@ -56,3 +57,12 @@ export type Role = { kind: RoleKind; name: string; display: string; folder: stri
 export type Roles = { base: string; exists: boolean; roles: Role[]; problems: string[] }
 
 export type CardData = { count: number; items: { id?: string; title: string; sub: string; at?: string; link?: string | null; to?: string; kind?: string }[] } | null
+
+export type PulseDay = { date: string; label: string; done: number; talks: number; images: number; files: number }
+export type Pulse = {
+  days: PulseDay[]
+  week: { from: string; done: number; talks: number; images: number; files: number; last: { done: number; outputs: number } }
+  streak: number
+  top: { name: string; n: number }[]
+  total: { done: number; talks: number; images: number; files: number }
+}

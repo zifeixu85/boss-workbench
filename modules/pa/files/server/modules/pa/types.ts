@@ -45,5 +45,5 @@ export type SessionMeta = {
   writes: SessionWrite[]
 }
 
-export type Status = '进行中' | '在等我' | '做完未读' | '已看' | '停了'
-export const STATUSES: Status[] = ['进行中', '在等我', '做完未读', '已看', '停了']
+export type Status = '进行中' | '在等我' | '做完未读' | '做完了' | '没做完'
+export const STATUSES: Status[] = ['进行中', '在等我', '做完未读', '做完了', '没做完']

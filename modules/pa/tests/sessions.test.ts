@@ -84,34 +84,39 @@ test('Claude Code：最后停在调工具 = 还在跑；最后是用户说话 = 
 const NOW = Date.parse('2026-11-24T04:00:00.000Z')
 const st = (o: Partial<Parameters<typeof inferStatus>[0]>, mark = {}) => inferStatus({ lastAt: '2026-11-24T03:55:00.000Z', turnOpen: false, lastRole: 'assistant', asks: false, aborted: false, ...o }, NOW, mark)
 
-test('状态推断：进行中 / 在等我 / 做完未读 / 已看 / 停了，每个都带一句为什么', () => {
+test('状态推断：进行中 / 在等我 / 做完未读 / 做完了 / 没做完，每个都带一句为什么；没有“停了”', () => {
   assert.equal(st({ turnOpen: true }).status, '进行中')
-  assert.equal(st({ turnOpen: true, lastAt: '2026-11-24T02:00:00.000Z' }).status, '停了')
-  assert.match(st({ turnOpen: true, lastAt: '2026-11-24T02:00:00.000Z' }).why, /没做完/)
+  assert.equal(st({ turnOpen: true, lastAt: '2026-11-24T02:00:00.000Z' }).status, '没做完')
+  assert.match(st({ turnOpen: true, lastAt: '2026-11-24T02:00:00.000Z' }).why, /断了/)
   assert.equal(st({ asks: true }).status, '在等我')
   assert.equal(st({}).status, '做完未读')
-  assert.equal(st({ aborted: true }).status, '停了')
-  assert.equal(st({ lastAt: '2026-11-10T03:55:00.000Z' }).status, '停了')
-  assert.equal(st({ asks: true, lastAt: '2026-11-10T03:55:00.000Z' }).status, '停了')
+  assert.equal(st({ aborted: true }).status, '没做完')
+  // 一周多没动的：不管当时怎样，都按做完了算（多半是事办完了，不是“停了”）
+  assert.equal(st({ lastAt: '2026-11-10T03:55:00.000Z' }).status, '做完了')
+  assert.equal(st({ asks: true, lastAt: '2026-11-10T03:55:00.000Z' }).status, '做完了')
+  assert.equal(st({ turnOpen: true, lastAt: '2026-11-10T03:55:00.000Z' }).status, '做完了')
+  assert.match(st({ lastAt: '2026-11-10T03:55:00.000Z' }).why, /按做完了算/)
   assert.equal(st({}).inferred, true)
+  for (const o of [{}, { aborted: true }, { archived: true }, { seen: true }, { lastAt: '2026-11-01T00:00:00.000Z' }]) assert.notEqual(st(o).status, '停了')
 })
 
-test('状态推断：做完两天多没动、又不知道看没看：算停了；Codex 自己记着看没看的，用它的', () => {
-  assert.equal(st({ lastAt: '2026-11-21T03:55:00.000Z' }).status, '停了')
+test('状态推断：做完两天多没动、又不知道看没看：按做完了算；Codex 自己记着看没看的，用它的', () => {
+  assert.equal(st({ lastAt: '2026-11-21T03:55:00.000Z' }).status, '做完了')
   assert.match(st({ lastAt: '2026-11-21T03:55:00.000Z' }).why, /两天/)
   assert.equal(st({ lastAt: '2026-11-21T03:55:00.000Z', seen: false }).status, '做完未读', 'Codex 标着没看：几天前的也算未读')
-  assert.equal(st({ seen: true }).status, '已看')
+  assert.equal(st({ seen: true }).status, '做完了')
   assert.match(st({ seen: true }).why, /Codex/)
   assert.equal(st({ seen: true, asks: true }).status, '在等我', '看过了但没回：还在等你')
-  assert.equal(st({ archived: true }).status, '停了')
-  assert.equal(st({ seen: false, lastAt: '2026-11-01T03:55:00.000Z' }).status, '停了', '太久没动的照样算停了')
+  assert.equal(st({ archived: true }).status, '做完了')
+  assert.match(st({ archived: true }).why, /归档/)
+  assert.equal(st({ seen: false, lastAt: '2026-11-01T03:55:00.000Z' }).status, '做完了', '太久没动的按做完了算')
 })
 
-test('状态推断：Claude 桌面版自己标着“在等你处理”的，算在等我；它记着你看过的，算已看', () => {
+test('状态推断：Claude 桌面版自己标着“在等你处理”的，算在等我；它记着你看过的，算做完了', () => {
   assert.equal(st({ appWaiting: true }).status, '在等我')
   assert.match(st({ appWaiting: true }).why, /Claude/)
   assert.equal(st({ appWaiting: true, turnOpen: true }).status, '进行中', '还在跑的不算在等')
-  assert.equal(st({ seen: true, appWaiting: false }).status, '已看')
+  assert.equal(st({ seen: true, appWaiting: false }).status, '做完了')
 })
 
 test('像不像在问人：回一句、等你一句话、带括号的问句算；“有问题告诉我”这种客气话不算', () => {
@@ -125,12 +130,14 @@ test('像不像在问人：回一句、等你一句话、带括号的问句算�
   assert.equal(looksLikeAsking('标题叫《你想要什么？》，已经发了。'), false)
 })
 
-test('状态推断：标过已看的不再算未读，之后又有新动静就重新算；手动改的状态同理', () => {
-  assert.equal(st({}, { readAt: '2026-11-24T03:56:00.000Z' }).status, '已看')
+test('状态推断：标过已看的算做完了，之后又有新动静就重新算；手动改的状态同理；以前手动标的“停了”“已看”当做完了', () => {
+  assert.equal(st({}, { readAt: '2026-11-24T03:56:00.000Z' }).status, '做完了')
   assert.equal(st({}, { readAt: '2026-11-24T03:00:00.000Z' }).status, '做完未读')
-  const manual = st({}, { status: '停了', statusAt: '2026-11-24T03:55:00.000Z' })
-  assert.deepEqual([manual.status, manual.inferred], ['停了', false])
-  assert.equal(st({}, { status: '停了', statusAt: '2026-11-24T01:00:00.000Z' }).status, '做完未读', '改完以后对话又动了：手动的不算了')
+  const manual = st({}, { status: '在等我', statusAt: '2026-11-24T03:55:00.000Z' })
+  assert.deepEqual([manual.status, manual.inferred], ['在等我', false])
+  assert.equal(st({}, { status: '在等我', statusAt: '2026-11-24T01:00:00.000Z' }).status, '做完未读', '改完以后对话又动了：手动的不算了')
+  assert.equal(st({}, { status: '停了', statusAt: '2026-11-24T03:55:00.000Z' }).status, '做完了')
+  assert.equal(st({}, { status: '已看', statusAt: '2026-11-24T03:55:00.000Z' }).status, '做完了')
 })
 
 const OBJS = [

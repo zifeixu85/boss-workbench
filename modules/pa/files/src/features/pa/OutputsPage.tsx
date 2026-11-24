@@ -1,9 +1,10 @@
-// 产出：AI 生成的图片和写出来的文件，不分哪个 AI、存在哪个文件夹。图片是图库，别的是列表；按类型（页签）、对象、工具筛。
-// 文件只读不搬：工作台只记了路径，图片要看时现读原图，别的文件告诉你在哪个文件夹。
+// 产出：AI 生成的图片和写出来的文件，不分哪个 AI、存在哪个文件夹。图片排成瀑布流（按原来的宽高比例整张显示，不裁切），
+// 别的是列表（文件名打头、左对齐）；按类型（页签）、对象、工具筛。顶上是本周出了多少、近两周每天出了多少。
+// 详情按编号取；能在本机打开（图片、文档、表格、网页）或在访达里显示。已经不在原处的默认不列。文件只读不搬。
 import { useState } from 'react'
 import { Link, useSearchParams } from 'react-router'
-import { ImageOff } from 'lucide-react'
-import { useApi } from '@/lib/api'
+import { ExternalLink, FolderOpen, ImageOff } from 'lucide-react'
+import { api, useApi, useWrite } from '@/lib/api'
 import { PageHeader, PageBody, Panel } from '@/components/page'
 import { ViewTabs } from '@/components/view-tabs'
 import { Choice } from '@/components/form'
@@ -14,7 +15,10 @@ import { EmptyNote, Failed } from '@/components/chart-kit'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { when } from './parts'
-import type { Output, Outputs } from './types'
+import { OutputCharts } from './Pulse'
+import type { Output, Outputs, Pulse } from './types'
+
+const OPENABLE = new Set(['图片', '文档', '表格', '网页'])
 
 const KINDS = ['图片', '文档', '表格', '网页', '代码', '其他']
 const RANGES = [{ value: '7', label: '近 7 天' }, { value: '30', label: '近 30 天' }, { value: '90', label: '近 90 天' }]
@@ -26,10 +30,14 @@ export default function OutputsPage() {
   const kind = sp.get('kind') ?? '图片'
   const days = sp.get('days') ?? '30'
   const q = new URLSearchParams({ kind, days, limit: String(limit) })
-  for (const k of ['object', 'tool', 'session']) if (sp.get(k)) q.set(k, sp.get(k)!)
+  for (const k of ['object', 'tool', 'session', 'gone']) if (sp.get(k)) q.set(k, sp.get(k)!)
   const { data, error, refetch } = useApi<Outputs>(`/m/pa/outputs?${q}`)
   const set = (k: string, v: string | null) => { setLimit(60); setSp((p) => { const n = new URLSearchParams(p); if (v === null) n.delete(k); else n.set(k, v); return n }, { replace: k !== 'f' }) }
-  const open = data?.items.find((i) => i.id === sp.get('f')) ?? null
+  const { data: pulse } = useApi<Pulse>('/m/pa/pulse?days=14')
+  // 详情按编号直接取：不受列表条数、筛选的限制
+  const fid = sp.get('f')
+  const { data: open } = useApi<Output>(fid ? `/m/pa/outputs/${encodeURIComponent(fid)}` : null)
+  const openOnMac = useWrite((reveal: boolean) => api.post<{ reveal: boolean }>(`/m/pa/outputs/${encodeURIComponent(fid!)}/open`, { reveal }), (r) => (r.reveal ? '已在访达里显示' : '已在本机打开'))
 
   const head = <PageHeader eyebrow="我的助理" title="产出" desc="AI 生成的图和写出来的文件，不分哪个 AI、存在哪个文件夹。文件只读不搬，还在它原来的位置。" />
   if (error && !data) return <>{head}<PageBody><Failed message={error.message} onRetry={() => refetch()} /></PageBody></>
@@ -37,7 +45,8 @@ export default function OutputsPage() {
   return (
     <>
       {head}
-      <PageBody className="grid gap-4">
+      <PageBody className="grid grid-cols-[minmax(0,1fr)] gap-4">
+        {pulse ? <OutputCharts p={pulse} /> : <Skeleton className="h-44" />}
         <div className="flex flex-wrap items-center gap-2">
           <ViewTabs label="按类型看" value={kind} onChange={(v) => set('kind', v)} items={KINDS.map((k) => ({ value: k, label: k, count: data.counts[k] ?? 0 }))} />
           <div className="grid w-full grid-cols-2 gap-2 sm:ml-auto sm:flex sm:w-auto sm:flex-wrap">
@@ -52,12 +61,11 @@ export default function OutputsPage() {
         {!data.items.length && <Panel><EmptyNote>这个筛选下没有{kind}。{kind !== '图片' && '这里只列对话里“写文件”动作留下的路径；AI 用命令行生成的文件记不到。'}</EmptyNote></Panel>}
 
         {kind === '图片' && data.items.length > 0 && (
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+          <div className="columns-2 gap-3 sm:columns-3 lg:columns-4 2xl:columns-5">
             {data.items.map((o) => (
-              <button key={o.id} onClick={() => set('f', o.id)} className="group min-w-0 overflow-hidden rounded-xl border bg-card text-left shadow-paper transition-transform hover:-translate-y-0.5 focus-visible:ring-2 focus-visible:ring-ring">
-                <span className="grid aspect-[4/3] place-items-center overflow-hidden bg-muted">
-                  {o.exists ? <img src={src(o, true)} alt={o.name} loading="lazy" width={320} height={240} className="size-full object-cover" /> : <ImageOff className="size-6 text-muted-foreground" />}
-                </span>
+              <button key={o.id} onClick={() => set('f', o.id)} className="group mb-3 block w-full break-inside-avoid overflow-hidden rounded-xl border bg-card text-left shadow-paper transition-transform hover:-translate-y-0.5 focus-visible:ring-2 focus-visible:ring-ring">
+                {o.exists ? <img src={src(o, true)} alt={o.name} loading="lazy" width={o.width ?? undefined} height={o.height ?? undefined} style={{ aspectRatio: o.width && o.height ? `${o.width} / ${o.height}` : '4 / 3' }} className="block h-auto w-full bg-muted object-contain" />
+                  : <span className="grid aspect-[4/3] place-items-center bg-muted"><ImageOff className="size-6 text-muted-foreground" /></span>}
                 <span className="block px-2.5 py-2">
                   <span className={`block truncate text-xs font-medium ${o.object ? 'text-primary' : 'text-muted-foreground'}`}>{o.object?.name ?? '未归类'}</span>
                   <span className="block truncate text-xs text-muted-foreground">{o.tool_name} · {when(o.at)}</span>
@@ -72,8 +80,8 @@ export default function OutputsPage() {
             {data.items.map((o) => (
               <button key={o.id} onClick={() => set('f', o.id)} className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left hover:bg-muted/60">
                 <span className="min-w-0 flex-1">
-                  <span className="flex min-w-0 items-baseline gap-2"><span className={`shrink-0 text-xs ${o.object ? 'font-medium text-primary' : 'text-muted-foreground'}`}>{o.object?.name ?? '未归类'}</span><span className={`truncate text-[14.5px] font-medium ${o.exists ? '' : 'text-muted-foreground line-through'}`}>{o.name}</span></span>
-                  <span className="mt-0.5 block truncate text-xs text-muted-foreground">{o.tool_name} · {when(o.at)} · {o.folder}</span>
+                  <span className={`block truncate text-[14.5px] font-medium ${o.exists ? '' : 'text-muted-foreground line-through'}`}>{o.name}</span>
+                  <span className="mt-0.5 block truncate text-xs text-muted-foreground"><span className={o.object ? 'font-medium text-primary' : ''}>{o.object?.name ?? '未归类'}</span> · {o.tool_name} · {when(o.at)} · {o.folder}</span>
                 </span>
                 {!o.exists && <StatusBadge value="已不在原处" tone="neutral" />}
               </button>
@@ -81,14 +89,23 @@ export default function OutputsPage() {
           </Panel>
         )}
 
+        {(data.gone > 0 || sp.get('gone')) && <p className="text-xs text-muted-foreground">{sp.get('gone')
+          ? <>已经不在原处的也列出来了。<button className="text-primary hover:underline" onClick={() => set('gone', null)}>只看还在的</button></>
+          : <>另有 {data.gone} 个{kind}已经不在原处（多是临时文件夹里的），没列出来。<button className="text-primary hover:underline" onClick={() => set('gone', '1')}>也列出来</button></>}</p>}
         {data.total > data.items.length && <div className="text-center"><Button variant="outline" onClick={() => setLimit((n) => n + 60)}>再看 60 个（共 {data.total} 个）</Button></div>}
         <p className="text-xs leading-relaxed text-muted-foreground">图片来自 Codex 的图片目录；文件来自对话里“写文件”动作留下的路径（Codex 的补丁、Claude Code 的写文件），只算新写出来的，改已有文件的不算。AI 用命令行生成的文件、网页版里生成的东西记不到。</p>
       </PageBody>
 
-      <DetailSheet open={!!open} onClose={() => set('f', null)} wide eyebrow={open?.kind} title={open?.name} meta={open && <><span>{open.tool_name}</span><span>{when(open.at)}</span>{!open.exists && <StatusBadge value="已不在原处" tone="neutral" />}</>}>
+      <DetailSheet open={!!fid} onClose={() => set('f', null)} wide eyebrow={open?.kind} title={open?.name} meta={open && <><span>{open.tool_name}</span><span>{when(open.at)}</span>{!open.exists && <StatusBadge value="已不在原处" tone="neutral" />}</>}
+        actions={open?.exists && <>
+          {OPENABLE.has(open.kind) && <Button size="sm" disabled={openOnMac.isPending} onClick={() => openOnMac.mutate(false)}><ExternalLink />{open.kind === '网页' ? '在浏览器里打开' : '在本机打开'}</Button>}
+          <Button size="sm" variant="outline" disabled={openOnMac.isPending} onClick={() => openOnMac.mutate(true)}><FolderOpen />在访达里显示</Button>
+        </>}>
         {open && (
           <>
-            {open.kind === '图片' && open.exists && <img src={src(open)} alt={open.name} className="mb-5 max-h-[60vh] w-full rounded-lg border object-contain" />}
+            {open.kind === '图片' && open.exists && <div className="mb-5 grid place-items-center rounded-lg border bg-muted/50 p-2"><img src={src(open)} alt={open.name} className="h-auto max-h-[62vh] w-auto max-w-full rounded-md" /></div>}
+            {!open.exists && <p className="mb-5 rounded-lg bg-muted px-3 py-2 text-sm text-muted-foreground">这个文件已经不在原来的位置了（被删掉、挪走，或者是临时文件夹里的）。清单里只留着它的路径。</p>}
+            {open.exists && !OPENABLE.has(open.kind) && <p className="mb-5 text-xs text-muted-foreground">{open.kind}文件不从网页直接打开（有的一打开就会运行），点“在访达里显示”找到它。</p>}
             <SheetSection title="在哪">
               <dl>
                 <ReadRow label="所在文件夹"><span className="break-all">{open.folder}</span></ReadRow>

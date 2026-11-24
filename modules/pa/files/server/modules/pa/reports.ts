@@ -31,7 +31,7 @@ export function periodStats(from: string, to: string) {
   const a = dayStart(from)
   const b = nextDay(to)
   const sessions = listSessions({ days: 3650 }).filter((s) => s.last_at >= a && s.last_at < b)
-  const done = sessions.filter((s) => s.status === '做完未读' || s.status === '已看' || s.status === '在等我')
+  const done = sessions.filter((s) => s.status === '做完未读' || s.status === '做完了' || s.status === '在等我')
   const by = new Map<string, { name: string; n: number; object: boolean }>()
   for (const s of sessions) {
     const key = s.object?.path ?? `dir:${s.cwd}`

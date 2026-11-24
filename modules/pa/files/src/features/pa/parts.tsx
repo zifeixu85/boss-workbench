@@ -11,8 +11,8 @@ import { Button } from '@/components/ui/button'
 import { GoLink } from '@/features/today/parts'
 import type { CardData, Session, SessionStatus } from './types'
 
-export const SESSION_STATUSES: SessionStatus[] = ['做完未读', '在等我', '进行中', '已看', '停了']
-const TONE: Record<SessionStatus, 'primary' | 'warn' | 'info' | 'neutral'> = { 做完未读: 'primary', 在等我: 'warn', 进行中: 'info', 已看: 'neutral', 停了: 'neutral' }
+export const SESSION_STATUSES: SessionStatus[] = ['做完未读', '在等我', '进行中', '没做完', '做完了']
+const TONE: Record<SessionStatus, 'primary' | 'warn' | 'info' | 'neutral' | 'ok'> = { 做完未读: 'primary', 在等我: 'warn', 进行中: 'info', 没做完: 'neutral', 做完了: 'ok' }
 
 /** 对话状态。推断出来的后面带一个“推”字的小点提示（鼠标移上去看依据） */
 export function SessionBadge({ s }: { s: Pick<Session, 'status' | 'why' | 'inferred'> }) {

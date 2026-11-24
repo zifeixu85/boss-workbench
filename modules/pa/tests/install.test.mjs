@@ -61,6 +61,7 @@ function setup() {
     cx(ago(10), 'response_item', { type: 'message', role: 'user', content: [{ type: 'input_text', text: '云杉的折扣怎么定' }] }),
     cx(ago(9), 'event_msg', { type: 'task_complete', last_agent_message: '两处说法不一样，你想用哪一个？' }),
   ].join('\n'))
+  put(join(WORK, '报价单.md'), 'x')
   put(join(CODEX, 'session_index.jsonl'), J({ id: 'thread-a', thread_name: '春节茶礼 · 报价单', updated_at: ago(20) }) + '\n')
   put(join(CODEX, 'generated_images', 'thread-x', 'a.png'), 'not really a png')
   // 假的 Claude Code：还在跑的
@@ -109,8 +110,10 @@ test('装上个人助理：我关注的、进展、产出、报告、助理都�
   assert.equal(dump.includes('正文'), false)
 
   // 产出：写文件动作 + 图片目录
+  // 报价单.md 真写出来了；长文.md 不在原处：默认不列，只数在 gone 里
   const out = json('pa-outputs')
-  assert.equal(out.counts['文档'], 2)
+  assert.equal(out.counts['文档'], 1)
+  assert.equal(out.gone, 1)
   assert.equal(out.counts['图片'], 1)
 
   // 对象详情：时间线里有往来记录和 AI 对话
@@ -121,7 +124,7 @@ test('装上个人助理：我关注的、进展、产出、报告、助理都�
 
   // 手动改：标已看、改状态、归类
   assert.match(cli('pa-mark', 'codex:thread-a', '--read').out, /标已看/)
-  assert.equal(json('pa-progress').find((s) => s.id === 'codex:thread-a').status, '已看')
+  assert.equal(json('pa-progress').find((s) => s.id === 'codex:thread-a').status, '做完了')
   assert.match(cli('pa-mark', 'claude:c1', '--object', '10-客户/云杉物流.md').out, /归到 云杉物流/)
   assert.match(cli('pa-mark', 'claude:c1', '--status', '乱写').out, /状态只能是/)
 

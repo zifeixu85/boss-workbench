@@ -5,7 +5,9 @@ import { moduleApp, ok, body } from '../../module-kit.ts'
 import { focusClasses, roles } from './kb.ts'
 import { focusList, focusObject, pendingItems } from './focus.ts'
 import { getSession, listSessions, markRead, setObject, setStatus, statusCounts } from './store.ts'
-import { imageFile, listOutputs, thumbFile } from './outputs.ts'
+import { getOutput, imageFile, listOutputs, openOnMac, recentOutputs, thumbFile } from './outputs.ts'
+import { buildPulse } from './pulse-calc.ts'
+import { now } from './store.ts'
 import { reportView } from './reports.ts'
 import { scan, scanIfStale, scannedAt, sources, SCAN_DAYS } from './scan.ts'
 import { allObjects } from './kb.ts'
@@ -37,12 +39,22 @@ paRoutes.post('/sessions/:id/object', async (c) => c.json(ok(setObject(c.req.par
 paRoutes.get('/outputs', async (c) => {
   await scanIfStale()
   const q = (k: string) => c.req.query(k) || undefined
-  return c.json(ok(listOutputs({ days: Number(q('days')) || 30, kind: q('kind'), object: q('object'), tool: q('tool'), session: q('session'), edits: q('edits') === '1', limit: Math.min(Number(q('limit')) || 60, 200), offset: Number(q('offset')) || 0 })))
+  return c.json(ok(listOutputs({ days: Number(q('days')) || 30, kind: q('kind'), object: q('object'), tool: q('tool'), session: q('session'), edits: q('edits') === '1', gone: q('gone') === '1', limit: Math.min(Number(q('limit')) || 60, 200), offset: Number(q('offset')) || 0 })))
 })
-// 看一张图：只按清单里的编号给，原文件只读
+paRoutes.get('/outputs/:id', (c) => c.json(ok(getOutput(c.req.param('id')))))
+// 在本机打开 / 在访达里显示（只认清单里的编号）
+paRoutes.post('/outputs/:id/open', async (c) => c.json(ok(await openOnMac(c.req.param('id'), ((await body(c)) as { reveal?: boolean }).reveal === true))))
+// 看一张图：只按清单里的编号给，原文件只读。SVG 里能写脚本：直接打开这个地址时也不让它跑、不让它连外面
 paRoutes.get('/outputs/:id/file', async (c) => {
   const f = c.req.query('size') === 'thumb' ? await thumbFile(c.req.param('id')) : imageFile(c.req.param('id'))
-  return new Response(Readable.toWeb(createReadStream(f.path)) as ReadableStream, { headers: { 'content-type': f.type, 'content-length': String(f.size), 'cache-control': 'private, max-age=3600', 'x-content-type-options': 'nosniff' } })
+  const svg = f.type === 'image/svg+xml' ? { 'content-security-policy': "default-src 'none'; style-src 'unsafe-inline'; img-src data:; sandbox" } : {}
+  return new Response(Readable.toWeb(createReadStream(f.path)) as ReadableStream, { headers: { 'content-type': f.type, 'content-length': String(f.size), 'cache-control': 'private, max-age=3600', 'x-content-type-options': 'nosniff', ...svg } })
+})
+// 进展的数字和图：近 days 天每天做完几件、出了几张图几个文件，本周对比上周，连续几天在用，本周花在哪
+paRoutes.get('/pulse', async (c) => {
+  await scanIfStale()
+  const days = Math.min(Math.max(Number(c.req.query('days')) || 14, 7), 60)
+  return c.json(ok(buildPulse(listSessions({ days: days + 14 }), recentOutputs(days + 14), now(), days)))
 })
 
 paRoutes.get('/reports', async (c) => { await scanIfStale(); return c.json(ok(reportView((c.req.query('kind') || undefined) as ReportKind | undefined, c.req.query('period') || undefined))) })
