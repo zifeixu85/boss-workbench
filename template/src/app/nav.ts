@@ -42,14 +42,15 @@ export type NavItem = {
 const channelAlerts = (id: string) => (o: Overview) => o.alerts?.filter((a) => a.module === 'biz' && a.channel_id === id).length || undefined
 
 const CORE_NAV: NavItem[] = [
-  // 今日：首页 + 每天用的几页，平铺不分组
-  { key: 'today', to: '/', label: '今日', icon: LayoutDashboard, section: '今日', module: 'today' },
-  { key: 'calendar', to: '/calendar', label: '日程', icon: CalendarDays, section: '今日', module: 'tasks', badge: (o) => o.events.length || undefined, tone: 'quiet' },
-  { key: 'todos', to: '/todos', label: '待办', icon: ListChecks, section: '今日', module: 'tasks', badge: (o) => o.todos.today.length || undefined },
+  // 驾驶舱（分区编号还叫“今日”，显示成驾驶舱，2026-11-24 A梦 定）：首页、项目、收件箱平铺；
+  // 待办、日程、提醒收进一组“任务与日程”（组名是可折叠的小标题），菜单看着少一些
+  { key: 'today', to: '/', label: '驾驶舱', icon: LayoutDashboard, section: '今日', module: 'today' },
   { key: 'projects', to: '/projects', label: '项目', icon: FolderKanban, section: '今日', module: 'projects', badge: (o) => o.risks.length || undefined, tone: 'warn' },
   { key: 'inbox', to: '/inbox', label: '收件箱', icon: Inbox, section: '今日', module: 'inbox' },
+  { key: 'todos', to: '/todos', label: '待办', icon: ListChecks, section: '今日', sub: '任务与日程', module: 'tasks', badge: (o) => o.todos.today.length || undefined },
+  { key: 'calendar', to: '/calendar', label: '日程', icon: CalendarDays, section: '今日', sub: '任务与日程', module: 'tasks', badge: (o) => o.events.length || undefined, tone: 'quiet' },
   // 提醒（10-12 加）：服务端按规则算出来的提醒，角标是没读的条数
-  { key: 'reminders', to: '/reminders', label: '提醒', icon: BellRing, section: '今日', module: 'reminders', badge: (o) => o.reminders_unread || undefined },
+  { key: 'reminders', to: '/reminders', label: '提醒', icon: BellRing, section: '今日', sub: '任务与日程', module: 'reminders', badge: (o) => o.reminders_unread || undefined },
 
   {
     key: 'clients', to: '/clients', label: '客户与跟进', short: '客户', icon: Users, section: '客户', module: 'clients',
@@ -122,8 +123,8 @@ export function withBadges(nav: NavItem[], badges: Record<string, number> | unde
 // ───────────────────────────── 分区、二级分组、页面
 
 /** 分区的顺序、图标；hidden = 不占顶栏（系统） */
-const SECTION_META: { key: NavSectionKey; icon: LucideIcon; hidden?: boolean }[] = [
-  { key: '今日', icon: LayoutDashboard }, { key: '我关注的', icon: Star }, { key: '客户', icon: Users }, { key: '经营', icon: ChartNoAxesCombined },
+const SECTION_META: { key: NavSectionKey; label?: string; icon: LucideIcon; hidden?: boolean }[] = [
+  { key: '今日', label: '驾驶舱', icon: LayoutDashboard }, { key: '我关注的', icon: Star }, { key: '客户', icon: Users }, { key: '经营', icon: ChartNoAxesCombined },
   { key: '内容', icon: NotebookPen }, { key: '我的助理', icon: Bot }, { key: '数据', icon: Database }, { key: '资料', icon: BookOpen }, { key: '系统', icon: Settings, hidden: true },
 ]
 
@@ -154,11 +155,11 @@ function groupsOf(items: NavItem[]): NavGroup[] {
 
 /** 由菜单表算出分区：没有模块的分区不出现 */
 export function sectionsOf(nav: NavItem[]): NavSection[] {
-  return SECTION_META.map(({ key, icon, hidden }) => {
+  return SECTION_META.map(({ key, label, icon, hidden }) => {
     const items = nav.filter((n) => n.section === key)
     const groups = groupsOf(items)
     const pages = groups.flatMap((g) => g.pages)
-    return { key, label: key, icon, to: pages[0]?.to ?? '/', items, groups, pages, ...(hidden ? { hidden: true } : {}) }
+    return { key, label: label ?? key, icon, to: pages[0]?.to ?? '/', items, groups, pages, ...(hidden ? { hidden: true } : {}) }
   }).filter((s) => s.items.length > 0)
 }
 
@@ -217,8 +218,12 @@ export const groupModule = (g: NavGroup) => (g.items.length === 1 && g.items[0].
 export const pageBadge = (p: NavPage, o?: Overview) => (o && !p.item.children?.length ? p.item.badge?.(o) : undefined)
 
 /** 搜索、提示里的位置名：“客户 › 跟进看板”；分区名和页面名相同（今日）只写一次 */
+/** 分区显示的名字：编号“今日”显示成“驾驶舱”，别的就是编号本身 */
+export const sectionLabel = (key: NavSectionKey) => SECTION_META.find((m) => m.key === key)?.label ?? key
+
 export function pageTrail(p: NavPage) {
-  return p.item.section === p.label ? p.label : `${p.item.section} › ${p.label}`
+  const s = sectionLabel(p.item.section)
+  return s === p.label ? p.label : `${s} › ${p.label}`
 }
 
 /**

@@ -184,11 +184,17 @@ test('装上个人助理：我关注的、进展、产出、报告、助理都�
   assert.equal(json('pa-reports', '--kind', '日报').kind, '周报', '日报关着：给开着的那种')
 
   // 今日概况：三张卡的数、菜单、总助的话
-  const ov = sh(process.execPath, ['-e', "import('./server/module-hooks.ts').then(async (h) => { await h.loadHooks(); const t = await import('./server/services/today.ts'); const o = t.overview(); console.log(JSON.stringify({ cards: o.cards, nav: o.nav_extra.map((n) => n.label), notes: o.module_notes.map((n) => n.title), badges: o.nav_badges })) })"])
+  const ov = sh(process.execPath, ['-e', "import('./server/module-hooks.ts').then(async (h) => { await h.loadHooks(); const t = await import('./server/services/today.ts'); const o = t.overview(); console.log(JSON.stringify({ cards: o.cards, nav: o.nav_extra.map((n) => n.label), notes: o.module_notes.map((n) => n.title), badges: o.nav_badges, stats: o.home_stats })) })"])
   assert.equal(ov.code, 0, ov.out)
   const o = JSON.parse(ov.out.trim().split('\n').pop())
   assert.deepEqual(o.nav, ['项目', '客户'])
   assert.match(o.notes[0], /总助的话/)
+  // 驾驶舱顶上的一排数：核心给今天的待办、日程，个人助理给本周做完、本周产出、连续在用；每个带近 14 天的走势
+  assert.deepEqual(o.stats.map((x) => x.label), ['今天的待办', '今天的日程', '本周做完', '本周产出', '连续在用'])
+  const weekDone = o.stats.find((x) => x.label === '本周做完')
+  assert.equal(weekDone.module, 'pa')
+  assert.equal(weekDone.spark.length, 14)
+  assert.equal(weekDone.to, '/progress')
   assert.equal(o.cards['pa-waiting'].count, 1)
   assert.ok(o.cards['pa-confirm'].count >= 2, '待确认的客户这一类、待确认的对象、待确认的往来记录')
 

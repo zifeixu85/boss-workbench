@@ -106,7 +106,7 @@ export default function TodosPage() {
   }
   return (
     <>
-      <PageHeader eyebrow="今日" title="待办" desc={`还有 ${open.length} 件没做完。和客户、项目有关的事记得关联，客户详情和跟进清单里都能看到。`}
+      <PageHeader eyebrow="驾驶舱" title="待办" desc={`还有 ${open.length} 件没做完。和客户、项目有关的事记得关联，客户详情和跟进清单里都能看到。`}
         actions={<Button onClick={() => ov.openNew('todo')}><ListPlus />新建待办</Button>} />
       <PageBody className="grid grid-cols-[minmax(0,1fr)] gap-4">
         <div className="flex flex-wrap items-center gap-2">

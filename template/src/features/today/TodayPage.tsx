@@ -1,4 +1,4 @@
-// 今日：顶上是老板“最想先看到”的重点卡（最多 3 张，按设置 home 排：经营、大客户、装进来的模块登记的、项目、收件箱，见 shared/home.ts），
+// 驾驶舱（原“今日”）：顶上一排数（今天的待办、日程、模块给的本周进展，见 HomeStats），再是老板“最想先看到”的重点卡（最多 3 张，按设置 home 排：经营、大客户、装进来的模块登记的、项目、收件箱，见 shared/home.ts），
 // 然后是数据异常、日程、待办、该联系的人、钱、卡在哪。数据都从 /api/overview 一次取回。
 import { CalendarPlus, MessageSquarePlus, Sparkles } from 'lucide-react'
 import { api, useApi, useWrite } from '@/lib/api'
@@ -14,6 +14,7 @@ import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { SalesBrief } from './SalesBrief'
 import { KeyClients } from './KeyClients'
+import { HomeStats } from './HomeStats'
 import { MODULE_HOME_CARDS } from '@/app/modules.routes.gen'
 import { AlertsPanel } from './AlertsPanel'
 import { ScheduleAndTodos, SideColumn } from './DayColumns'
@@ -75,6 +76,9 @@ export default function TodayPage() {
             <AlertDescription>{o.module_errors.map((m) => `${m.module}：${m.error}`).join('；')}</AlertDescription>
           </Alert>
         )}
+
+        {/* 驾驶舱顶上那一排数：今天的待办、日程，模块给的本周进展（2026-11-24） */}
+        <HomeStats stats={o.home_stats} />
 
         {/* 手动打开、没开提醒的（默认）不问浏览器通知权限 */}
         {s?.reminders?.on && <NotifyBanner />}

@@ -1,13 +1,16 @@
 // 简单导航：一列菜单，按分区（今日 / 客户 / 经营 / 内容 / 数据 / 资料）分段，只列模块不列子页面（子页面用页内的 SubTabs）；
 // 宽屏图标+文字、分段有小标题，中屏只剩图标、分段之间一条细线；手机底栏。
 // 2026-10-17：新建、头像整行宽；底下的“设置”和菜单项同一种样式（shell-parts 的 sideItemCls）
+// 2026-11-24：分区里的二级分组（sub，比如驾驶舱里的“任务与日程”）在宽屏是可折叠的小标题；当前页在组里就自动展开；折没折记在这台浏览器里
 import { useState } from 'react'
+import { ChevronRight } from 'lucide-react'
 import { Link, Outlet, useLocation } from 'react-router'
-import { resolveNav } from './nav'
+import { resolveNav, type NavGroup, type NavItem, type NavSection } from './nav'
 import { useNav } from './nav-sections'
 import { Brand, Badge, LiveDot, MobileMenuButton, MobileTabs, QuickCreate, SearchButton, SearchDialog, SideSettingsLink, UserMenu, sideItemCls, useHotkeys, useShellData } from './shell-parts'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import type { LiveState } from '@/lib/api'
+import type { Overview } from '@/lib/types'
 import { cn } from '@/lib/utils'
 
 export function SimpleShell({ live }: { live: LiveState }) {
@@ -33,24 +36,7 @@ export function SimpleShell({ live }: { live: LiveState }) {
               {/* 分区名和第一项同名（今日）时不写小标题 */}
               {s.label !== s.items[0].label && <div className="hidden px-2.5 pb-1 text-[12px] tracking-wide text-muted-foreground lg:block">{s.label}</div>}
               <div className="flex flex-col gap-0.5">
-                {s.items.map((n) => {
-                  const active = n === activeItem
-                  const badge = overview && n.badge?.(overview)
-                  return (
-                    <Tooltip key={n.key}>
-                      <TooltipTrigger asChild>
-                        <Link to={n.to} aria-current={active ? 'page' : undefined}
-                          className={sideItemCls(active, 'md:justify-center lg:justify-start')}>
-                          <n.icon className="size-[18px] shrink-0 opacity-85" />
-                          <span className="hidden truncate lg:inline">{n.label}</span>
-                          <span className="hidden lg:contents"><Badge n={badge || undefined} tone={n.tone} /></span>
-                          {badge ? <span className={cn('absolute top-1.5 right-2 size-1.5 rounded-full lg:hidden', n.tone === 'warn' ? 'bg-warn' : 'bg-muted-foreground/50')} /> : null}
-                        </Link>
-                      </TooltipTrigger>
-                      <TooltipContent side="right" className="lg:hidden">{s.label} › {n.label}</TooltipContent>
-                    </Tooltip>
-                  )
-                })}
+                {s.groups.map((g) => <SideGroup key={g.label ?? '-'} g={g} s={s} active={activeItem} overview={overview} />)}
               </div>
             </div>
           ))}
@@ -73,5 +59,49 @@ export function SimpleShell({ live }: { live: LiveState }) {
       {settings?.mobile_nav !== 'drawer' && <MobileTabs overview={overview} />}
       <SearchDialog open={searchOpen} onOpenChange={setSearchOpen} />
     </div>
+  )
+}
+
+const FOLD_KEY = 'wb.simple.fold'
+const readFold = (): Record<string, boolean> => { try { return JSON.parse(localStorage.getItem(FOLD_KEY) ?? '{}') as Record<string, boolean> } catch { return {} } }
+
+/** 一组菜单：没有组名的直接列；有组名的在宽屏是可折叠的小标题（中屏只有图标，照常全列） */
+function SideGroup({ g, s, active, overview }: { g: NavGroup; s: NavSection; active?: NavItem; overview?: Overview }) {
+  const id = `${s.key}/${g.label}`
+  const [shut, setShut] = useState(() => !!readFold()[id])
+  const inside = g.items.some((n) => n === active)
+  const open = !g.label || inside || !shut
+  const toggle = () => { const next = !shut; setShut(next); try { localStorage.setItem(FOLD_KEY, JSON.stringify({ ...readFold(), [id]: next })) } catch { /* 存不了就只在这次有效 */ } }
+  const sum = overview ? g.items.reduce((k, n) => k + (Number(n.badge?.(overview)) || 0), 0) : 0
+  return (
+    <>
+      {g.label && (
+        <button type="button" onClick={toggle} aria-expanded={open} disabled={inside}
+          className="mt-1 hidden items-center gap-1 rounded-md px-2.5 py-1 text-left text-[12px] tracking-wide text-muted-foreground hover:text-foreground disabled:cursor-default disabled:hover:text-muted-foreground lg:flex">
+          <ChevronRight className={cn('size-3.5 transition-transform', open && 'rotate-90')} />
+          <span className="flex-1">{g.label}</span>
+          {!open && sum > 0 && <span className="num text-[11px]">{sum}</span>}
+        </button>
+      )}
+      {g.items.map((n) => <SideLink key={n.key} n={n} s={s} active={n === active} overview={overview} hidden={!open} />)}
+    </>
+  )
+}
+
+function SideLink({ n, s, active, overview, hidden }: { n: NavItem; s: NavSection; active: boolean; overview?: Overview; hidden: boolean }) {
+  const badge = overview && n.badge?.(overview)
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Link to={n.to} aria-current={active ? 'page' : undefined}
+          className={cn(sideItemCls(active, 'md:justify-center lg:justify-start'), hidden && 'lg:hidden')}>
+          <n.icon className="size-[18px] shrink-0 opacity-85" />
+          <span className="hidden truncate lg:inline">{n.label}</span>
+          <span className="hidden lg:contents"><Badge n={badge || undefined} tone={n.tone} /></span>
+          {badge ? <span className={cn('absolute top-1.5 right-2 size-1.5 rounded-full lg:hidden', n.tone === 'warn' ? 'bg-warn' : 'bg-muted-foreground/50')} /> : null}
+        </Link>
+      </TooltipTrigger>
+      <TooltipContent side="right" className="lg:hidden">{s.label} › {n.label}</TooltipContent>
+    </Tooltip>
   )
 }

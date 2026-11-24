@@ -21,7 +21,7 @@ import { searchKb } from './kb.ts'
 import { homeFocus, HOME_CARDS } from '../../shared/home.ts'
 import { MODULE_SETTINGS } from '../../shared/modules.ts'
 import { moduleHooks, hookErrors } from '../module-hooks.ts'
-import type { ModuleNavItem, TodayNote, TodaySection } from '../module-types.ts'
+import type { HomeStat, ModuleNavItem, TodayNote, TodaySection } from '../module-types.ts'
 import { BadRequest } from './common.ts'
 import { editMode } from './edit-mode.ts'
 
@@ -77,6 +77,7 @@ export function overview() {
   const navExtra: (ModuleNavItem & { module: string })[] = []
   const navBadges: Record<string, number> = {}
   const moduleNotes: (TodayNote & { module: string; name: string })[] = []
+  const moduleStats: (HomeStat & { module: string })[] = []
   for (const h of moduleHooks()) {
     if (!on.has(h.module)) continue
     for (const [id, fn] of Object.entries(h.hooks.home ?? {})) {
@@ -89,6 +90,7 @@ export function overview() {
     if (h.hooks.badges) Object.assign(navBadges, safe(h.name, () => h.hooks.badges!(), {}))
     const note = h.hooks.note ? safe(h.name, () => h.hooks.note!(t), null) : null
     if (note) moduleNotes.push({ module: h.module, name: h.name, ...note })
+    if (h.hooks.stats) moduleStats.push(...safe(h.name, () => h.hooks.stats!(t), []).slice(0, 3).map((x) => ({ ...x, module: h.module })))
   }
   for (const e of hookErrors()) moduleErrors.push(e)
   const dueRecs = listReceivables().filter((r) => r.status === '7天内到期')
@@ -96,9 +98,14 @@ export function overview() {
   const active = listProjects().filter((p) => p.stage !== '已完成' && p.stage !== '暂停')
   const openInbox = (listInbox() as { done_at: string | null }[]).filter((n) => !n.done_at)
   const homeSetting = get<{ value: string }>("SELECT value FROM settings WHERE key = 'home'")?.value
+  // 驾驶舱顶上那一排数（2026-11-24）：核心给今天的待办、日程，装进来的模块再各给几个（最多 6 个）
+  const coreStats: (HomeStat & { module: string })[] = on.has('tasks') ? [
+    { module: 'tasks', label: '今天的待办', value: todayTodos.length, unit: '件', hint: weekTodos.length ? `这周还有 ${weekTodos.length} 件` : '这周没有别的了', to: '/todos', ...(todayTodos.length ? { tone: 'warn' as const } : {}) },
+    { module: 'tasks', label: '今天的日程', value: events.length, unit: '个', hint: upcoming.length ? `接下来 7 天还有 ${upcoming.length} 个` : '接下来 7 天没有', to: '/calendar' },
+  ] : []
   return {
     date: t,
-    sales, alerts, key_clients: keyClients, cards, module_today: moduleToday, nav_extra: navExtra, nav_badges: navBadges, module_notes: moduleNotes, module_errors: [...moduleErrors],
+    sales, alerts, key_clients: keyClients, cards, module_today: moduleToday, nav_extra: navExtra, nav_badges: navBadges, module_notes: moduleNotes, home_stats: [...coreStats, ...moduleStats].slice(0, 6), module_errors: [...moduleErrors],
     headline: top ? { id: top.id, title: top.title, due: top.due, due_time: top.due_time } : null,
     events, upcoming,
     todos: { today: todayTodos, week: weekTodos, open: todos.length },

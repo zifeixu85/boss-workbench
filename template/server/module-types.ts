@@ -79,6 +79,8 @@ export type ModuleNavItem = { key: string; to: string; label: string; icon?: str
 
 /** 模块放在今日页重点卡上面的一段话（2026-11-24）：标题、几行字、谁写的、底下一句小字、点了去哪 */
 export type TodayNote = { title: string; lines: string[]; by?: string; foot?: string; to?: string }
+/** 驾驶舱顶上那一排数里的一个（2026-11-24）：名字、数、单位、底下一句小字、颜色、点了去哪、近几天的走势（从旧到新） */
+export type HomeStat = { label: string; value: number; unit?: string; hint?: string; tone?: 'ok' | 'warn'; to?: string; spark?: number[] }
 
 /** server.hooks 导出的东西。每一项都可以不写；模块开关收起来时，核心不调它们 */
 export type ModuleHooks = {
@@ -90,6 +92,8 @@ export type ModuleHooks = {
   badges?: () => Record<string, number>
   /** 今日页重点卡上面的一段话；没有要说的返回 null */
   note?: (day: string) => TodayNote | null
+  /** 驾驶舱顶上那一排数：给老板一眼看到自己的进展。每个模块最多 3 个，要快 */
+  stats?: (day: string) => HomeStat[]
   /** 今日概况里这个模块的一段 */
   today?: (day: string) => TodaySection | null
   /** 往“数据源与导入”登记的导入目标（要 needs 里写 data）。类型见 server/modules/data/targets.ts */

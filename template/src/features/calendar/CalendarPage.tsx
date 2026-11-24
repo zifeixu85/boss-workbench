@@ -78,7 +78,7 @@ export default function CalendarPage() {
 
   return (
     <>
-      <PageHeader eyebrow="今日" title="日程" desc="见客户、送货、内部会这些安排都在这里。点空白处新建，拖动可以改时间；勾选“显示待办”能看到每天到期的事。从你自己的日历同步来的日程标着“日历”，要改到日历里改。"
+      <PageHeader eyebrow="驾驶舱" title="日程" desc="见客户、送货、内部会这些安排都在这里。点空白处新建，拖动可以改时间；勾选“显示待办”能看到每天到期的事。从你自己的日历同步来的日程标着“日历”，要改到日历里改。"
         actions={<Button onClick={() => ov.openNew('event')}><CalendarPlus />新建日程</Button>} />
       <PageBody>
         <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_300px]">

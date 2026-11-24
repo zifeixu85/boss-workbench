@@ -146,7 +146,9 @@ export function readManifest(dir, coreIds = []) {
   m.nav = m.nav ?? []
   for (const n of m.nav) {
     if (!n.key || !n.to?.startsWith('/') || !n.label) fail(`${where}：nav 每一项要写 key、to（/ 开头）、label`)
-    if (!SECTIONS.includes(n.section)) fail(`${where}：nav 的 section 只能是 ${SECTIONS.join('、')}`)
+    // “驾驶舱”是“今日”分区现在显示的名字（2026-11-24），两种写法都认，统一存成“今日”
+    if (n.section === '驾驶舱') n.section = '今日'
+    if (!SECTIONS.includes(n.section)) fail(`${where}：nav 的 section 只能是 ${SECTIONS.join('、')}（“今日”也可以写成“驾驶舱”）`)
     for (const ic of [n.icon, ...(n.children ?? []).map((c) => c.icon).filter(Boolean)]) if (!ICON.test(ic ?? '')) fail(`${where}：icon 写 lucide 图标的名字，比如 Newspaper`)
   }
   m.pages = m.pages ?? []

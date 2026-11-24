@@ -21,7 +21,7 @@ export type ModuleDef = {
 }
 
 const CORE_MODULES: ModuleDef[] = [
-  { id: 'today', name: '今日', required: true },
+  { id: 'today', name: '驾驶舱', required: true },
   { id: 'tasks', name: '待办与日程', required: true },
   { id: 'projects', name: '项目', required: true },
   { id: 'inbox', name: '收件箱', required: true },

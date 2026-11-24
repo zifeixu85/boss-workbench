@@ -60,7 +60,7 @@ test('装了模块：菜单页、登记的固定页面、对象、读写命令�
 test('模块收起来：它的页面、对象、命令都不列，单独写在 off 里', () => {
   const on = ['today', 'tasks', 'projects', 'inbox', 'kb', 'settings']
   const c = buildCapabilities({ ...input, enabled: on })
-  assert.deepEqual(c.pages.map((p) => p.key), ['today', 'calendar', 'todos', 'projects', 'inbox', 'kb', 'settings'])
+  assert.deepEqual(c.pages.map((p) => p.key), ['today', 'projects', 'inbox', 'todos', 'calendar', 'kb', 'settings'])
   assert.deepEqual(c.objects.map((o) => o.kind), ['project', 'todo', 'event', 'kb'])
   assert.ok(!c.read.some((x) => ['clients', 'biz', 'gifts'].includes(x.command)))
   assert.ok(!c.write.some((x) => ['log', 'stage', 'gifts-add'].includes(x.command)))

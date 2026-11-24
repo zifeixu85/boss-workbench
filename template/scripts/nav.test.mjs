@@ -22,8 +22,8 @@ test('五个分区按顺序排，系统不占顶栏（“内容”分区留给�
 })
 
 test('每个地址只亮一页：子页面、详情页、老地址都落对', () => {
-  assert.deepEqual(here('/'), ['今日', '今日'])
-  assert.deepEqual(here('/todos'), ['今日', '今日 › 待办'])
+  assert.deepEqual(here('/'), ['今日', '驾驶舱'], '分区编号还是今日，显示成驾驶舱')
+  assert.deepEqual(here('/todos'), ['今日', '驾驶舱 › 待办'])
   assert.deepEqual(here('/clients'), ['客户', '客户 › 客户列表'])
   assert.deepEqual(here('/clients/pipeline'), ['客户', '客户 › 跟进看板'])
   assert.deepEqual(here('/clients/c_lantuo'), ['客户', '客户 › 客户列表'])
@@ -54,7 +54,7 @@ test('模块拿掉以后，空了的分区自动不显示（基础版：只有�
   assert.deepEqual(sections.map((s) => s.key), ['今日', '资料', '系统'])
   assert.equal(resolveNav('/channel/tmall', sections).section, undefined)
   // 底栏补满 4 个：先给每个还没有入口的分区一个（资料 → 知识库），再按菜单顺序补；按分区排
-  assert.deepEqual(mobileTabs(basic).map((n) => n.key), ['today', 'calendar', 'todos', 'kb'])
+  assert.deepEqual(mobileTabs(basic).map((n) => n.key), ['today', 'projects', 'inbox', 'kb'])
 })
 
 test('手机底栏补位按分区：拿掉客户与跟进，空出的位置给还没有入口的分区（按分区顺序，这里是数据、资料），每个分区最多先占一个', () => {
@@ -63,13 +63,13 @@ test('手机底栏补位按分区：拿掉客户与跟进，空出的位置给�
   assert.deepEqual(tabs.map((n) => n.key), ['today', 'biz', 'sources', 'kb'])
   assert.deepEqual(tabs.map((n) => n.section), ['今日', '经营', '数据', '资料'])
   // 只开今日：今日分区的页面按菜单顺序补满
-  assert.deepEqual(mobileTabs(NAV.filter((n) => n.section === '今日')).map((n) => n.key), ['today', 'calendar', 'todos', 'projects'])
+  assert.deepEqual(mobileTabs(NAV.filter((n) => n.section === '今日')).map((n) => n.key), ['today', 'projects', 'inbox', 'todos'])
 })
 
 test('手机底栏的名字：今日 / 客户 / 经营，第四个按分区顺序补（基础版是数据源；装了放在“内容”分区的模块就是它）', () => {
-  assert.deepEqual(mobileTabs().map((n) => n.short ?? n.label), ['今日', '客户', '经营', '数据源'])
+  assert.deepEqual(mobileTabs().map((n) => n.short ?? n.label), ['驾驶舱', '客户', '经营', '数据源'])
   const withContent = [...NAV.slice(0, NAV.findIndex((n) => n.key === 'sources')), { key: 'content', to: '/content', label: '小红书', short: '内容', icon: NAV[0].icon, section: '内容', module: 'xhs' }, ...NAV.slice(NAV.findIndex((n) => n.key === 'sources'))]
-  assert.deepEqual(mobileTabs(withContent).map((n) => n.short ?? n.label), ['今日', '客户', '经营', '内容'])
+  assert.deepEqual(mobileTabs(withContent).map((n) => n.short ?? n.label), ['驾驶舱', '客户', '经营', '内容'])
 })
 
 test('模块开关：关掉的模块从菜单里收起，分区空了就不显示（菜单项的 module 指向模块 id）', () => {
@@ -80,7 +80,7 @@ test('模块开关：关掉的模块从菜单里收起，分区空了就不显�
   const sections = sectionsOf(nav)
   assert.deepEqual(sections.map((s) => s.key), ['今日', '客户', '资料', '系统'])
   assert.equal(resolveNav('/channel/tmall', sections).section, undefined)
-  assert.deepEqual(mobileTabs(nav).map((n) => n.key), ['today', 'calendar', 'clients', 'kb'])
+  assert.deepEqual(mobileTabs(nav).map((n) => n.key), ['today', 'projects', 'clients', 'kb'])
   // 全开 = 原样
   assert.equal(navWithModules(() => true).length, NAV.length)
 })
@@ -156,4 +156,10 @@ test('模块运行时给的菜单项（我关注的有几类出几页）：并�
   assert.equal(withB.find((n) => n.key === 'pa-progress').badge({}), 3)
   const todos = withB.find((n) => n.key === 'todos')
   assert.equal(todos.badge, NAV.find((n) => n.key === 'todos').badge, '自己有角标的不被盖掉')
+})
+
+test('驾驶舱：待办、日程、提醒收进一组“任务与日程”，首页、项目、收件箱平铺', () => {
+  const s = SECTIONS.find((x) => x.key === '今日')
+  assert.equal(s.label, '驾驶舱')
+  assert.deepEqual(s.groups.map((g) => [g.label, g.items.map((n) => n.label)]), [[null, ['驾驶舱', '项目', '收件箱']], ['任务与日程', ['待办', '日程', '提醒']]])
 })
