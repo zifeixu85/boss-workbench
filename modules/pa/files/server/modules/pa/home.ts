@@ -45,10 +45,14 @@ export function homeStats() {
   ]
 }
 
+/** 知识库里有这几类，就接管基础版的同名入口（2026-11-24 A梦 定）：项目、客户只有一份，就是知识库里的，和对话里改的是同一份。
+ *  老页面的地址和数据库里的数据都留着，只是菜单里不显示、不再给 Codex 列 */
+const TAKES_OVER: Record<string, string> = { 项目: 'projects', 客户: 'clients' }
+
 export const paHooks: ModuleHooks = {
   stats: () => homeStats(),
   home: { 'pa-done': () => homeCards()['pa-done'], 'pa-waiting': () => homeCards()['pa-waiting'], 'pa-confirm': () => homeCards()['pa-confirm'] },
-  nav: () => focusClasses().classes.map((c) => ({ key: `focus-${c.name}`, to: `/focus/${encodeURIComponent(c.name)}`, label: c.name, icon: c.icon, section: '我关注的' })),
+  nav: () => focusClasses().classes.map((c) => ({ key: `focus-${c.name}`, to: `/focus/${encodeURIComponent(c.name)}`, label: c.name, icon: c.icon, section: '我关注的', ...(TAKES_OVER[c.name] ? { replaces: TAKES_OVER[c.name] } : {}) })),
   badges: () => { const list = recent(); return { 'pa-progress': list.filter((s) => s.status === '做完未读' || s.status === '在等我').length } },
   note: () => {
     const d = latestNote()

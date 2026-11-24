@@ -158,3 +158,12 @@ test('在运行就直接用（先认记下的端口）；没在运行就拉起�
   await assert.rejects(ensureRunning({ ...opts, built: () => false }), /网页还没构建/)
   await assert.rejects(ensureRunning({ ...opts, start: () => {}, waitMs: 400 }), /没能在 \d+ 秒内启动起来/)
 })
+
+test('核心入口被模块接管（菜单里没有了），页面清单和能打开的对象跟着不列：项目、客户改由“我关注的”打开', () => {
+  const taken = nav.filter((n) => n.key !== 'projects' && n.key !== 'clients')
+  const c = buildCapabilities({ ...input, nav: taken })
+  assert.equal(c.pages.some((p) => p.to === '/projects' || p.to === '/clients'), false)
+  assert.deepEqual(c.objects.map((o) => o.kind).filter((k) => k === 'project' || k === 'client'), [])
+  assert.throws(() => resolveOpen({ target: { kind: 'project', id: '春节茶礼' } }, { ...input, nav: taken }), OpenError)
+  assert.ok(buildCapabilities(input).objects.some((o) => o.kind === 'project'), '没接管时照旧')
+})

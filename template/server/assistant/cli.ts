@@ -12,6 +12,7 @@ import { SERVER_MODULES } from '../modules.gen.ts'
 import { MODULES } from '../../shared/modules.ts'
 import * as modules from '../services/modules.ts'
 import { getSettings } from '../services/today.ts'
+import { moduleHooks } from '../module-hooks.ts'
 import { getProject, listProjects } from '../services/projects.ts'
 import { findClient } from '../services/clients.ts'
 import { getEvent, getTodo } from '../services/schedule.ts'
@@ -41,7 +42,10 @@ async function loadNav(): Promise<NavLike[]> {
 /** 现在的情况：菜单、装进来的模块、哪些模块开着。“知识库”那一页跟设置里的名字走 */
 export async function currentInput(): Promise<CapabilityInput & { owner: string; business: string }> {
   const s = getSettings()
-  const nav = (await loadNav()).map((n) => (n.key === 'kb' ? { ...n, label: s.kb } : n))
+  // 模块接管的核心入口（运行时菜单项的 replaces）不列：和网页菜单一致
+  const on = new Set(modules.enabled())
+  const taken = new Set(moduleHooks().filter((h) => on.has(h.module) && h.hooks.nav).flatMap((h) => { try { return h.hooks.nav!().map((n) => n.replaces) } catch { return [] } }).filter(Boolean))
+  const nav = (await loadNav()).filter((n) => !taken.has(n.key)).map((n) => (n.key === 'kb' ? { ...n, label: s.kb } : n))
   return {
     nav, modules: SERVER_MODULES, enabled: modules.enabled(), owner: s.owner, business: s.business,
     moduleNames: Object.fromEntries(MODULES.map((m) => [m.id, m.name])),

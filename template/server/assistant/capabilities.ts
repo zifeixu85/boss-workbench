@@ -138,7 +138,8 @@ const modulePages = (m: ModuleLike): PageCap[] => (m.open ?? []).filter((o) => !
 export function allTargets(input: CapabilityInput): { pages: PageCap[]; objects: ObjectCap[] } {
   const pages = pagesFromNav(input.nav)
   for (const p of input.modules.flatMap(modulePages)) if (!pages.some((x) => x.key === p.key)) pages.push(p)
-  const objects: ObjectCap[] = [...CORE_OBJECTS.map(({ param: _param, ...o }) => o)]
+  // 核心对象跟着它的页面走：页面被模块接管、菜单里没有了（比如装了个人助理，项目、客户从“我关注的”进），对象也不列
+  const objects: ObjectCap[] = CORE_OBJECTS.filter((o) => pages.some((p) => p.to === o.to)).map(({ param: _param, ...o }) => o)
   for (const o of input.modules.flatMap(moduleObjects)) if (!objects.some((x) => x.kind === o.kind)) objects.push(o)
   return { pages, objects }
 }

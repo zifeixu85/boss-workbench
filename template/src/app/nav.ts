@@ -99,11 +99,14 @@ export const navWithModules = (on: (id: string) => boolean, nav: NavItem[] = NAV
 
 /** 模块运行时给的菜单项（server.hooks 的 nav，经 /api/overview 的 nav_extra 传来）：页面有几个要看数据的那种，
  *  比如“我关注的”有几类出几页。icon 是 lucide 图标名，只认 nav-icons.ts 里登记的，不认识的用文件夹图标 */
-export type DynamicNav = { key: string; to: string; label: string; icon?: string; section: NavSectionKey; sub?: string; module: string; badge?: number; tone?: 'warn' | 'quiet' }
+export type DynamicNav = { key: string; to: string; label: string; icon?: string; section: NavSectionKey; sub?: string; module: string; badge?: number; tone?: 'warn' | 'quiet'
+  /** 接管哪个核心入口（菜单项 key）：这一页出现时那一项就不显示（2026-11-24：装了个人助理，项目、客户只从“我关注的”进，A梦 定） */
+  replaces?: string }
 
 /** 把运行时的菜单项并进菜单：同一个模块的排在它固定菜单项后面；模块没有固定菜单项的排在知识库前面。key 重复的不加 */
 export function withDynamicNav(nav: NavItem[], extra: DynamicNav[], icon: (name?: string) => LucideIcon): NavItem[] {
-  let out = [...nav]
+  const taken = new Set(extra.map((d) => d.replaces).filter(Boolean))
+  let out = nav.filter((n) => !taken.has(n.key))
   for (const d of extra) {
     if (out.some((n) => n.key === d.key) || !SECTION_META.some((m) => m.key === d.section)) continue
     const item: NavItem = { key: d.key, to: d.to, label: d.label, icon: icon(d.icon), section: d.section, module: d.module, ...(d.sub ? { sub: d.sub } : {}), ...(d.badge ? { badge: () => d.badge, tone: d.tone ?? 'quiet' } : {}) }

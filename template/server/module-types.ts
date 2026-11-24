@@ -75,7 +75,9 @@ export type ModuleSeed = { tables: string[]; seed: () => void }
 
 /** 模块运行时给的菜单项（2026-11-24）：页面有几个要看数据才知道的那种，比如“我关注的”有几类出几页。
  *  icon 写 lucide 图标名（网页只认 src/app/nav-icons.ts 里登记的）；section 是 src/app/nav.ts 里的分区名 */
-export type ModuleNavItem = { key: string; to: string; label: string; icon?: string; section: string; sub?: string; badge?: number; tone?: 'warn' | 'quiet' }
+export type ModuleNavItem = { key: string; to: string; label: string; icon?: string; section: string; sub?: string; badge?: number; tone?: 'warn' | 'quiet'
+  /** 接管哪个核心入口（src/app/nav.ts 的菜单项 key）：这一页出现时那一项不显示，给 Codex 的页面清单和能打开的对象也不列 */
+  replaces?: string }
 
 /** 模块放在今日页重点卡上面的一段话（2026-11-24）：标题、几行字、谁写的、底下一句小字、点了去哪 */
 export type TodayNote = { title: string; lines: string[]; by?: string; foot?: string; to?: string }

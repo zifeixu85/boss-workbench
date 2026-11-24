@@ -158,6 +158,24 @@ test('模块运行时给的菜单项（我关注的有几类出几页）：并�
   assert.equal(todos.badge, NAV.find((n) => n.key === 'todos').badge, '自己有角标的不被盖掉')
 })
 
+test('模块运行时的菜单项可以接管核心入口（replaces）：装了个人助理、知识库里有项目和客户，驾驶舱的“项目”、“客户与跟进”就不显示', async () => {
+  const { withDynamicNav } = await import('../src/app/nav.ts')
+  const icon = () => 'I'
+  const extra = [
+    { key: 'focus-项目', to: '/focus/项目', label: '项目', section: '我关注的', module: 'pa', replaces: 'projects' },
+    { key: 'focus-客户', to: '/focus/客户', label: '客户', section: '我关注的', module: 'pa', replaces: 'clients' },
+    { key: 'focus-产品', to: '/focus/产品', label: '产品', section: '我关注的', module: 'pa' },
+  ]
+  const nav = withDynamicNav(NAV, extra, icon)
+  assert.equal(nav.some((n) => n.key === 'projects'), false)
+  assert.equal(nav.some((n) => n.key === 'clients'), false)
+  const secs = sectionsOf(nav)
+  assert.deepEqual(secs.find((s) => s.key === '今日').groups.map((g) => [g.label, g.items.map((n) => n.label)]), [[null, ['驾驶舱', '收件箱']], ['任务与日程', ['待办', '日程', '提醒']]])
+  assert.equal(secs.some((s) => s.key === '客户'), false, '客户分区空了就不显示')
+  assert.deepEqual(secs.find((s) => s.key === '我关注的').pages.map((p) => p.label), ['项目', '客户', '产品'])
+  assert.equal(withDynamicNav(NAV, [], icon).some((n) => n.key === 'projects'), true, '没装个人助理照旧')
+})
+
 test('驾驶舱：待办、日程、提醒收进一组“任务与日程”，首页、项目、收件箱平铺', () => {
   const s = SECTIONS.find((x) => x.key === '今日')
   assert.equal(s.label, '驾驶舱')
