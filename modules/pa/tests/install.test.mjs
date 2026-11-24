@@ -33,18 +33,24 @@ function setup() {
   const week = (() => { const d = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate())); const thu = new Date(d.getTime() + (3 - ((d.getUTCDay() + 6) % 7)) * 864e5); const j4 = new Date(Date.UTC(thu.getUTCFullYear(), 0, 4)); const w = 1 + Math.round(((thu - j4) / 864e5 - 3 + ((j4.getUTCDay() + 6) % 7)) / 7); return `${thu.getUTCFullYear()}-W${String(w).padStart(2, '0')}` })()
   put(join(KB, '90-日志与报告', '周报', `${week}.md`), `---\n类型: 周报\n期间: ${week}\n更新: 2026-11-24\n确认: 待确认\n隐私: 内部\n---\n\n## 做了什么\n- 春节茶礼报价单\n\n## 这周的你\n还行。\n`)
   put(join(KB, '90-日志与报告', '日报', '2026-11-24.md'), '---\n类型: 日报\n期间: 2026-11-24\n写的人: 总助\n更新: 2026-11-24\n确认: 待确认\n隐私: 内部\n---\n\n## 摘要\n- 报价单做完了，还没看。\n')
-  // 角色（约定 v0.4 第 5 节）：一个角色一个文件夹“类型-名字”，三份文件
+  // 角色（约定 v0.5 第 5 节）：一个助理一个文件夹“类型-名字”，IDENTITY、SOUL、MEMORY 三份；USER.md 在 01-关于我/ 下共用；深版分身多一份 底稿.md
   const A = (...p) => join(KB, '01-关于我', '助理', ...p)
-  const ROLE = ['我是谁', '我管什么，不管什么', '我怎么想', '我怎么说话', '我会说的，和我绝不说的', '什么时候我会反对你']
-  const RULE = ['每次开始先读什么', '我能自己做的', '要先问你的', '我不做的', '定期要做的']
+  const IDENT = ['我是谁', '我怎么称呼你', '我管什么，不管什么']
+  const SOUL = ['我怎么想', '我怎么说话', '我会说的，和我绝不说的', '什么时候我会反对你', '每次开始先读什么', '我能自己做的', '要先问你的', '我不做的', '定期要做的']
   const sec = (ts) => ts.map((t) => `## ${t}\n内容\n`).join('\n')
-  const role = (dir, r, name, extra = []) => put(A(dir, '角色.md'), `---\n类型: 角色\n角色: ${r}\n名称: ${name}\n更新: 2026-11-24\n确认: 已确认\n隐私: 私密\n---\n\n${sec([...ROLE, ...extra])}`)
-  const rules = (dir) => put(A(dir, '规矩.md'), `---\n类型: 规矩\n更新: 2026-11-23\n---\n\n${sec(RULE)}`)
-  const memory = (dir, n, undated = 0) => put(A(dir, '记忆.md'), `---\n类型: 记忆\n更新: 2026-11-22\n---\n\n${Array.from({ length: n }, (_, i) => `- 2026-11-${String(10 + (i % 15)).padStart(2, '0')}｜第 ${i + 1} 条；原因\n`).join('')}${Array.from({ length: undated }, (_, i) => `- 没带日期的第 ${i + 1} 条\n`).join('')}`)
-  role('总助-小茶', '总助', '小茶'); rules('总助-小茶'); memory('总助-小茶', 2)
-  role('分身-另一个林总', '分身', '另一个林总'); memory('分身-另一个林总', 61)
-  role('分身-年轻时的林总', '分身', '年轻时的林总', Array.from({ length: 40 }, (_, i) => `第${i}节`)); rules('分身-年轻时的林总'); memory('分身-年轻时的林总', 1, 2)
-  role('合伙人-法务', '合伙人', '老陈'); rules('合伙人-法务'); memory('合伙人-法务', 1)
+  const identity = (dir, r, name) => put(A(dir, 'IDENTITY.md'), `---\n类型: 角色\n角色: ${r}\n名称: ${name}\n更新: 2026-11-24\n确认: 已确认\n隐私: 私密\n---\n\n${sec(IDENT)}`)
+  const soul = (dir, extra = []) => put(A(dir, 'SOUL.md'), `---\n类型: 角色\n更新: 2026-11-23\n---\n\n${sec([...SOUL, ...extra])}`)
+  const memory = (dir, n, undated = 0, file = 'MEMORY.md') => put(A(dir, file), `---\n类型: 记忆\n更新: 2026-11-22\n---\n\n${Array.from({ length: n }, (_, i) => `- 2026-11-${String(10 + (i % 15)).padStart(2, '0')}｜第 ${i + 1} 条；原因\n`).join('')}${Array.from({ length: undated }, (_, i) => `- 没带日期的第 ${i + 1} 条\n`).join('')}`)
+  put(join(KB, '01-关于我', 'USER.md'), `---\n类型: 我的档案\n更新: 2026-11-24\n确认: 已确认\n隐私: 私密\n---\n\n${sec(['我是谁，做什么生意', '现在最看重的两三件事', '我的边界：不做什么、哪些不要碰', '我的说话习惯'])}`)
+  identity('总助-小茶', '总助', '小茶'); soul('总助-小茶'); memory('总助-小茶', 2)
+  identity('内容-小红', '内容助理', '小红'); soul('内容-小红'); memory('内容-小红', 1)
+  identity('分身-另一个林总', '分身', '另一个林总'); memory('分身-另一个林总', 61); put(A('分身-另一个林总', '底稿.md'), '---\n类型: 底稿\n更新: 2026-11-24\n---\n\n很长的底稿\n')
+  identity('分身-年轻时的林总', '分身', '年轻时的林总'); soul('分身-年轻时的林总', Array.from({ length: 30 }, (_, i) => `第${i}节`)); memory('分身-年轻时的林总', 1, 2)
+  identity('合伙人-财务', '合伙人', '老王'); soul('合伙人-财务'); memory('合伙人-财务', 1)
+  // 旧格式：v0.4 的中文三份（角色、规矩、记忆），和 v0.1 的“身份 + 性格”、文件夹不带名字
+  put(A('合伙人-法务', '角色.md'), '---\n类型: 角色\n角色: 合伙人\n名称: 老陈\n更新: 2026-11-20\n---\n\n## 我是谁\n内容\n')
+  put(A('合伙人-法务', '规矩.md'), '---\n类型: 规矩\n---\n\n## 每次开始先读什么\n内容\n')
+  memory('合伙人-法务', 1, 0, '记忆.md')
   for (const f of ['身份', '性格', '记忆']) put(A('总助', `${f}.md`), '---\n类型: 角色文件\n---\n旧格式\n')
   // 假的 Codex：一个在春节茶礼文件夹里、做完了的对话（写了一个文件）；一个问了问题的
   const cx = (ts, type, payload) => J({ timestamp: ts, type, payload })
@@ -164,20 +170,32 @@ test('装上个人助理：我关注的、进展、产出、报告、助理都�
 
   // 助理
   const roles = json('pa-roles').roles
-  // 按文件夹列出全部角色，总助在前，分身、合伙人各几个；旧的“总助/”文件夹也列出来、标旧格式
-  assert.deepEqual(roles.map((r) => [r.kind, r.name, r.display, r.complete]), [
-    ['总助', '小茶', '小茶', true], ['总助', '总助', '', false], ['分身', '另一个林总', '另一个林总', false], ['分身', '年轻时的林总', '年轻时的林总', true], ['合伙人', '法务', '老陈', true],
+  // 按文件夹列出全部角色：总助、内容助理、分身、合伙人，同类里旧格式排后面
+  assert.deepEqual(roles.map((r) => [r.kind, r.name, r.display, r.complete, r.legacy]), [
+    ['总助', '小茶', '小茶', true, false], ['总助', '总助', '', false, true],
+    ['内容', '小红', '小红', true, false],
+    ['分身', '另一个林总', '另一个林总', false, false], ['分身', '年轻时的林总', '年轻时的林总', true, false],
+    ['合伙人', '财务', '老王', true, false], ['合伙人', '法务', '老陈', true, true],
   ])
-  assert.deepEqual(roles[0].files.map((f) => [f.name, f.exists, f.lines ?? null, f.entries ?? null]), [['角色', true, 12, null], ['规矩', true, null, null], ['记忆', true, 2, 2]])
+  assert.deepEqual(roles[0].files.map((f) => [f.name, f.exists, f.lines ?? null, f.entries ?? null]), [['IDENTITY', true, null, null], ['SOUL', true, 18, null], ['MEMORY', true, 2, 2]])
   assert.deepEqual([roles[0].files[2].first, roles[0].files[2].last, roles[0].files[2].undated], ['2026-11-10', '2026-11-11', 0])
-  // 人设超过 50 行、记忆没带日期，都提示
-  assert.ok(roles[3].files[0].problems.some((p) => /人设太长/.test(p)), '人设超过 50 行提示')
-  assert.ok(roles[3].files[2].problems.some((p) => /2 条没带日期/.test(p)), '没带日期的条目数出来')
-  assert.equal(roles[0].files[0].problems.length, 0)
-  assert.equal(roles[1].legacy, true)
+  assert.ok(roles[0].files.every((f) => f.problems.length === 0), JSON.stringify(roles[0].files.map((f) => f.problems)))
+  // 深版分身多一份底稿：列出来，不算在“三份”里；SOUL 缺了照样数出来
+  assert.deepEqual(roles[3].files.map((f) => [f.name, f.exists, !!f.optional]), [['IDENTITY', true, false], ['SOUL', false, false], ['MEMORY', true, false], ['底稿', true, true]])
+  // SOUL 超过 60 行、记忆没带日期、记忆超过 60 行，都提示
+  assert.ok(roles[4].files[1].problems.some((p) => /太长.*60 行/.test(p)), 'SOUL 超过 60 行提示')
+  assert.ok(roles[4].files[2].problems.some((p) => /2 条没带日期/.test(p)), '没带日期的条目数出来')
+  assert.ok(roles[3].files[2].problems.some((p) => /61 行，超过 60 行/.test(p)), '记忆超过 60 行提示归并')
+  assert.ok(roles[5].files[1].problems.some((p) => /专业或思路来源/.test(p)), '合伙人的 SOUL 多两节')
+  // 旧格式：中文名的三份照样认，标“旧格式”，说清怎么改
+  assert.deepEqual(roles[6].files.map((f) => [f.name, f.exists]), [['角色', true], ['规矩', true], ['记忆', true]])
+  assert.ok(roles[6].problems.some((p) => /IDENTITY\.md、SOUL\.md、MEMORY\.md/.test(p)))
+  assert.ok(roles[1].problems.some((p) => /身份\.md/.test(p)))
   assert.ok(json('pa-roles').problems.some((p) => /总助只能有一个/.test(p)))
-  assert.ok(roles[2].files[2].problems.some((p) => /61 行，超过 60 行/.test(p)), '记忆超过 60 行提示归并')
-  assert.ok(roles[4].files[0].problems.some((p) => /专业或思路来源/.test(p)), '合伙人缺两节')
+  // USER.md：共用一份，缺的小节说出来
+  const user = json('pa-roles').user
+  assert.deepEqual([user.path, user.exists, user.updated], ['01-关于我/USER.md', true, '2026-11-24'])
+  assert.ok(user.problems.some((p) => /详细资料在哪/.test(p)))
 
   // 报告开关：只开周报，日报那一份不显示，“总助的话”取周报
   assert.deepEqual(rep.on, ['周报'])
