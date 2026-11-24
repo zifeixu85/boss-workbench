@@ -7,6 +7,7 @@ import { parseProfile } from '../files/server/modules/pa/profile.ts'
 import { parseObject, objectNameFromPath } from '../files/server/modules/pa/object-parse.ts'
 import { parseReport, periodOf, reportSummary } from '../files/server/modules/pa/report-parse.ts'
 import { front, unlink } from '../files/server/modules/pa/text.ts'
+import { cardLines, memoryStats, CARD_MAX_LINES, MEMORY_MAX_LINES } from '../files/server/modules/pa/role-parse.ts'
 
 test('类型库：九种类型，前四种出页面；每种有状态、列表字段、常关联', () => {
   assert.deepEqual(TYPE_LIBRARY.map((t) => t.name), ['项目', '客户', '产品', '案例', '作品', '渠道', '门店', '伙伴', '主题'])
@@ -177,4 +178,16 @@ test('报告没写期间就按文件名；期间换成起止日期（周一到�
   assert.deepEqual(periodOf('周报', '2026-W48'), { from: '2026-11-23', to: '2026-11-29' })
   assert.deepEqual(periodOf('月报', '2026-11'), { from: '2026-11-01', to: '2026-11-30' })
   assert.equal(periodOf('周报', '乱写'), null)
+})
+
+test('角色文件（约定 v0.4 第 5.3、5.5 节）：人设数正文行数，记忆按行数算门槛、数没带日期的条目', () => {
+  assert.equal(CARD_MAX_LINES, 50)
+  assert.equal(MEMORY_MAX_LINES, 60)
+  // 正文行数：不算开头属性、不算空行，小节标题算
+  assert.equal(cardLines('## 我是谁\n小茶。\n\n## 我怎么说话\n- 先说结论\n'), 4)
+  const m = memoryStats('# 记忆\n\n- 2026-11-20｜报价单不写“折扣”；林总说过\n- 2026-11-24｜周五下午不排会；他要接孩子\n- 不用表情包；林总不喜欢\n* 2026-1-3｜日期写错了；不算带日期\n')
+  assert.deepEqual(m, { lines: 5, entries: 4, undated: 2, first: '2026-11-20', last: '2026-11-24' })
+  assert.deepEqual(memoryStats(''), { lines: 0, entries: 0, undated: 0, first: '', last: '' })
+  // 全角竖线、半角竖线都认
+  assert.equal(memoryStats('- 2026-11-24 | 规矩；原因\n').undated, 0)
 })

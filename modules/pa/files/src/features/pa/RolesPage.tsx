@@ -1,4 +1,4 @@
-// 助理：只读状态页（约定 v0.3 第 5 节）。知识库 01-关于我/助理/ 下一个角色一个文件夹（总助-小茶、分身-<名字>、合伙人-法务），
+// 助理：只读状态页（约定 v0.4 第 5 节）。知识库 01-关于我/助理/ 下一个角色一个文件夹（总助-小茶、分身-<名字>、合伙人-法务），
 // 有几个列几个：总助一个，分身、合伙人可以有多个。每个角色看三份文件（角色、规矩、记忆）齐不齐、哪天更新、记忆几条；不在这里改。
 import { Link } from 'react-router'
 import { Check, Minus } from 'lucide-react'
@@ -10,21 +10,35 @@ import { EmptyNote, Failed } from '@/components/chart-kit'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Skeleton } from '@/components/ui/skeleton'
 import { kbLink } from './parts'
-import type { Role, RoleKind, Roles } from './types'
+import type { Role, RoleFile, RoleKind, Roles } from './types'
 
 const KINDS: { kind: RoleKind; tag: string; what: string; many: boolean }[] = [
   { kind: '总助', tag: '懂我的事', what: '派活、汇总、写日报周报、巡查各个对话。只有一个。', many: false },
   { kind: '分身', tag: '懂我这个人', what: '拿我说过的话和定过的目标，对照现在的我。可以有好几个。', many: true },
   { kind: '合伙人', tag: '懂我不懂的', what: '有专业、知道我全部情况的内部专家。专业意见都带一句“重大事项请真人专业人士复核”。', many: true },
 ]
-const WHAT: Record<string, string> = { 角色: '人设：我是谁、管什么、怎么想、怎么说话、什么时候会反对你', 规矩: '这个角色怎么做事：先读什么、能自己做的、要先问的、不做的、定期做的', 记忆: '长期记住的事，一行一条，只记你确认过的' }
+const WHAT: Record<string, string> = { 角色: '人设：我是谁、管什么、怎么想、怎么说话、什么时候会反对你。正文不超过 50 行', 规矩: '这个角色怎么做事：先读什么、能自己做的、要先问的、不做的、定期做的', 记忆: '一条一行，带日期：“- 2026-11-24｜规矩；原因”。超过 60 行让总助提议归并' }
+const md = (d?: string) => (d ? shortDate(d) : '')
+
+/** 文件旁边的一行小字：更新日期，人设几行，记忆几条、从哪天记到哪天 */
+function fileMeta(f: RoleFile): string {
+  if (!f.exists) return '没有这份文件'
+  const parts = [`更新 ${shortDate(f.updated)}`]
+  if (f.name === '角色' && f.lines !== undefined) parts.push(`正文 ${f.lines} 行`)
+  if (f.name === '记忆' && f.entries !== undefined) {
+    parts.push(`${f.entries} 条`)
+    if (f.first) parts.push(f.first === f.last ? `记于 ${md(f.first)}` : `${md(f.first)} 到 ${md(f.last)}`)
+  }
+  return parts.join(' · ')
+}
 
 function RoleCard({ r }: { r: Role }) {
   const n = r.files.filter((f) => f.exists).length
+  const fix = r.problems.length + r.files.reduce((k, f) => k + f.problems.length, 0)
   return (
     <Panel title={<span className="flex flex-wrap items-baseline gap-x-2">{r.display || r.name}{r.display && r.display !== r.name && <span className="text-xs font-normal text-muted-foreground">{r.name}</span>}</span>}
       desc={`放在知识库 ${r.folder}/`}
-      action={<StatusBadge value={r.legacy ? '旧格式' : n === 3 ? '三份都在' : n ? `缺 ${3 - n} 份` : '还没生成'} tone={r.legacy ? 'warn' : n === 3 ? 'ok' : n ? 'warn' : 'neutral'} />}>
+      action={<StatusBadge value={r.legacy ? '旧格式' : n === 0 ? '还没生成' : n < 3 ? `缺 ${3 - n} 份` : fix ? `${fix} 处要改` : '三份都在'} tone={r.legacy || (n > 0 && (n < 3 || fix > 0)) ? 'warn' : n === 3 ? 'ok' : 'neutral'} />}>
       {r.problems.length > 0 && <p className="mb-3 rounded-lg bg-warn-soft px-3 py-2 text-xs text-warn">{r.problems.join('；')}</p>}
       <ul className="grid gap-2.5">
         {r.files.map((f) => (
@@ -33,7 +47,7 @@ function RoleCard({ r }: { r: Role }) {
             <span className="min-w-0">
               <span className="flex flex-wrap items-center gap-x-2">
                 {f.exists ? <Link to={kbLink(f.path)} className="font-medium text-primary hover:underline">{f.name}</Link> : <span className="font-medium">{f.name}</span>}
-                <span className="text-xs text-muted-foreground">{f.exists ? `更新 ${shortDate(f.updated)}${f.lines !== undefined ? ` · ${f.lines} 条` : ''}` : '没有这份文件'}</span>
+                <span className="text-xs text-muted-foreground">{fileMeta(f)}</span>
                 {f.exists && f.confirm && f.confirm !== '已确认' && <StatusBadge value={f.confirm} tone="warn" />}
               </span>
               <span className={`block text-xs ${f.problems.length ? 'text-warn' : 'text-muted-foreground'}`}>{f.problems.length ? f.problems.join('；') : WHAT[f.name]}</span>

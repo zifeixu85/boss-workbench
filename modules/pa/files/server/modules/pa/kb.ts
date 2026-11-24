@@ -6,6 +6,7 @@ import { canReadKbPath, readKbTextFile } from '../../services/kb.ts'
 import { DEFAULT_REPORTS, parseProfile, type ReportSwitch } from './profile.ts'
 import { parseObject } from './object-parse.ts'
 import { front, sections, str } from './text.ts'
+import { CARD_MAX_LINES, MEMORY_MAX_LINES, cardLines, memoryStats } from './role-parse.ts'
 import type { FocusClass, KbObject } from './types.ts'
 
 export const PROFILE_FILE = '知识库档案.md'
@@ -73,10 +74,8 @@ export type RoleKind = (typeof ROLE_KINDS)[number]
 const CARD_SECTIONS = ['我是谁', '我管什么，不管什么', '我怎么想', '我怎么说话', '我会说的，和我绝不说的', '什么时候我会反对你']
 const PARTNER_SECTIONS = ['专业或思路来源', '边界']
 const RULE_SECTIONS = ['每次开始先读什么', '我能自己做的', '要先问你的', '我不做的', '定期要做的']
-/** 记忆超过这么多条，提示总助提议归并 */
-export const MEMORY_MAX = 60
-
-export type RoleFile = { name: '角色' | '规矩' | '记忆'; path: string; exists: boolean; updated: string; confirm: string; lines?: number; problems: string[] }
+/** 角色、记忆的行数：正文里不空的行。记忆另有条数、没带日期的条数、最早和最近一条的日期（约定 v0.4） */
+export type RoleFile = { name: '角色' | '规矩' | '记忆'; path: string; exists: boolean; updated: string; confirm: string; lines?: number; entries?: number; undated?: number; first?: string; last?: string; problems: string[] }
 export type Role = { kind: RoleKind; name: string; display: string; folder: string; files: RoleFile[]; complete: boolean; updated: string; legacy: boolean; problems: string[] }
 
 function roleFile(kind: RoleKind, folder: string, name: RoleFile['name']): RoleFile {
@@ -85,8 +84,11 @@ function roleFile(kind: RoleKind, folder: string, name: RoleFile['name']): RoleF
   const { meta, body } = front(readRel(path))
   const have = sections(body).map((x) => x.title)
   const problems: string[] = []
-  let lines: number | undefined
+  let extra: Partial<RoleFile> = {}
   if (name === '角色') {
+    const n = cardLines(body)
+    extra = { lines: n }
+    if (n > CARD_MAX_LINES) problems.push(`人设太长（正文 ${n} 行，约定不超过 ${CARD_MAX_LINES} 行），后面的它可能读不到`)
     const missing = [...CARD_SECTIONS, ...(kind === '合伙人' ? PARTNER_SECTIONS : [])].filter((t) => !have.includes(t))
     if (str(meta['类型']) !== '角色') problems.push('开头的“类型”要写“角色”')
     if (str(meta['角色']) && str(meta['角色']) !== kind) problems.push(`开头的“角色”写的是“${str(meta['角色'])}”，文件夹是${kind}`)
@@ -97,10 +99,12 @@ function roleFile(kind: RoleKind, folder: string, name: RoleFile['name']): RoleF
     const missing = RULE_SECTIONS.filter((t) => !have.includes(t))
     if (missing.length) problems.push(`缺小节：${missing.join('、')}`)
   } else {
-    lines = body.split(/\r?\n/).filter((l) => /^\s*[-*]\s+\S/.test(l)).length
-    if (lines > MEMORY_MAX) problems.push(`已经 ${lines} 条，超过 ${MEMORY_MAX} 条了，该让总助提议归并`)
+    const m = memoryStats(body)
+    extra = m
+    if (m.undated) problems.push(`${m.undated} 条没带日期（要写成“- 2026-11-24｜规矩；原因”）`)
+    if (m.lines > MEMORY_MAX_LINES) problems.push(`已经 ${m.lines} 行，超过 ${MEMORY_MAX_LINES} 行了，该让总助提议归并`)
   }
-  return { name, path, exists: true, updated: str(meta['更新']) || statSync(join(ROOT, path)).mtime.toISOString().slice(0, 10), confirm: str(meta['确认']), ...(lines === undefined ? {} : { lines }), problems }
+  return { name, path, exists: true, updated: str(meta['更新']) || statSync(join(ROOT, path)).mtime.toISOString().slice(0, 10), confirm: str(meta['确认']), ...extra, problems }
 }
 
 function roleAt(dir: string, base: string): Role | null {
