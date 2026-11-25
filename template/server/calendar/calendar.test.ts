@@ -1,5 +1,6 @@
 // 日历同步的测试：临时文件夹里的空数据库；Mac 助手、飞书命令行、网络都换成假的，不碰这台电脑真的日历和权限。运行：npm test
 import { test } from 'node:test'
+import { fileURLToPath } from 'node:url'
 import assert from 'node:assert/strict'
 import { chmodSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -22,7 +23,8 @@ const { all, get, open, run } = await import('../db.ts')
 const { SYNCED_EVENT_SOURCE, SYNCED_EVENT_READONLY } = await import('../../shared/schema.ts')
 open()
 
-const HERE = new URL('.', import.meta.url).pathname
+// 用 fileURLToPath：.pathname 是网址编码的，工作台放在中文名的文件夹里（几乎都是）就读不到 fixtures
+const HERE = fileURLToPath(new URL('.', import.meta.url))
 const W = { from: '2026-10-26', to: '2026-11-16' }
 type R = Record<string, unknown>
 const synced = () => all<R>('SELECT * FROM events WHERE source = :s ORDER BY start', { s: SYNCED_EVENT_SOURCE })

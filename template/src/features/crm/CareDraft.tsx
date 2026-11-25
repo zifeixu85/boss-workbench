@@ -52,7 +52,7 @@ export function useCodexDraft(clientId: string, occasion: string, date: string |
       onSettled: () => { if (timer.current) clearInterval(timer.current) },
       onSuccess: (r) => {
         if (r.ok) toast.success(`Codex 写好了，用了 ${Math.round(r.ms / 1000)} 秒`, { description: '存成了草稿，标着“Codex 现场写”' })
-        else toast.error(r.status === '不可用' ? '这台电脑上没找到 Codex' : r.status === '超时' ? 'Codex 90 秒内没写完' : 'Codex 没写成', { description: r.error })
+        else toast.error(r.status === '不可用' ? '工作台没认出这台电脑上的 Codex' : r.status === '超时' ? 'Codex 90 秒内没写完' : 'Codex 没写成', { description: r.error })
       },
     })
   }

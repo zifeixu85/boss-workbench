@@ -68,8 +68,9 @@ test('老工作台在用“以前自带、现在是模块包”的功能：Skill
   d.close()
   const used = U.movedOutInUse(app, [{ id: 'xhs', name: '小红书内容中心', was: { module: 'content', tables: ['xhs_pieces', 'xhs_notes'] } }, { id: 'news', name: '行业资讯' }])
   assert.deepEqual(used.map((x) => [x.id, x.rows]), [['xhs', 2]])
-  // 小红书的模块包就在这个 Skill 的 modules/ 里：升级时直接找得到
-  assert.equal(U.plan(app).need.find((x) => x.id === 'xhs')?.pack, join(TEMPLATE, '..', 'modules', 'xhs'))
+  // 小红书的模块包就在这个 Skill 的 modules/ 里：升级时直接找得到。
+  // 装好的工作台（程序文件夹是模板的一份拷贝，旁边没有 Skill 的 modules/）里跑这份测试时这一句不适用，跳过
+  if (existsSync(join(TEMPLATE, '..', 'modules', 'xhs'))) assert.equal(U.plan(app).need.find((x) => x.id === 'xhs')?.pack, join(TEMPLATE, '..', 'modules', 'xhs'))
   // 换一个这台电脑上没有模块包的（比如以后另外发的 pro 版模块）：停下，什么都不改
   const catalog = [{ id: 'xhs-pro-test', name: '测试用的进阶模块', tier: '进阶', get: '向课程方要模块包。', was: { module: 'content', tables: ['xhs_pieces'] } }]
   assert.throws(() => U.upgrade(app, { noInstall: true, noBuild: true, catalog }), (err) => {

@@ -137,7 +137,7 @@ function SideBar({ section, activeId, overview, collapsed, onToggle }: { section
         </div>
       </nav>
       <div className={cn('flex items-center border-t border-sidebar-border px-3 py-2.5', collapsed ? 'justify-center' : 'justify-center lg:justify-between')}>
-        {!collapsed && <span className="hidden text-[12px] opacity-60 lg:inline">v0.2 · 本机</span>}
+        {!collapsed && <span className="hidden lg:inline" />}
         <Button variant="ghost" size="icon-sm" onClick={onToggle} aria-label={collapsed ? '展开左栏' : '收起左栏'} className="hidden lg:inline-flex">{collapsed ? <PanelLeftOpen /> : <PanelLeftClose />}</Button>
       </div>
     </aside>

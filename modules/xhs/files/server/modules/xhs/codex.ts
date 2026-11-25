@@ -7,26 +7,17 @@ import { spawn, spawnSync, type ChildProcess } from 'node:child_process'
 import { existsSync } from 'node:fs'
 import { delimiter, join, relative } from 'node:path'
 import { ROOT } from '../../db.ts'
+import { findCodexBin, NOT_FOUND } from '../../../scripts/codex-check.mjs'
 
 const DISABLED = ['apps', 'plugins', 'hooks', 'multi_agent', 'multi_agent_v2', 'browser_use', 'browser_use_external', 'computer_use', 'in_app_browser',
   'view_image', 'memories', 'image_generation', 'goals', 'sleep_tool', 'shell_snapshot', 'skill_mcp_dependency_install', 'workspace_dependencies', 'tool_suggest']
-const APP_BIN = '/Applications/Codex.app/Contents/Resources/codex-cli/bin/codex'
 
 // 演示时网络慢一点就超过 90 秒（实测一句话写一篇 64—72 秒、再给 3 个标题 29—60 秒），所以默认 180 秒才停；超过 90 秒页面先提示“比平时慢，还在写”
 export const TIMEOUT_MS = Number(process.env.XHS_CODEX_TIMEOUT_MS || 180_000)
 export const SLOW_MS = 90_000
 
-export function findCodex(): string | null {
-  const env = process.env.CODEX_BIN?.trim()
-  if (env) return existsSync(env) ? env : null
-  for (const dir of (process.env.PATH ?? '').split(delimiter)) {
-    for (const name of process.platform === 'win32' ? ['codex.cmd', 'codex.exe'] : ['codex']) {
-      const p = join(dir, name)
-      if (dir && existsSync(p)) return p
-    }
-  }
-  return existsSync(APP_BIN) ? APP_BIN : null
-}
+/** 找本机 codex：和搭建、接进 Codex 用同一份（scripts/codex-check.mjs：桌面版装在哪都认、找到过的位置记下来） */
+export const findCodex = (): string | null => findCodexBin()
 
 let statusCache: { at: number; value: CodexStatus } | null = null
 export type CodexStatus = { available: boolean; detail: string; version: string | null; timeout_s: number; slow_s: number }
@@ -37,7 +28,7 @@ export function codexStatus(): CodexStatus {
   const bin = findCodex()
   const timeout_s = Math.round(TIMEOUT_MS / 1000), slow_s = Math.round(SLOW_MS / 1000)
   let value: CodexStatus
-  if (!bin) value = { available: false, detail: '这台电脑上没找到 Codex（Codex App 或 codex 命令）', version: null, timeout_s, slow_s }
+  if (!bin) value = { available: false, detail: NOT_FOUND, version: null, timeout_s, slow_s }
   else {
     const ver = spawnSync(bin, ['--version'], { encoding: 'utf8', timeout: 8000 })
     const login = spawnSync(bin, ['login', 'status'], { encoding: 'utf8', timeout: 8000 })
@@ -88,7 +79,7 @@ export function runCodex(prompt: string, onUpdate: (u: RunUpdate) => void, opts:
   const bin = findCodex()
   let stop = () => {}
   const done = new Promise<RunResult>((resolve) => {
-    if (!bin) { resolve({ ok: false, reason: '不可用', error: '这台电脑上没找到 Codex（Codex App 或 codex 命令）。', text: '', files: [], ms: 0 }); return }
+    if (!bin) { resolve({ ok: false, reason: '不可用', error: NOT_FOUND, text: '', files: [], ms: 0 }); return }
     let child: ChildProcess
     try {
       child = spawn(bin, codexArgs(cwd), { cwd, stdio: ['pipe', 'pipe', 'pipe'], detached: process.platform !== 'win32', env: { ...process.env, NO_COLOR: '1' } })

@@ -16,7 +16,7 @@ import { fileURLToPath } from 'node:url'
 import os from 'node:os'
 import { autostart } from './autostart.mjs'
 import { checkShell } from './shell-check.mjs'
-import { findCodex } from './codex-check.mjs'
+import { findCodex, findCodexBin } from './codex-check.mjs'
 import { checkModules } from './module.mjs'
 import { installCalendarHelper, installedHelper } from './mac-calendar.mjs'
 import { buildPlugin, pluginStatus } from './codex-plugin.mjs'
@@ -216,6 +216,8 @@ async function main() {
   if (!installDeps(reg)) return finish()
   if (!build()) return finish()
   initDb()
+  // 数据文件夹有了：把这会儿（在对话里）找到的 Codex 位置记下来，工作台服务以后照着用（服务起来时 PATH 往往不一样）
+  findCodexBin()
   calendarHelper()
   codexPlugin()
   if (process.platform === 'darwin') {

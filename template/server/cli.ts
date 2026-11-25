@@ -244,7 +244,7 @@ function main() {
         // 装进来的模块在今日概况里的一段（server/module-hooks.ts；模块收着的不在里面）
         ...v.module_today.flatMap((m) => [`\n## ${m.title}`, m.lines.length ? m.lines.map((l) => `- ${l}`).join('\n') : '- （无）']),
         ...part('tasks', ['\n## 今天的日程', line(v.events as R[], (e) => `${String(e.start).slice(11) || '全天'} ${e.title}`),
-          '\n## 今天要做（含已逾期）', line(v.todos.today as R[], (t) => `[${t.id}] ${t.title}（${t.status}，截止 ${t.due}）`)]),
+          '\n## 今天要做（含已逾期和进行中）', line(v.todos.today as R[], (t) => `[${t.id}] ${t.title}（${t.status}，截止 ${t.due ?? '没写'}）`)]),
         ...part('clients', ['\n## 该联系了', line(v.follow.due as R[], (c) => `${c.name}（${c.label}）计划 ${c.next_follow}，${Number(c.overdue) > 0 ? `已过 ${c.overdue} 天` : '快到了'}`)]),
         ...part('projects', ['\n## 有风险的项目', line(v.risks as R[], (p) => `${p.name}：${(p.risks as { text: string }[]).map((r) => r.text).join('；')}`)]),
         ...part('clients', [`\n## 钱：应收 ${v.cash.outstanding} 万，其中逾期 ${v.cash.overdue.amount} 万（${v.cash.overdue.count} 笔）`])].filter((x) => x !== '').join('\n'))

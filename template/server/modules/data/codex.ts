@@ -1,11 +1,12 @@
 // “让 Codex 看看”：把表头和前 5 行交给本机的 Codex（只读、工作目录是知识库根目录，能读《数据口径》），让它给每一列一个对照建议。
 // 90 秒没回话就算了；没装、没登录都如实告诉老板。Codex 的建议只是建议：网页上和“自动对上的”分开显示，老板点“采用”才算数。
 // 归属：数据源与导入模块。
-import { spawn, spawnSync } from 'node:child_process'
+import { spawn } from 'node:child_process'
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { ROOT } from '../../db.ts'
+import { findCodexBin, NOT_FOUND } from '../../../scripts/codex-check.mjs'
 import { FIELDS, type FieldKey } from './fields.ts'
 import { draftForCodex, saveCodexAdvice } from './importer.ts'
 import { stamp } from './time.ts'
@@ -20,16 +21,8 @@ export type CodexAdvice = {
 const TIMEOUT_MS = Number(process.env.DATA_CODEX_TIMEOUT_MS) || 90_000
 /** 不指定模型：用本机 Codex 自己的默认模型（每位老板电脑上的不一样）；要指定才设环境变量 WB_CODEX_MODEL */
 const MODEL = process.env.WB_CODEX_MODEL?.trim() || null
-const APP_BIN = '/Applications/Codex.app/Contents/Resources/codex-cli/bin/codex'
-
-/** 找 Codex 程序：环境变量 CODEX_BIN > Codex App 自带的 > 命令行里的 codex */
-function codexBin(): string | null {
-  if (process.env.CODEX_BIN && existsSync(process.env.CODEX_BIN)) return process.env.CODEX_BIN
-  if (existsSync(APP_BIN)) return APP_BIN
-  const w = spawnSync(process.platform === 'win32' ? 'where' : 'which', ['codex'], { encoding: 'utf8' })
-  const p = w.status === 0 ? w.stdout.split(/\r?\n/)[0]?.trim() : ''
-  return p || null
-}
+/** 找 Codex 程序：和搭建、接进 Codex 用同一份（scripts/codex-check.mjs） */
+const codexBin = (): string | null => findCodexBin()
 
 const csvLine = (cells: string[]) => cells.map((c) => (/[",\n]/.test(c) ? `"${c.replace(/"/g, '""')}"` : c)).join(',')
 
@@ -100,7 +93,7 @@ export async function codexSuggest(draftId: string): Promise<CodexAdvice> {
     return advice
   }
   const bin = codexBin()
-  if (!bin) return fail('这台电脑上没找到 Codex。装好 Codex 并登录后再点；现在先按自动对的和你自己选的来')
+  if (!bin) return fail(`${NOT_FOUND}。现在先按自动对的和你自己选的来`)
   const dir = mkdtempSync(join(tmpdir(), 'wb-codex-'))
   try {
     writeFileSync(join(dir, 'schema.json'), JSON.stringify(schema()))

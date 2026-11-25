@@ -55,8 +55,10 @@ export function followUps() {
 export function overview() {
   const t = today()
   const todos = listTodos({ open: true }) as Todo[]
-  const todayTodos = todos.filter((x) => x.due && x.due <= t)
-  const weekTodos = todos.filter((x) => x.due && x.due > t && x.due <= addDays(t, 7))
+  // 今天要做：今天到期、过了截止日的，加上标成“进行中”的（老板在待办里移到进行中，就是今天在做；2026-11-26 A梦 定）
+  const isToday = (x: Todo) => x.status === '进行中' || (!!x.due && x.due <= t)
+  const todayTodos = todos.filter(isToday)
+  const weekTodos = todos.filter((x) => !isToday(x) && x.due && x.due > t && x.due <= addDays(t, 7))
   const events = listEvents(t, `${addDays(t, 1)}T00:00`)
   const upcoming = listEvents(`${addDays(t, 1)}`, `${addDays(t, 7)}T23:59`)
   const risks = listProjects().filter((p) => p.risks.length)
@@ -156,7 +158,7 @@ export function getSettings() {
   const s = Object.fromEntries(rows.map((r) => [r.key, r.value]))
   const id = identity()
   return {
-    nav_mode: (s.nav_mode as 'simple' | 'complex' | 'dual' | 'top') ?? 'complex',
+    nav_mode: (s.nav_mode as 'simple' | 'complex' | 'dual' | 'top') ?? 'dual',
     theme: s.theme ?? 'jade',
     mobile_nav: (s.mobile_nav as 'tabs' | 'drawer') ?? 'tabs',
     owner: id.owner, business: s.business || '我的工作台',

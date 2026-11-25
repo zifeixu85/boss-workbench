@@ -30,7 +30,7 @@ export function Brand({ name, compact }: { name: string; compact?: boolean }) {
   return (
     <div className="flex items-center gap-2.5">
       <div className="grid size-8 shrink-0 place-items-center rounded-lg bg-primary font-heading text-[15px] font-bold text-primary-foreground">{name.slice(0, 1)}</div>
-      {!compact && <div className="min-w-0"><div className="truncate font-heading text-[15px] leading-tight font-semibold">{name}</div><div className="text-[12px] tracking-[0.2em] opacity-60">LOCAL · 本机</div></div>}
+      {!compact && <div className="min-w-0 truncate font-heading text-[15px] leading-tight font-semibold">{name}</div>}
     </div>
   )
 }

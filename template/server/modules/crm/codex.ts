@@ -1,25 +1,14 @@
 // 调本机的 Codex（codex exec）：只读、工作目录是知识库根目录、不读用户配置、要它按 JSON 格式回答。归属：大客户模块。
-// 找 Codex 的顺序：环境变量 CODEX_BIN → Codex App 自带的程序 → PATH 里的 codex。都没有就如实说“不可用”。
+// 找 Codex 用 scripts/codex-check.mjs 的 findCodexBin（环境变量、PATH、桌面版、常见位置、记下的位置）。都没有就如实说“不可用”，但不断言没装。
 // 超时就停掉进程，如实说“超时”；不拿预置内容冒充 AI 结果。
 import { spawn } from 'node:child_process'
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { delimiter, join } from 'node:path'
+import { join } from 'node:path'
+import { findCodexBin, NOT_FOUND } from '../../../scripts/codex-check.mjs'
 
-const APP_BIN = '/Applications/Codex.app/Contents/Resources/codex-cli/bin/codex'
-
-export function findCodex(): string | null {
-  const env = process.env.CODEX_BIN?.trim()
-  if (env) return existsSync(env) ? env : null
-  if (existsSync(APP_BIN)) return APP_BIN
-  for (const dir of (process.env.PATH ?? '').split(delimiter)) {
-    for (const name of process.platform === 'win32' ? ['codex.cmd', 'codex.exe'] : ['codex']) {
-      const p = join(dir, name)
-      if (dir && existsSync(p)) return p
-    }
-  }
-  return null
-}
+/** 找本机 codex：和搭建、接进 Codex 用同一份（桌面版装在哪都认、找到过的位置记下来） */
+export const findCodex = (): string | null => findCodexBin()
 
 export type CodexResult =
   | { status: '完成'; json: unknown; model: string | null; ms: number }
@@ -62,7 +51,7 @@ function progressWatcher(cwd: string, onProgress: (text: string) => void) {
 export function runCodex(opts: { prompt: string; schema: object; cwd: string; timeoutMs?: number; onProgress?: (text: string) => void }): Promise<CodexResult> {
   const bin = findCodex()
   const t0 = Date.now()
-  if (!bin) return Promise.resolve({ status: '不可用', error: '这台电脑上没找到 Codex（Codex App 或 codex 命令）。装好 Codex App 后再试。', model: null, ms: 0 })
+  if (!bin) return Promise.resolve({ status: '不可用', error: NOT_FOUND, model: null, ms: 0 })
   const dir = mkdtempSync(join(tmpdir(), 'crm-codex-'))
   const schemaFile = join(dir, 'schema.json')
   const outFile = join(dir, 'out.json')

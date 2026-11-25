@@ -114,7 +114,7 @@ function CodexCard({ info }: { info?: CodexInfo }) {
       <div className="flex items-center gap-1.5 font-medium text-foreground"><Sparkles className="size-3.5 text-info" />谁来提取</div>
       {info.available
         ? <p className="mt-1">这台电脑上的 Codex 来读：只能看、不能改文件，最多等 {info.timeout_s} 秒，超时会直说。一般要半分钟到一分多钟。</p>
-        : <p className="mt-1">这台电脑上没找到 Codex，现在提取不了。装好 Codex App 再试；有事先跑好结果的材料可以先用那份；也可以先“写一条跟进”手动记。</p>}
+        : <p className="mt-1">工作台没认出这台电脑上的 Codex，现在提取不了。装着 Codex 的话，在 Codex 里说一句“把工作台接进 Codex”再试；没装就先装好；有事先跑好结果的材料可以先用那份；也可以先“写一条跟进”手动记。</p>}
     </section>
   )
 }

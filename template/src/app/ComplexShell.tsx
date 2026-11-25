@@ -186,7 +186,7 @@ export function ComplexShell({ live }: { live: LiveState }) {
         </nav>
         {/* 左下角：收起 / 展开（md 到 lg 之间一直是图标栏，不显示这个按钮） */}
         <div className={cn('flex shrink-0 items-center border-t border-sidebar-border px-3 py-2.5', collapsed ? 'justify-center' : 'justify-center lg:justify-between lg:px-5')}>
-          {!collapsed && <span className="hidden text-[12px] text-muted-foreground lg:inline">本机 · 127.0.0.1</span>}
+          {!collapsed && <span className="hidden lg:inline" />}
           <Button variant="ghost" size="icon-sm" onClick={toggle} aria-label={collapsed ? '展开侧栏' : '收起侧栏'} title={collapsed ? '展开侧栏' : '收起侧栏'} className="hidden lg:inline-flex">{collapsed ? <PanelLeftOpen /> : <PanelLeftClose />}</Button>
         </div>
       </aside>

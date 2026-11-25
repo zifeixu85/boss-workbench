@@ -23,7 +23,7 @@ import { createHash } from 'node:crypto'
 import { accessSync, constants, existsSync, mkdirSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { codexCandidates } from './codex-check.mjs'
+import { codexCandidates, rememberCodex } from './codex-check.mjs'
 import { isMain } from './is-main.mjs'
 
 export const MARKETPLACE = 'boss-workbench'
@@ -176,7 +176,7 @@ export function findPluginCodex(ctx) {
   const tried = []
   for (const bin of [...new Set((ctx.candidates ?? pluginCodexCandidates(ctx.env)).filter(runnable).map(real))]) {
     const r = ctx.run(bin, ['plugin', 'marketplace', 'list'], ctx.env)
-    if (r.ok) return { bin, tried, marketplaces: r.out }
+    if (r.ok) { if (ctx.remember !== null) rememberCodex(bin, ctx.remember); return { bin, tried, marketplaces: r.out } }
     tried.push(bin)
   }
   return { bin: null, tried, marketplaces: '' }
@@ -184,7 +184,7 @@ export function findPluginCodex(ctx) {
 
 const noCodex = (found) => (found.tried.length
   ? `这台电脑上的 Codex 版本太旧，还不能装插件（试过：${found.tried.join('、')}）。把 Codex 桌面版更新到最新，再说一次“把工作台接进 Codex”`
-  : '这台电脑上没找到 Codex。装好 Codex 桌面版并登录，再说一次“把工作台接进 Codex”')
+  : '工作台没认出这台电脑上的 Codex 在哪（找过 Codex 桌面版和 codex 命令）。装好 Codex 桌面版并登录，再说一次“把工作台接进 Codex”')
 
 /** 市场清单里 boss-workbench 那一行指向哪个文件夹（没加过返回 null）。codex 的输出是“名字 + 根目录”一行一条 */
 export function marketplaceRoot(listing) {

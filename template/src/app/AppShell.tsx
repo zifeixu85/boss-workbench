@@ -45,7 +45,7 @@ export function AppShell() {
   const live = useLiveRefresh()
   const data = useSettingsEffects()
   const embed = useEmbed()
-  const mode = data?.nav_mode ?? 'complex'
+  const mode = data?.nav_mode ?? 'dual'
   if (embed) return <NavModeContext.Provider value={mode}><main className="min-h-dvh min-w-0 bg-background"><Outlet /></main><Overlays /></NavModeContext.Provider>
   return (
     <NavModeContext.Provider value={mode}>
