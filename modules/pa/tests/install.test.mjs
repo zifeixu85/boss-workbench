@@ -5,6 +5,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { spawnSync } from 'node:child_process'
 import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
+import { zstdCompressSync } from 'node:zlib'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { DatabaseSync } from 'node:sqlite'
@@ -60,7 +61,13 @@ function setup() {
     cx(ago(30), 'response_item', { type: 'message', role: 'user', content: [{ type: 'input_text', text: '做报价单 sk-abcdefghijklmnopqrstuvwxyz123456' }] }),
     cx(ago(20), 'response_item', { type: 'custom_tool_call', name: 'apply_patch', input: '*** Begin Patch\n*** Add File: 报价单.md\n+x\n*** End Patch' }),
     cx(ago(20), 'event_msg', { type: 'task_complete', last_agent_message: '做好了。' }),
+    cx(ago(20), 'event_msg', { type: 'token_count', info: { total_token_usage: { input_tokens: 12000, cached_input_tokens: 10000, output_tokens: 300, total_tokens: 12300 }, last_token_usage: { input_tokens: 12000, cached_input_tokens: 10000, output_tokens: 300, total_tokens: 12300 } }, rate_limits: { primary: { used_percent: 7, window_minutes: 10080, resets_at: 4102444800 } } }),
   ].join('\n'))
+  // 归档了的对话（新版 Codex 压缩成 .jsonl.zst）：只算用量，不进对话列表
+  put(join(CODEX, 'archived_sessions', 'rollout-z.jsonl.zst'), zstdCompressSync(Buffer.from([
+    cx(ago(40), 'session_meta', { id: 'thread-z', cwd: WORK, originator: 'Codex Desktop', timestamp: ago(40) }),
+    cx(ago(40), 'event_msg', { type: 'token_count', info: { total_token_usage: { input_tokens: 1500, cached_input_tokens: 1000, output_tokens: 200, total_tokens: 1700 }, last_token_usage: { input_tokens: 1500, cached_input_tokens: 1000, output_tokens: 200, total_tokens: 1700 } }, rate_limits: null }),
+  ].join('\n'))))
   put(join(CODEX, 'sessions', '2026', '11', '24', 'rollout-b.jsonl'), [
     cx(ago(10), 'session_meta', { id: 'thread-b', cwd: '/tmp', originator: 'Codex Desktop', source: 'vscode', thread_source: 'user' }),
     cx(ago(10), 'event_msg', { type: 'task_started' }),
@@ -114,6 +121,13 @@ test('装上个人助理：我关注的、进展、产出、报告、助理都�
   assert.equal(dump.includes('sk-abcdefghijklmnopqrstuvwxyz'), false)
   assert.equal(dump.includes('两处说法不一样'), false)
   assert.equal(dump.includes('正文'), false)
+
+  // AI 用量：记录里的 token 数（归档的压缩记录也算），额度照 Codex 写的；用量表里只有数字
+  const u = json('pa-usage', '--range', '7d')
+  assert.deepEqual([u.total.fresh, u.total.cached, u.total.output, u.total.all], [2500, 11000, 500, 14000])
+  assert.match(u.limits.text, /本周额度用了 7%/)
+  assert.equal(by['codex:thread-z'], undefined, '归档的不进对话列表')
+  assert.match(cli('pa-usage').out, /Codex 一共 1\.4万 token/)
 
   // 产出：写文件动作 + 图片目录
   // 报价单.md 真写出来了；长文.md 不在原处：默认不列，只数在 gone 里
@@ -213,8 +227,11 @@ test('装上个人助理：我关注的、进展、产出、报告、助理都�
   assert.equal(cap.objects.some((x) => x.kind === 'project' || x.kind === 'client'), false)
   assert.ok(cap.objects.some((x) => x.kind === 'pa-object'))
   assert.match(o.notes[0], /总助的话/)
-  // 驾驶舱顶上的一排数：核心给今天的待办、日程，个人助理给本周做完、本周产出、连续在用；每个带近 14 天的走势
-  assert.deepEqual(o.stats.map((x) => x.label), ['今天的待办', '今天的日程', '本周做完', '本周产出', '连续在用'])
+  // 驾驶舱顶上的一排数：核心给今天的待办、日程，个人助理给本周做完、本周产出、连续在用（各带近 14 天的走势），再加 AI 用量（今日 / 近 7 日 / 近 30 日能切）
+  assert.deepEqual(o.stats.map((x) => x.label), ['今天的待办', '今天的日程', '本周做完', '本周产出', '连续在用', 'AI 用量'])
+  const used = o.stats.find((x) => x.label === 'AI 用量')
+  assert.deepEqual(used.ranges.map((r) => r.key), ['today', '7d', '30d'])
+  assert.ok(used.ranges.every((r) => typeof r.display === 'string' && /^(token|这段时间没有用量)/.test(r.hint)))
   const weekDone = o.stats.find((x) => x.label === '本周做完')
   assert.equal(weekDone.module, 'pa')
   assert.equal(weekDone.spark.length, 14)

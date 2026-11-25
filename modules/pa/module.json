@@ -43,7 +43,8 @@
       { "command": "pa-outputs", "what": "AI 生成的图片和写出来的文件（只有路径）" },
       { "command": "pa-reports", "what": "某一期的日报 / 周报 / 月报和这一期的几个数" },
       { "command": "pa-roles", "what": "总助、内容助理、分身、合伙人的角色文件齐不齐、哪天更新的" },
-      { "command": "pa-check", "what": "知识库检测：按知识库档案看现在能用哪些页面、哪些要先做升级检查（各缺什么）、下一步对 AI 说哪一句" }
+      { "command": "pa-check", "what": "知识库检测：按知识库档案看现在能用哪些页面、哪些要先做升级检查（各缺什么）、下一步对 AI 说哪一句" },
+      { "command": "pa-usage", "what": "AI 用量：这台电脑上 Codex 对话用了多少 token（args 可写 --range today|7d|30d），新算的、缓存、输出分开，加 Codex 自己记的额度；Claude Code 的单独一行" }
     ],
     "write": [
       { "command": "pa-scan", "what": "现在扫一遍本机 Codex、Claude Code 的对话记录（只读；只存元信息）" },

@@ -82,7 +82,10 @@ export type ModuleNavItem = { key: string; to: string; label: string; icon?: str
 /** 模块放在今日页重点卡上面的一段话（2026-11-24）：标题、几行字、谁写的、底下一句小字、点了去哪 */
 export type TodayNote = { title: string; lines: string[]; by?: string; foot?: string; to?: string }
 /** 驾驶舱顶上那一排数里的一个（2026-11-24）：名字、数、单位、底下一句小字、颜色、点了去哪、近几天的走势（从旧到新） */
-export type HomeStat = { label: string; value: number; unit?: string; hint?: string; tone?: 'ok' | 'warn'; to?: string; spark?: number[] }
+/** 一格里能切的一个时间段（比如 AI 用量的今日 / 近 7 日 / 近 30 日）：切到哪一段就显示哪一段的数、单位、说明和走势 */
+export type HomeStatRange = { key: string; label: string; value: number; display?: string; unit?: string; hint?: string; spark?: number[] }
+/** display：数太大时写成人话（比如 1.8，单位写“亿token”）；ranges：有的话格子上出一排小页签，网页记住上次选的 */
+export type HomeStat = { label: string; value: number; display?: string; unit?: string; hint?: string; tone?: 'ok' | 'warn'; to?: string; spark?: number[]; ranges?: HomeStatRange[] }
 
 /** server.hooks 导出的东西。每一项都可以不写；模块开关收起来时，核心不调它们 */
 export type ModuleHooks = {
@@ -94,7 +97,7 @@ export type ModuleHooks = {
   badges?: () => Record<string, number>
   /** 今日页重点卡上面的一段话；没有要说的返回 null */
   note?: (day: string) => TodayNote | null
-  /** 驾驶舱顶上那一排数：给老板一眼看到自己的进展。每个模块最多 3 个，要快 */
+  /** 驾驶舱顶上那一排数：给老板一眼看到自己的进展。每个模块最多 4 个（整排最多 6 个），要快 */
   stats?: (day: string) => HomeStat[]
   /** 今日概况里这个模块的一段 */
   today?: (day: string) => TodaySection | null

@@ -10,6 +10,7 @@ import { recentOutputs } from './outputs.ts'
 import { now } from './store.ts'
 import { kbCheck, needsUpgrade } from './check.ts'
 import { places } from './places.ts'
+import { usageStat } from './usage.ts'
 
 /** 离上次扫超过 5 分钟：后台悄悄扫一遍（不等它，今日页先用现有的数） */
 function refreshSoon() {
@@ -36,7 +37,7 @@ export function homeCards() {
 /** 和上周同期比的一句 */
 const compare = (n: number, last: number, unit: string) => (n > last ? `比上周同期多 ${n - last} ${unit}` : n < last ? `上周同期 ${last} ${unit}` : last ? '和上周同期一样多' : '上周同期也没有')
 
-/** 驾驶舱顶上那一排数：本周做完、本周产出、连续在用，各带近 14 天的走势 */
+/** 驾驶舱顶上那一排数：本周做完、本周产出、连续在用，各带近 14 天的走势；再加 AI 用量（能切时间段） */
 export function homeStats() {
   const p = buildPulse(listSessions({ days: 28 }), recentOutputs(28), now(), 14)
   const out = p.week.images + p.week.files
@@ -44,6 +45,8 @@ export function homeStats() {
     { label: '本周做完', value: p.week.done, unit: '件', hint: compare(p.week.done, p.week.last.done, '件'), to: '/progress', spark: p.days.map((d) => d.done), ...(p.week.done ? { tone: 'ok' as const } : {}) },
     { label: '本周产出', value: out, unit: '个', hint: out ? `${p.week.images} 张图 · ${p.week.files} 个文件` : compare(out, p.week.last.outputs, '个'), to: '/outputs', spark: p.days.map((d) => d.images + d.files) },
     { label: '连续在用', value: p.streak, unit: '天', hint: p.streak >= 3 ? '保持住' : p.streak ? '今天也来一件' : '今天开个头', to: '/progress', spark: p.days.map((d) => d.talks) },
+    // AI 用量（2026-11-26 A梦 要）：今日 / 近 7 日 / 近 30 日在格子里切换
+    usageStat(),
   ]
 }
 

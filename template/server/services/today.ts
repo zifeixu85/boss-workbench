@@ -92,7 +92,7 @@ export function overview() {
     if (h.hooks.badges) Object.assign(navBadges, safe(h.name, () => h.hooks.badges!(), {}))
     const note = h.hooks.note ? safe(h.name, () => h.hooks.note!(t), null) : null
     if (note) moduleNotes.push({ module: h.module, name: h.name, ...note })
-    if (h.hooks.stats) moduleStats.push(...safe(h.name, () => h.hooks.stats!(t), []).slice(0, 3).map((x) => ({ ...x, module: h.module })))
+    if (h.hooks.stats) moduleStats.push(...safe(h.name, () => h.hooks.stats!(t), []).slice(0, 4).map((x) => ({ ...x, module: h.module })))
   }
   for (const e of hookErrors()) moduleErrors.push(e)
   const dueRecs = listReceivables().filter((r) => r.status === '7天内到期')

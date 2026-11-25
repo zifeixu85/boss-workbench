@@ -14,6 +14,8 @@ import { allObjects } from './kb.ts'
 import { DONE_HOURS, RUNNING_MIN, STALE_DAYS } from './status.ts'
 import type { ReportKind } from './report-parse.ts'
 import { kbCheck, kbCheckText } from './check.ts'
+import { usage } from './usage.ts'
+import type { UsageRange } from './usage-calc.ts'
 
 export const paRoutes = moduleApp()
 
@@ -57,6 +59,13 @@ paRoutes.get('/pulse', async (c) => {
   await scanIfStale()
   const days = Math.min(Math.max(Number(c.req.query('days')) || 14, 7), 60)
   return c.json(ok(buildPulse(listSessions({ days: days + 14 }), recentOutputs(days + 14), now(), days)))
+})
+
+// AI 用量：今日 / 近 7 日 / 近 30 日（只有数字）
+paRoutes.get('/usage', async (c) => {
+  await scanIfStale()
+  const range = c.req.query('range')
+  return c.json(ok(usage((range === 'today' || range === '30d' ? range : '7d') as UsageRange)))
 })
 
 paRoutes.get('/reports', async (c) => { await scanIfStale(); return c.json(ok(reportView((c.req.query('kind') || undefined) as ReportKind | undefined, c.req.query('period') || undefined))) })

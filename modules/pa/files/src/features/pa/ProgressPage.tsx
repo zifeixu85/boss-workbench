@@ -12,6 +12,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { SessionSheet } from './SessionSheet'
 import { SESSION_STATUSES, SessionBadge, when } from './parts'
 import { ProgressCharts, ProgressStats } from './Pulse'
+import { UsagePanel } from './UsagePanel'
 import type { Progress, Pulse, Session } from './types'
 
 type Scan = { read: number; left: number; sessions: number }
@@ -42,6 +43,7 @@ export default function ProgressPage() {
       {head}
       <PageBody className="grid grid-cols-[minmax(0,1fr)] gap-4">
         {pulse ? <><ProgressStats p={pulse} waiting={data.sessions.filter((s) => s.status === '在等我').length} /><ProgressCharts p={pulse} /></> : <Skeleton className="h-28" />}
+        <UsagePanel focus={sp.get('view') === 'usage'} />
         <div className="flex flex-wrap items-center gap-2">
           <ViewTabs label="按状态看" value={status} onChange={(v) => set('status', v === 'all' ? null : v)}
             items={[{ value: 'all', label: '全部', count: pool.length }, ...SESSION_STATUSES.map((k) => ({ value: k, label: k, count: counts[k] }))]} />

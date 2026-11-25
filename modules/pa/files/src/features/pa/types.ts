@@ -72,3 +72,15 @@ export type Pulse = {
   top: { name: string; n: number }[]
   total: { done: number; talks: number; images: number; files: number }
 }
+
+/** AI 用量（/m/pa/usage） */
+export type Tokens = { fresh: number; cached: number; output: number; all: number }
+export type Usage = {
+  range: 'today' | '7d' | '30d'; label: string; from: string; to: string
+  total: Tokens; cachedShare: number | null
+  days: { date: string; all: number }[]
+  top: { name: string; cwd: string; all: number }[]
+  claude: Tokens | null
+  limits: { used_percent: number; text: string; at: string } | null
+  note: string
+}

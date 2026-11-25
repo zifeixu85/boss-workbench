@@ -2,6 +2,7 @@
 // 记录文件只读不改；对话正文不存、不上传。文件的大小和修改时间没变就不再读（pa_files）。
 // 位置可以用环境变量换（测试、换机器时用）：PA_CODEX_HOME（默认跟 Codex 一样：CODEX_HOME，没设就是 ~/.codex）、PA_CLAUDE_HOME（默认 ~/.claude）、PA_IMAGE_DIRS（多个用系统的路径分隔符隔开）。
 import { closeSync, existsSync, openSync, readFileSync, readSync, readdirSync, statSync } from 'node:fs'
+import { zstdDecompressSync } from 'node:zlib'
 import { createHash } from 'node:crypto'
 import { homedir } from 'node:os'
 import { basename, delimiter, join } from 'node:path'
@@ -12,6 +13,7 @@ import { codexIndexLine, codexParser } from './codex.ts'
 import { claudeParser } from './claude.ts'
 import { fileKind } from './text.ts'
 import type { SessionMeta, Tool } from './types.ts'
+import type { CodexLimits } from './usage-calc.ts'
 
 export const codexHome = () => process.env.PA_CODEX_HOME || process.env.CODEX_HOME || join(homedir(), '.codex')
 export const claudeHome = () => process.env.PA_CLAUDE_HOME || join(homedir(), '.claude')
@@ -72,10 +74,56 @@ export function sessionFiles(): { tool: Tool; file: string }[] {
   ]
 }
 
+/** Codex 归档了的对话（archived_sessions，新版是压缩的 .jsonl.zst）：只取用量，不进对话列表（归档的本来就不在进展里） */
+export function archivedFiles(): string[] {
+  return walk(join(codexHome(), 'archived_sessions'), (n) => /\.jsonl(\.zst)?$/i.test(n), 0)
+}
+
+function parseArchived(file: string): SessionMeta | null {
+  const p = codexParser()
+  if (/\.zst$/i.test(file)) {
+    const text = zstdDecompressSync(readFileSync(file)).toString('utf8')
+    let at = 0
+    for (;;) { const i = text.indexOf('\n', at); const line = text.slice(at, i < 0 ? undefined : i); if (line.length <= LINE_CAP) p.line(line); if (i < 0) break; at = i + 1 }
+  } else eachLine(file, (l) => p.line(l))
+  return p.done()
+}
+
+function saveArchived(file: string, st: { mtimeMs: number; size: number }, m: SessionMeta | null) {
+  tx(() => {
+    run('INSERT INTO pa_files (file, mtime, size, session_id) VALUES (:file, :mtime, :size, NULL) ON CONFLICT(file) DO UPDATE SET mtime = :mtime, size = :size', { file, mtime: st.mtimeMs, size: st.size })
+    if (m) saveUsage(file, m)
+  })
+}
+
 export function parseFile(tool: Tool, file: string): SessionMeta | null {
   const p = tool === 'codex' ? codexParser() : claudeParser()
   eachLine(file, (l) => p.line(l))
   return p.done()
+}
+
+/** 用量按记录文件名记（去掉 .zst）：归档挪走、压缩后还是同一个名字 */
+export const usageSrc = (file: string) => basename(file).replace(/\.zst$/i, '')
+
+function saveUsage(file: string, m: SessionMeta) {
+  const src = usageSrc(file)
+  const id = `${m.tool}:${m.sid}`
+  run('DELETE FROM pa_usage WHERE src = :src', { src })
+  for (const [day, t] of Object.entries(m.usage ?? {})) {
+    run('INSERT INTO pa_usage (src, day, session_id, tool, cwd, fresh, cached, output) VALUES (:src, :day, :id, :tool, :cwd, :fresh, :cached, :output)',
+      { src, day, id, tool: m.tool, cwd: m.cwd, fresh: Math.round(t.fresh), cached: Math.round(t.cached), output: Math.round(t.output) })
+  }
+  if (m.limits) saveLimits(m.limits)
+}
+
+/** Codex 额度：只留时间最新的一条 */
+function saveLimits(l: CodexLimits) {
+  const old = codexLimits()
+  if (old && old.at >= l.at) return
+  run("INSERT INTO pa_state (key, value) VALUES ('codex_limits', :v) ON CONFLICT(key) DO UPDATE SET value = :v", { v: JSON.stringify(l) })
+}
+export function codexLimits(): CodexLimits | null {
+  try { return JSON.parse(get<{ value: string }>("SELECT value FROM pa_state WHERE key = 'codex_limits'")?.value ?? 'null') as CodexLimits | null } catch { return null }
 }
 
 const outId = (key: string) => `o_${createHash('sha1').update(key).digest('hex').slice(0, 16)}`
@@ -85,6 +133,7 @@ function save(file: string, st: { mtimeMs: number; size: number }, m: SessionMet
   tx(() => {
     run('INSERT INTO pa_files (file, mtime, size, session_id) VALUES (:file, :mtime, :size, :sid) ON CONFLICT(file) DO UPDATE SET mtime = :mtime, size = :size, session_id = :sid', { file, mtime: st.mtimeMs, size: st.size, sid: id })
     if (!m || !id) return
+    saveUsage(file, m)
     // 同一个对话编号有两份记录文件时（接着聊会另起一份），留最后活动时间更晚的那份
     const old = get<{ file: string; last_at: string }>('SELECT file, last_at FROM pa_sessions WHERE id = :id', { id })
     if (old && old.file !== file && old.last_at > m.lastAt) return
@@ -234,6 +283,15 @@ export async function scan(opts: { budgetMs?: number; force?: boolean } = {}): P
       const old = opts.force ? undefined : get<{ mtime: number; size: number }>('SELECT mtime, size FROM pa_files WHERE file = :f', { f: f.file })
       if (!old || old.mtime !== st.mtimeMs || old.size !== st.size) todo.push({ ...f, st: { mtimeMs: st.mtimeMs, size: st.size } })
     }
+    // 归档了的 Codex 对话：只取用量（近 SCAN_DAYS 天归档的）
+    const archived: { file: string; st: { mtimeMs: number; size: number } }[] = []
+    for (const file of archivedFiles()) {
+      let st
+      try { st = statSync(file) } catch { continue }
+      if (st.mtimeMs < since) continue
+      const old = opts.force ? undefined : get<{ mtime: number; size: number }>('SELECT mtime, size FROM pa_files WHERE file = :f', { f: file })
+      if (!old || old.mtime !== st.mtimeMs || old.size !== st.size) archived.push({ file, st: { mtimeMs: st.mtimeMs, size: st.size } })
+    }
     // 最近动过的先读
     todo.sort((a, b) => b.st.mtimeMs - a.st.mtimeMs)
     let read = 0
@@ -243,13 +301,19 @@ export async function scan(opts: { budgetMs?: number; force?: boolean } = {}): P
       read++
       await new Promise((r) => setImmediate(r))
     }
+    for (const f of archived) {
+      if (opts.budgetMs && Date.now() - t0 > opts.budgetMs) break
+      try { saveArchived(f.file, f.st, parseArchived(f.file)) } catch (err) { errors.push(`${basename(f.file)}：${(err as Error).message}`) }
+      read++
+      await new Promise((r) => setImmediate(r))
+    }
     try { applyCodexTitles() } catch (err) { errors.push(`Codex 标题：${(err as Error).message}`) }
     try { applyCodexState() } catch (err) { errors.push(`Codex 已读记录：${(err as Error).message}`) }
     try { applyClaudeApp() } catch (err) { errors.push(`Claude 桌面版会话信息：${(err as Error).message}`) }
     try { scanImages() } catch (err) { errors.push(`图片目录：${(err as Error).message}`) }
     const now = new Date().toISOString()
     run("INSERT INTO pa_state (key, value) VALUES ('scanned_at', :v) ON CONFLICT(key) DO UPDATE SET value = :v", { v: now })
-    return { files, read, left: todo.length - read, sessions: get<{ n: number }>('SELECT COUNT(*) AS n FROM pa_sessions')?.n ?? 0, ms: Date.now() - t0, errors }
+    return { files: files + archived.length, read, left: todo.length + archived.length - read, sessions: get<{ n: number }>('SELECT COUNT(*) AS n FROM pa_sessions')?.n ?? 0, ms: Date.now() - t0, errors }
   })()
   try { return await running } finally { running = null }
 }

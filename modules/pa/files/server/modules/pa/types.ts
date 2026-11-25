@@ -49,6 +49,10 @@ export type SessionMeta = {
   /** 人说了几轮 */
   turns: number
   writes: SessionWrite[]
+  /** 按本地日期的 token 用量（只有数字） */
+  usage?: import('./usage-calc.ts').UsageByDay
+  /** Codex 自己记的额度用了多少（最后一条） */
+  limits?: import('./usage-calc.ts').CodexLimits | null
 }
 
 export type Status = '进行中' | '在等我' | '做完未读' | '做完了' | '没做完'

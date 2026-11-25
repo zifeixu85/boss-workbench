@@ -89,7 +89,7 @@ export type Overview = {
   /** 模块运行时给的菜单项、角标、今日页上的一段话（server.hooks 的 nav / badges / note，2026-11-24） */
   nav_extra?: import('@/app/nav').DynamicNav[]
   nav_badges?: Record<string, number>
-  home_stats?: { module: string; label: string; value: number; unit?: string; hint?: string; tone?: 'ok' | 'warn'; to?: string; spark?: number[] }[]
+  home_stats?: { module: string; label: string; value: number; display?: string; unit?: string; hint?: string; tone?: 'ok' | 'warn'; to?: string; spark?: number[]; ranges?: { key: string; label: string; value: number; display?: string; unit?: string; hint?: string; spark?: number[] }[] }[]
   module_notes?: { module: string; name: string; title: string; lines: string[]; by?: string; foot?: string; to?: string }[]
   module_today?: { module: string; name: string; title: string; lines: string[]; brief?: string | null }[]
   module_errors: { module: string; error: string }[]

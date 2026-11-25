@@ -43,11 +43,12 @@ node server/cli.ts pa-scan                                             # 第一�
 
 - 对话记录只读不改；数据库里只存元信息：标题、所在文件夹、时间、第一句的摘要（最多 80 字，像密钥的串遮掉）、写文件的路径。对话正文不存、不上传。
 - Codex 的 `state_5.sqlite`、Claude 桌面版的会话信息只读其中几个标记（看没看、归档、在等你、标题），不读带内容的字段。
+- AI 用量（`pa-usage`，驾驶舱顶上“AI 用量”那一格、进展页的“AI 用量”）：Codex 记录里 `token_count` 那几行只取数字，按“累计比上一条多了多少”记到当天（累计没变的重复行不算），额度百分比照 Codex 自己写的；归档了的（`archived_sessions`，压缩的也读）也算。Claude Code 同一条回复会写好几遍，按回复编号只算一次，单独一行显示、不并进总数。工作台自己按钮调的 Codex 不留记录，不在里面。
 - 产出的文件只读不搬；图库的小图用系统自带的 `sips` 缩好放在数据库旁边的 `缩略图/`。
 
 ## 命令
 
-`pa`、`pa-focus`、`pa-object`、`pa-progress`、`pa-outputs`、`pa-reports`、`pa-roles`（读）；`pa-scan`、`pa-report-add`、`pa-mark`（写，只写工作台自己的数据库）。`node server/cli.ts --help` 里有每条的参数。
+`pa`、`pa-focus`、`pa-object`、`pa-progress`、`pa-outputs`、`pa-reports`、`pa-roles`、`pa-check`、`pa-usage`（读）；`pa-scan`、`pa-report-add`、`pa-mark`（写，只写工作台自己的数据库）。`node server/cli.ts --help` 里有每条的参数。
 
 ## 状态怎么算
 

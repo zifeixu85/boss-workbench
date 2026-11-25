@@ -1,4 +1,4 @@
-// 个人助理模块的命令（server/cli.ts 把 pa 和 pa- 开头的转到这里）。读的：pa、pa-focus、pa-object、pa-progress、pa-outputs、pa-reports、pa-roles、pa-check；
+// 个人助理模块的命令（server/cli.ts 把 pa 和 pa- 开头的转到这里）。读的：pa、pa-focus、pa-object、pa-progress、pa-outputs、pa-reports、pa-roles、pa-check、pa-usage；
 // 写的：pa-scan（只读扫描本机对话记录，把元信息存进工作台）、pa-report-add（登记一份写好的报告）、pa-mark（标已看 / 改状态 / 归类）、
 // pa-update（在对话里更新一个对象：先预演，老板确认后带 --confirm 原话再写）。认对象用 pa-find。
 import { parseArgs } from 'node:util'
@@ -9,6 +9,8 @@ import { listSessions, markRead, setObject, setStatus, statusCounts } from './st
 import { listOutputs } from './outputs.ts'
 import { registerReport, reportView } from './reports.ts'
 import { scan, scannedAt, sources } from './scan.ts'
+import { usage } from './usage.ts'
+import { tokenText, USAGE_RANGES, type UsageRange } from './usage-calc.ts'
 import type { ReportKind } from './report-parse.ts'
 import { findObjects, updateObject } from './object-update.ts'
 import { kbCheck, kbCheckText } from './check.ts'
@@ -23,6 +25,7 @@ const HELP = `  pa [--json]                           个人助理一览：我�
   pa-reports [--kind 周报] [--period 2026-W48] [--json]   某一期的报告和这一期的几个数
   pa-roles [--json]                     总助、内容助理、分身、合伙人的角色文件齐不齐、哪天更新的
   pa-check [--json]                     知识库检测：现在能用的页面、要先做升级检查才能用的页面（各缺什么）、下一步说哪一句
+  pa-usage [--range today|7d|30d] [--json]   AI 用量：这台电脑上 Codex 对话用了多少 token（新算的、缓存、输出分开），Codex 自己记的额度；Claude Code 的单独一行
   pa-scan [--force]                     现在扫一遍本机的 Codex、Claude Code 对话记录（只读；只存元信息，不存正文）
   pa-report-add <路径>                  登记一份写好的报告：文件要先写进知识库 90-日志与报告/日报|周报|月报/，这里检查格式、记下登记时间，报告页就能看到
   pa-update <路径> [--status 收尾] [--now "一两句现在的情况"] [--next "事项 · 截止 · 谁做"]... [--done "要勾掉的下一步"]... [--log "说了什么、定了什么" --channel 微信]
@@ -38,7 +41,7 @@ async function runCli(argv: string[]): Promise<number> {
     json: { type: 'boolean' }, status: { type: 'string' }, days: { type: 'string' }, all: { type: 'boolean' }, kind: { type: 'string' }, period: { type: 'string' },
     force: { type: 'boolean' }, read: { type: 'boolean' }, object: { type: 'string' },
     now: { type: 'string' }, next: { type: 'string', multiple: true }, done: { type: 'string', multiple: true }, log: { type: 'string' }, channel: { type: 'string' },
-    confirm: { type: 'string' },
+    confirm: { type: 'string' }, range: { type: 'string' },
   } })
   const print = (data: unknown, text: string) => { console.log(o.json ? JSON.stringify(data, null, 2) : text); return 0 }
   const days = Number(o.days) || 30
@@ -95,6 +98,15 @@ async function runCli(argv: string[]): Promise<number> {
     case 'pa-check': {
       const r = kbCheck()
       return print(r, kbCheckText(r))
+    }
+    case 'pa-usage': {
+      const range = (USAGE_RANGES.some((r) => r.key === o.range) ? o.range : '7d') as UsageRange
+      if (o.range && range !== o.range) throw new Error(`--range 只能是 ${USAGE_RANGES.map((r) => r.key).join("、")}`)
+      const u = usage(range)
+      const w = (n: number) => { const t = tokenText(n); return `${t.value}${t.unit}` }
+      return print(u, [`${u.label}（${u.from === u.to ? u.to : `${u.from} — ${u.to}`}）Codex 一共 ${w(u.total.all)} token：新算的输入 ${w(u.total.fresh)}，缓存命中 ${w(u.total.cached)}${u.cachedShare !== null ? `（占输入 ${u.cachedShare}%）` : ''}，输出 ${w(u.total.output)}`,
+        u.limits ? u.limits.text : 'Codex 的额度：记录里还没有', u.top.length ? `用得最多：${u.top.map((t) => `${t.name} ${w(t.all)}`).join('、')}` : '',
+        u.claude ? `Claude Code（单独算，不在上面的总数里）：${w(u.claude.all)}` : '', u.note].filter(Boolean).join('\n'))
     }
     case 'pa-roles': {
       const v = roles()

@@ -3,11 +3,12 @@
 // 对话正文不留：AI 最后一段话只用来判断“是不是在问人”，判断完就丢。不是公开接口，认不出来的行跳过。
 import { brief, looksLikeAsking } from './text.ts'
 import type { SessionMeta } from './types.ts'
+import { addUsage, type UsageByDay } from './usage-calc.ts'
 
 const MAX_LINE = 4_000_000
 const WRITE_TOOLS: Record<string, '新建' | '修改'> = { Write: '新建', Edit: '修改', MultiEdit: '修改', NotebookEdit: '修改' }
 type Block = { type?: string; text?: string; name?: string; input?: { file_path?: string; notebook_path?: string } }
-type Raw = { type?: string; timestamp?: string; sessionId?: string; cwd?: string; isSidechain?: boolean; isMeta?: boolean; customTitle?: string; entrypoint?: string; message?: { content?: string | Block[]; stop_reason?: string | null } }
+type Raw = { type?: string; timestamp?: string; sessionId?: string; cwd?: string; isSidechain?: boolean; isMeta?: boolean; customTitle?: string; entrypoint?: string; message?: { id?: string; content?: string | Block[]; stop_reason?: string | null; usage?: Record<string, unknown> } }
 
 /** 用户这一行里人说的话：工具结果、系统插进来的不算 */
 function said(d: Raw): string {
@@ -31,6 +32,10 @@ export function claudeParser() {
   let interrupted = false
   let turns = 0
   const writes: SessionMeta['writes'] = []
+  // 用量：同一条回复会写好几遍（每个内容块一行），按回复编号只算一次。新算的 = 输入 + 写缓存，缓存 = 读缓存
+  let usage: UsageByDay = {}
+  const counted = new Set<string>()
+  const n = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) && v > 0 ? v : 0)
   return {
     line(raw: string) {
       if (!raw || raw.length > MAX_LINE) return
@@ -57,6 +62,12 @@ export function claudeParser() {
       }
       lastRole = 'assistant'
       lastAssistant = raw
+      const u = d.message?.usage
+      const mid = d.message?.id ?? ''
+      if (u && d.timestamp && (!mid || !counted.has(mid))) {
+        if (mid) counted.add(mid)
+        usage = addUsage(usage, d.timestamp, { fresh: n(u.input_tokens) + n(u.cache_creation_input_tokens), cached: n(u.cache_read_input_tokens), output: n(u.output_tokens) })
+      }
       const content = Array.isArray(d.message?.content) ? d.message.content : []
       for (const b of content) {
         const action = b.type === 'tool_use' && b.name ? WRITE_TOOLS[b.name] : undefined
@@ -77,7 +88,7 @@ export function claudeParser() {
       }
       return {
         tool: 'claude', sid, cwd, title, titleFrom: title ? '文件' : '', first, origin: origin || 'claude', kind: /^sdk/.test(origin) ? '脚本' : '对话',
-        startedAt, lastAt, lastRole, turnOpen: turnOpen && !interrupted, asks, aborted: interrupted, turns, writes,
+        startedAt, lastAt, lastRole, turnOpen: turnOpen && !interrupted, asks, aborted: interrupted, turns, writes, usage,
       }
     },
   }
