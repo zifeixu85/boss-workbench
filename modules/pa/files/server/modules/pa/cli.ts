@@ -54,9 +54,9 @@ async function runCli(argv: string[]): Promise<number> {
       ].join('\n'))
     }
     case 'pa-focus': {
-      if (!a[0]) { const f = focusClasses(); return print(f, f.classes.map((c) => `${c.name}｜${c.folder}｜状态：${c.statuses.join('、')}｜列表上显示：${c.fields.join('、')}｜${c.confirmed ? '已确认' : '待确认'}`).join('\n') || f.problems.join('\n')) }
+      if (!a[0]) { const f = focusClasses(); return print(f, f.classes.map((c) => `${c.name}｜${c.folder}｜状态：${c.statuses.map((x) => (c.stageOf?.[x] && c.stageOf[x] !== x ? `${x}（${c.stageOf[x]}）` : x)).join('、')}｜列表上显示：${c.fields.join('、')}｜${c.confirmed ? '已确认' : '待确认'}`).join('\n') || f.problems.join('\n')) }
       const v = focusList(a[0])
-      return print(v, v.items.map((i) => `${i.name}（${i.status || '没写状态'}）${i.fields.map((x) => `${x.key}：${x.value || '—'}`).join('，')}${i.sessions ? `｜AI 对话 ${i.sessions} 个` : ''}｜${i.path}`).join('\n') || '这一类还没有对象')
+      return print(v, v.items.map((i) => `${i.name}（${i.status || '没写状态'}${i.stage && i.stage !== i.status ? ` · ${i.stage}` : ''}）${i.fields.map((x) => `${x.key}：${x.value || '—'}`).join('，')}${i.sessions ? `｜AI 对话 ${i.sessions} 个` : ''}｜${i.path}`).join('\n') || '这一类还没有对象')
     }
     case 'pa-find': {
       if (!a.length) throw new Error('写上老板说的名字，比如 春节茶礼、云杉')

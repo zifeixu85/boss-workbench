@@ -49,10 +49,10 @@ const oneLine = (s: string, what: string) => {
 }
 
 /**
- * statuses：这一类对象能用的状态（类型库里的，加上知识库档案里的叫法）；空数组表示不检查。
+ * statuses：这一类对象能用的状态叫法（默认叫法、换过的叫法、状态对照左边的）；空数组表示不检查。statusField：状态写在哪个字段（默认“状态”）。
  * today：YYYY-MM-DD。
  */
-export function planObjectUpdate(text: string, u: ObjectUpdate, today: string, statuses: string[]): { text: string; changes: Change[] } {
+export function planObjectUpdate(text: string, u: ObjectUpdate, today: string, statuses: string[], statusField = '状态'): { text: string; changes: Change[] } {
   let lines = text.replace(/^﻿/, '').replace(/\r\n/g, '\n').split('\n')
   frontEnd(lines)
   const changes: Change[] = []
@@ -60,7 +60,7 @@ export function planObjectUpdate(text: string, u: ObjectUpdate, today: string, s
   if (u.status !== undefined) {
     const v = oneLine(u.status, '状态')
     if (statuses.length && !statuses.includes(v)) throw new Error(`状态只能是：${statuses.join('、')}`)
-    const r = setField(lines, '状态', v)
+    const r = setField(lines, statusField, v)
     if (r.old !== v) { lines = r.lines; changes.push({ what: '状态', old: r.old, new: v }) }
   }
 

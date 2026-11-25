@@ -38,12 +38,15 @@ export default function FocusPage() {
   if (!data) return <><PageHeader eyebrow="我关注的" title={name} /><PageBody className="grid gap-3"><Skeleton className="h-9 w-72" /><Skeleton className="h-72" /></PageBody></>
 
   const cls = data.class
-  // 状态页签：按知识库档案里写的可选值排；对象上写了别的状态也列出来，最多 6 个
-  const order = [...cls.statuses, ...Object.keys(data.counts).filter((s) => !cls.statuses.includes(s))].filter((s) => data.counts[s]).slice(0, 5)
-  const items = status === 'all' ? data.items : data.items.filter((i) => (i.status || '没写状态') === status)
+  // 分阶段的类（约定 10.2）：页签按阶段（未开始、进行中、已结束，再加未归类、没标），格子里显示自己的叫法
+  const stages = data.stages
+  // 不分阶段的类（案例）：页签按知识库档案里写的可选值排；对象上写了别的状态也列出来，最多 6 个
+  const order = stages ? Object.keys(stages).filter((k) => stages[k]) : [...cls.statuses, ...Object.keys(data.counts).filter((s) => !cls.statuses.includes(s))].filter((s) => data.counts[s]).slice(0, 5)
+  const items = status === 'all' ? data.items : data.items.filter((i) => (stages ? i.stage : i.status || '没写状态') === status)
+  const byStage = stages ? Object.entries(cls.stageOf ?? {}).reduce<Record<string, string[]>>((m, [label, st]) => ({ ...m, [st]: [...(m[st] ?? []), label] }), {}) : null
   return (
     <>
-      <PageHeader eyebrow="我关注的" title={cls.name} desc={`知识库 ${cls.folder}/ 里的每一份文件是一个${cls.name}（类型库：${cls.name}的状态有${cls.statuses.join('、')}）。这一页只读；要改，在对话里让助理改知识库。`} />
+      <PageHeader eyebrow="我关注的" title={cls.name} desc={`知识库 ${cls.folder}/ 里的每一份文件是一个${cls.name}（${byStage ? `状态分三个阶段：${Object.entries(byStage).map(([st, ls]) => `${st}（${ls.join('、')}）`).join('，')}` : `状态有${cls.statuses.join('、')}`}）。这一页只读；要改，在对话里让助理改知识库。`} />
       <PageBody className="grid gap-4">
         {!cls.confirmed && (
           <Alert><AlertTitle>这一类还没确认</AlertTitle><AlertDescription>“{cls.name}”是 AI 按你的资料提的分类，知识库档案里还标着待确认。看着对就在对话里说一声“{cls.name}这一类确认”。</AlertDescription></Alert>
@@ -51,8 +54,8 @@ export default function FocusPage() {
         {data.problems.length > 0 && (
           <Alert className="border-warn/30 bg-warn-soft/50"><AlertTitle>知识库这边有几处要看一下</AlertTitle><AlertDescription>{data.problems.join('；')}</AlertDescription></Alert>
         )}
-        <ViewTabs label="按状态看" value={status} onChange={(v) => set('status', v === 'all' ? null : v)}
-          items={[{ value: 'all', label: '全部', count: data.items.length }, ...order.map((s) => ({ value: s, label: s, count: data.counts[s] }))]} />
+        <ViewTabs label={stages ? '按阶段看' : '按状态看'} value={status} onChange={(v) => set('status', v === 'all' ? null : v)}
+          items={[{ value: 'all', label: '全部', count: data.items.length }, ...order.map((s) => ({ value: s, label: s, count: stages ? stages[s] : data.counts[s] }))]} />
         {items.length ? (
             <StickyTable>
                 <TableHeader><TableRow>
@@ -71,7 +74,7 @@ export default function FocusPage() {
                           {(o.missing.length > 0 || o.warnings.length > 0) && <span title={[...o.missing.map((m) => `缺 ${m}`), ...o.warnings].join('；')}><StatusBadge value="写法要改" tone="warn" /></span>}
                         </span>
                       </TableCell>
-                      <TableCell><ObjectStatus value={o.status} known={o.status_known} /></TableCell>
+                      <TableCell><ObjectStatus value={o.status} known={o.status_known} />{o.stage && o.stage !== o.status && <span className="ml-1.5 text-xs text-muted-foreground">{o.stage}</span>}</TableCell>
                       {o.fields.map((f) => <TableCell key={f.key} className="hidden text-sm sm:table-cell">{f.value ? (isDate(f.value) ? shortDate(f.value) : f.value) : <span className="text-muted-foreground">—</span>}</TableCell>)}
                       <TableCell className="hidden max-w-[360px] truncate text-sm text-muted-foreground lg:table-cell">{o.now || '—'}</TableCell>
                       <TableCell className="hidden text-sm md:table-cell">

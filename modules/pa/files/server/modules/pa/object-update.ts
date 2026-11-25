@@ -48,10 +48,11 @@ export function updateObject(path: string, u: ObjectUpdate, opts: { yes?: boolea
   const hit = findObject(path)
   if (!hit) throw new NotFound(`“我关注的”里没有这个对象：${path}（先用 pa-find 认出它的路径）`)
   const { cls, object: o } = hit
-  const allowed = [...new Set([...cls.statuses, ...Object.keys(cls.rename)])]
+  // 只收这一类登记过的叫法（约定 10.2）：默认叫法、“叫法”里换的、状态对照左边出现过的；写进去的就是这个叫法
+  const allowed = [...new Set([...cls.statuses, ...Object.keys(cls.rename), ...Object.keys(cls.stageOf ?? {})])]
   const d = new Date(now())
   let plan
-  try { plan = planObjectUpdate(readRel(o.path), u, localDay(d), allowed) } catch (e) { throw new BadRequest((e as Error).message) }
+  try { plan = planObjectUpdate(readRel(o.path), u, localDay(d), allowed, cls.statusField || '状态') } catch (e) { throw new BadRequest((e as Error).message) }
   const base = { path: o.path, name: o.name, type: cls.name, changes: plan.changes, open: { kind: 'pa-object' as const, id: o.path } }
   const k = key(o.path, u)
   if (!opts.yes) {

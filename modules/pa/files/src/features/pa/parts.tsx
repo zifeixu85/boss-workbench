@@ -22,7 +22,7 @@ export function SessionBadge({ s }: { s: Pick<Session, 'status' | 'why' | 'infer
 /** 对象的状态：知识库档案里列了的状态用同一套颜色词表，没列的标出来 */
 export function ObjectStatus({ value, known = true }: { value: string; known?: boolean }) {
   if (!value) return <StatusBadge value="没写状态" tone="neutral" />
-  return <span title={known ? undefined : '这个状态不在知识库档案列的可选值里'}><StatusBadge value={value} tone={known ? undefined : 'danger'} /></span>
+  return <span title={known ? undefined : '这个状态还没对到阶段：在知识库档案“我关注的”表的状态对照里加一条（自己的值=未开始 / 进行中 / 已结束）'}><StatusBadge value={value} tone={known ? undefined : 'danger'} /></span>
 }
 
 /** 打开对话：Codex、Claude 桌面版有链接（点了同时标已看）；命令行开的 Claude Code 没有链接，给一条能复制的命令 */

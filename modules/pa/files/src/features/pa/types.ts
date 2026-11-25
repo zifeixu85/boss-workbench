@@ -1,11 +1,13 @@
 // 接口返回的数据形状（服务端在 server/modules/pa/）
-export type FocusClass = { name: string; folder: string; statuses: string[]; fields: string[]; links: string[]; icon: string; rename: Record<string, string>; confirmed: boolean }
+export type FocusClass = { name: string; folder: string; statuses: string[]; fields: string[]; links: string[]; icon: string; rename: Record<string, string>; confirmed: boolean
+  /** 每个叫法归哪个阶段（未开始、进行中、已结束）；空的是不分阶段的类 */
+  stageOf?: Record<string, string>; statusField?: string }
 export type Field = { key: string; value: string }
 export type ObjectRow = {
-  path: string; name: string; status: string; status_known: boolean; updated: string; confirm: string; privacy: string
+  path: string; name: string; status: string; stage: string | null; status_known: boolean; updated: string; confirm: string; privacy: string
   fields: Field[]; now: string; missing: string[]; warnings: string[]; type_mismatch: boolean; sessions: number; unread: number; last_at: string | null
 }
-export type FocusList = { class: FocusClass; items: ObjectRow[]; counts: Record<string, number>; problems: string[] }
+export type FocusList = { class: FocusClass; items: ObjectRow[]; counts: Record<string, number>; stages: Record<string, number> | null; problems: string[] }
 
 export type SessionStatus = '进行中' | '在等我' | '做完未读' | '做完了' | '没做完'
 export type Session = {

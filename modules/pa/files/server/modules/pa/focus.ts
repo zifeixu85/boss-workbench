@@ -6,6 +6,7 @@ import { listSessions, type SessionView } from './store.ts'
 import { listOutputs } from './outputs.ts'
 import type { FocusClass, KbObject } from './types.ts'
 import { kbFiles } from './text.ts'
+import { STAGES, UNMATCHED, UNSET } from './stages.ts'
 
 const KNOWN: Record<string, (o: KbObject) => string> = { 更新: (o) => o.updated, 确认: (o) => o.confirm, 状态: (o) => o.status }
 /** 列表上显示的字段：先看开头里有没有这个字段，没有就空着 */
@@ -19,11 +20,17 @@ export function focusNav() {
 
 /** 状态显示成本人的叫法（文件里写原名或新叫法都认） */
 const shown = (cls: FocusClass, status: string) => cls.rename[status] ?? status
+/** 这个状态在哪个阶段（约定 10.2）：对不上的是“未归类”，没写的是“没标”；不分阶段的类（案例）是 null */
+export const stageOf = (cls: FocusClass, status: string): string | null => {
+  if (!Object.keys(cls.stageOf ?? {}).length) return null
+  if (!status) return UNSET
+  return cls.stageOf[shown(cls, status)] ?? cls.stageOf[status] ?? UNMATCHED
+}
 
 function summary(cls: FocusClass, o: KbObject, sessions: SessionView[]) {
   const mine = sessions.filter((s) => s.object?.path === o.path)
   return {
-    path: o.path, name: o.name, status: shown(cls, o.status), status_known: cls.statuses.includes(shown(cls, o.status)), updated: o.updated, confirm: o.confirm, privacy: o.privacy,
+    path: o.path, name: o.name, status: shown(cls, o.status), stage: stageOf(cls, o.status), status_known: stageOf(cls, o.status) ? (STAGES as readonly string[]).includes(stageOf(cls, o.status)!) : cls.statuses.includes(shown(cls, o.status)), updated: o.updated, confirm: o.confirm, privacy: o.privacy,
     fields: cls.fields.map((k) => ({ key: k, value: fieldOf(o, k) })), now: o.now, missing: o.missing, warnings: o.warnings, type_mismatch: !!o.type && o.type !== cls.name,
     sessions: mine.length, unread: mine.filter((s) => s.status === '做完未读' || s.status === '在等我').length, last_at: mine[0]?.last_at ?? null,
   }
@@ -39,7 +46,10 @@ export function focusList(name: string) {
   const items = objects.map((o) => summary(cls, o, sessions))
   const counts: Record<string, number> = {}
   for (const o of items) counts[o.status || '没写状态'] = (counts[o.status || '没写状态'] ?? 0) + 1
-  return { class: cls, items, counts, problems: [...problems, ...more] }
+  // 按阶段数（不分阶段的类没有这一项）：三个阶段、未归类、没标
+  const staged = Object.keys(cls.stageOf ?? {}).length > 0
+  const stages = staged ? Object.fromEntries([...STAGES, UNMATCHED, UNSET].map((k) => [k, items.filter((i) => i.stage === k).length])) : null
+  return { class: cls, items, counts, stages, problems: [...problems, ...more] }
 }
 
 /** 一个对象的详情 */

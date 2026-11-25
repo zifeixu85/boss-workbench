@@ -3,7 +3,7 @@ import { existsSync, readdirSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import { ROOT } from '../../db.ts'
 import { canReadKbPath, readKbTextFile } from '../../services/kb.ts'
-import { DEFAULT_REPORTS, parseProfile, type ReportSwitch } from './profile.ts'
+import { DEFAULT_REPORTS, classStates, parseProfile, type ReportSwitch } from './profile.ts'
 import { parseObject } from './object-parse.ts'
 import { front, sections, str } from './text.ts'
 import type { FocusClass, KbObject } from './types.ts'
@@ -31,7 +31,7 @@ function oldProfile(text: string): Profile {
   const derived = deriveClasses(text, (f, pats, type) => (!readable(f) ? 'missing' : objectFiles(ROOT, f, pats, type).some(readable) ? 'ok' : 'empty'))
   const classes: FocusClass[] = derived.filter((d) => d.state === 'ok').flatMap((d) => {
     const def = typeDef(d.name)
-    return def ? [{ name: d.name, folder: d.folder, statuses: def.statuses, fields: def.fields, links: def.links, icon: def.icon, rename: {}, confirmed: false, match: d.patterns }] : []
+    return def ? [{ name: d.name, folder: d.folder, ...classStates(def, {}, '', []), statusField: '状态', fields: def.fields, links: def.links, icon: def.icon, rename: {}, confirmed: false, match: d.patterns }] : []
   })
   const problems = classes.length
     ? [`档案里没有“我关注的”表：${classes.map((c) => `${c.name}按目录对应推的是 ${c.folder}`).join('，')}，待确认。对 AI 说“检查一下我的知识库”就能登记下来`]
@@ -53,7 +53,11 @@ export function objectsOf(cls: FocusClass): { objects: KbObject[]; problems: str
   // 按“文件怎么认”找（约定 9.3）：开头写了别的“类型”的、用 * 认到的 README 和索引都不算
   for (const rel of objectFiles(ROOT, cls.folder, cls.match, cls.name)) {
     if (!readable(rel)) continue
-    try { objects.push(parseObject(readRel(rel), rel)) } catch (err) { problems.push(`${rel} 读不了：${(err as Error).message}`) }
+    try {
+      const o = parseObject(readRel(rel), rel)
+      // 状态写在登记的字段里（比如 status、阶段）：读那一个
+      objects.push(cls.statusField && cls.statusField !== '状态' ? { ...o, status: String(o.fields[cls.statusField] ?? '').trim() } : o)
+    } catch (err) { problems.push(`${rel} 读不了：${(err as Error).message}`) }
   }
   return { objects, problems }
 }

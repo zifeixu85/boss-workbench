@@ -1,5 +1,6 @@
 // 知识库档案.md（约定 v0.2 第 2.2、6 节）：“我关注的”表（启用了类型库里的哪几类）、“叫法”（状态换个叫法）、“候选类型”、“报告”开关。
-import { PAGE_TYPES, typeDef } from './type-library.ts'
+import { PAGE_TYPES, typeDef, type TypeDef } from './type-library.ts'
+import { STAGES, isStage, type Stage } from './stages.ts'
 import { bullets } from './text.ts'
 import type { FocusClass } from './types.ts'
 
@@ -33,6 +34,27 @@ function renames(md: string): Record<string, Record<string, string>> {
   return out
 }
 
+/**
+ * 一类的状态（约定 10.2）：默认叫法和它们的阶段；“叫法”里换的新叫法跟着原来的归阶段；“状态对照”里登记的（自己的值=阶段）加进来。
+ * 对照右边不是三个阶段之一的不采用，写进 problems。不分阶段的类（案例）只认默认叫法和换的叫法。
+ */
+export function classStates(def: TypeDef, rename: Record<string, string>, mapping: string, problems: string[]): { statuses: string[]; stageOf: Record<string, Stage> } {
+  const stageOf: Record<string, Stage> = {}
+  const statuses: string[] = []
+  const add = (label: string, stage?: Stage) => { if (!statuses.includes(label)) statuses.push(label); if (stage) stageOf[label] = stage }
+  for (const s of def.statuses) add(rename[s] ?? s, def.stages?.[s])
+  for (const s of def.statuses) if (rename[s] && def.stages?.[s]) stageOf[s] = def.stages[s] // 文件里还写原来的叫法也认
+  for (const pair of mapping.split(/[;；]/).map((x) => x.trim()).filter(Boolean)) {
+    const m = pair.match(/^(.+?)\s*[=＝]\s*(.+)$/)
+    if (!m) { problems.push(`${def.name}的状态对照“${pair}”要写成“自己的值=阶段”`); continue }
+    const [, label, stage] = m
+    if (!def.stages) { problems.push(`${def.name}不分阶段，状态对照“${pair}”不用写`); continue }
+    if (!isStage(stage.trim())) { problems.push(`${def.name}的状态对照“${pair}”：右边要写 ${STAGES.join('、')} 之一`); continue }
+    add(label.trim(), stage.trim() as Stage)
+  }
+  return { statuses, stageOf }
+}
+
 export function parseProfile(raw: string): { classes: FocusClass[]; problems: string[]; candidates: { what: string; count: number; at: string }[]; reports: ReportSwitch; reportsSet: boolean } {
   const md = raw.replace(/^﻿/, '')
   const problems: string[] = []
@@ -58,7 +80,10 @@ export function parseProfile(raw: string): { classes: FocusClass[]; problems: st
       if (classes.some((x) => x.name === name)) { problems.push(`“${name}”写了两次，只认第一次`); continue }
       const rename = names[name] ?? {}
       for (const k of Object.keys(rename)) if (!def.statuses.includes(k)) problems.push(`“叫法”里给${name}的“${k}”换了叫法，但类型库里${name}没有这个状态`)
-      classes.push({ name, folder, statuses: def.statuses.map((s) => rename[s] ?? s), fields: def.fields, links: def.links, icon: def.icon, rename, confirmed: (confirm ?? '').trim() === '已确认', ...(match.length ? { match } : {}) })
+      // 状态字段、状态对照（约定 9.3、10.2）：按表头找这两列，没有就是默认
+      const col = (h: string) => { const i = t.head.indexOf(h); return i >= 0 ? (row[i] ?? '').trim() : '' }
+      const { statuses, stageOf } = classStates(def, rename, col('状态对照'), problems)
+      classes.push({ name, folder, statuses, stageOf, statusField: col('状态字段') || '状态', fields: def.fields, links: def.links, icon: def.icon, rename, confirmed: (confirm ?? '').trim() === '已确认', ...(match.length ? { match } : {}) })
     }
   }
   const cand = section(md, '候选类型')
