@@ -4,7 +4,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { spawnSync } from 'node:child_process'
-import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, symlinkSync, writeFileSync } from 'node:fs'
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { DatabaseSync } from 'node:sqlite'
@@ -252,4 +252,26 @@ test('个人助理关掉以后：它的命令不跑，也不再去读对话记�
   const db = new DatabaseSync(DB)
   assert.equal(db.prepare('SELECT COUNT(*) AS n FROM pa_sessions').get().n, 0, '一个对话都没读')
   db.close()
+})
+
+test('知识库检测：pa-check 说清现在能用的、要升级检查的和下一句；只差收件箱时驾驶舱不提', { skip: !ready && '先在 template/ 里 npm install' }, () => {
+  const { cli, json, tool } = setup()
+  assert.equal(tool('add', 'pa', '--from', PACK, '--no-build').code, 0)
+  const r = json('pa-check')
+  assert.equal(r.profile.path, '知识库档案.md')
+  const st = Object.fromEntries(r.pages.map((p) => [p.id, p.status]))
+  assert.deepEqual(st, { progress: '能用', outputs: '能用', focus: '能用', roles: '能用', reports: '能用', confirm: '要升级检查' }, '示例库没有 00-收件箱')
+  assert.match(cli('pa-check').out, /检查一下我的知识库/)
+  assert.ok(json('capabilities').read.some((x) => x.command === 'pa-check'))
+  assert.doesNotMatch(JSON.stringify(json('today')), /你的知识库还差几步/, '只差收件箱：驾驶舱不提，“总助的话”照常')
+})
+
+test('知识库检测：没有档案的已有知识库，驾驶舱先说“你的知识库还差几步”，点进去是检测页', { skip: !ready && '先在 template/ 里 npm install' }, () => {
+  const { KB, json, tool } = setup()
+  assert.equal(tool('add', 'pa', '--from', PACK, '--no-build').code, 0)
+  rmSync(join(KB, '知识库档案.md'))
+  const note = JSON.stringify(json('today'))
+  assert.match(note, /你的知识库还差几步/)
+  assert.match(note, /检查一下我的知识库/)
+  assert.equal(json('pa-check').pages.find((p) => p.id === 'focus').status, '要升级检查')
 })

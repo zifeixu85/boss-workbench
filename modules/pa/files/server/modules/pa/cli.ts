@@ -1,4 +1,4 @@
-// 个人助理模块的命令（server/cli.ts 把 pa 和 pa- 开头的转到这里）。读的：pa、pa-focus、pa-object、pa-progress、pa-outputs、pa-reports、pa-roles；
+// 个人助理模块的命令（server/cli.ts 把 pa 和 pa- 开头的转到这里）。读的：pa、pa-focus、pa-object、pa-progress、pa-outputs、pa-reports、pa-roles、pa-check；
 // 写的：pa-scan（只读扫描本机对话记录，把元信息存进工作台）、pa-report-add（登记一份写好的报告）、pa-mark（标已看 / 改状态 / 归类）、
 // pa-update（在对话里更新一个对象：先预演，老板确认后带 --confirm 原话再写）。认对象用 pa-find。
 import { parseArgs } from 'node:util'
@@ -11,6 +11,7 @@ import { registerReport, reportView } from './reports.ts'
 import { scan, scannedAt, sources } from './scan.ts'
 import type { ReportKind } from './report-parse.ts'
 import { findObjects, updateObject } from './object-update.ts'
+import { kbCheck, kbCheckText } from './check.ts'
 
 const HELP = `  pa [--json]                           个人助理一览：我关注的有哪几类、AI 对话各状态几个、要确认的资料几条
   pa-focus [类名] [--json]              “我关注的”有哪几类；写了类名就列这一类的对象（状态、列表上显示的字段）
@@ -20,7 +21,8 @@ const HELP = `  pa [--json]                           个人助理一览：我�
                                         本机 AI 对话做到哪了（只有标题、文件夹、时间、状态；状态是推断的）。--all 连子任务、脚本调用也列
   pa-outputs [--kind 图片] [--days 30] [--json]   AI 生成的图片和写出来的文件（只有路径）
   pa-reports [--kind 周报] [--period 2026-W48] [--json]   某一期的报告和这一期的几个数
-  pa-roles [--json]                     总助、分身、合伙人的角色文件齐不齐、哪天更新的
+  pa-roles [--json]                     总助、内容助理、分身、合伙人的角色文件齐不齐、哪天更新的
+  pa-check [--json]                     知识库检测：现在能用的页面、要先做升级检查才能用的页面（各缺什么）、下一步说哪一句
   pa-scan [--force]                     现在扫一遍本机的 Codex、Claude Code 对话记录（只读；只存元信息，不存正文）
   pa-report-add <路径>                  登记一份写好的报告：文件要先写进知识库 90-日志与报告/日报|周报|月报/，这里检查格式、记下登记时间，报告页就能看到
   pa-update <路径> [--status 收尾] [--now "一两句现在的情况"] [--next "事项 · 截止 · 谁做"]... [--done "要勾掉的下一步"]... [--log "说了什么、定了什么" --channel 微信]
@@ -89,6 +91,10 @@ async function runCli(argv: string[]): Promise<number> {
       if (!v.kind) return print(v, '日报、周报、月报都关着。在知识库档案.md 的“报告”表里把要的那种改成“开”。')
       return print(v, [`${v.kind} ${v.period}（${v.range.from} — ${v.range.to}）`, `AI 对话 ${v.stats.sessions} 个，做完 ${v.stats.done} 件（${v.stats.unread} 件没看），产出 ${v.stats.outputs.total} 个（图 ${v.stats.outputs.images}），用得最多：${v.stats.top?.name ?? '—'}`,
         v.report ? v.report.sections.map((s) => `## ${s.title}\n${s.text}`).join('\n\n') : `这一期还没有${v.kind}`].join('\n'))
+    }
+    case 'pa-check': {
+      const r = kbCheck()
+      return print(r, kbCheckText(r))
     }
     case 'pa-roles': {
       const v = roles()

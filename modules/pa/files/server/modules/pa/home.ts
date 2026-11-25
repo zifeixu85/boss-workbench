@@ -8,6 +8,7 @@ import { scan, scannedAt } from './scan.ts'
 import { buildPulse } from './pulse-calc.ts'
 import { recentOutputs } from './outputs.ts'
 import { now } from './store.ts'
+import { kbCheck, needsUpgrade } from './check.ts'
 
 /** 离上次扫超过 5 分钟：后台悄悄扫一遍（不等它，今日页先用现有的数） */
 function refreshSoon() {
@@ -55,6 +56,13 @@ export const paHooks: ModuleHooks = {
   nav: () => focusClasses().classes.map((c) => ({ key: `focus-${c.name}`, to: `/focus/${encodeURIComponent(c.name)}`, label: c.name, icon: c.icon, section: '我关注的', ...(TAKES_OVER[c.name] ? { replaces: TAKES_OVER[c.name] } : {}) })),
   badges: () => { const list = recent(); return { 'pa-progress': list.filter((s) => s.status === '做完未读' || s.status === '在等我').length } },
   note: () => {
+    // 知识库撑不起我关注的、助理、报告里的某一页：先在驾驶舱说清（约定 v0.6 第 9.6 节），点了去看一屏的检测结果
+    const c = kbCheck()
+    if (needsUpgrade(c)) {
+      const ok = c.pages.filter((p) => p.status === '能用').map((p) => p.label)
+      const need = c.pages.filter((p) => p.status !== '能用')
+      return { title: '你的知识库还差几步', lines: [`现在就能用：${ok.join('、')}`, ...need.map((p) => `${p.label}：${p.need}`)].slice(0, 5), foot: `想都用起来，对 AI 说“${c.next}”`, to: '/kb-check' }
+    }
     const d = latestNote()
     if (!d || !d.lines.length) return null
     return { title: `总助的话 · ${d.report.kind} ${d.report.period}`, lines: d.lines, by: `来自 ${d.report.path}${d.report.confirm === '待确认' ? '（待确认）' : ''}`, ...(d.twin ? { foot: `分身的一句：${d.twin}` } : {}), to: `/reports?kind=${encodeURIComponent(d.report.kind)}&period=${d.report.period}` }

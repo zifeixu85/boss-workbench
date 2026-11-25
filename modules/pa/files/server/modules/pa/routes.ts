@@ -13,6 +13,7 @@ import { scan, scanIfStale, scannedAt, sources, SCAN_DAYS } from './scan.ts'
 import { allObjects } from './kb.ts'
 import { DONE_HOURS, RUNNING_MIN, STALE_DAYS } from './status.ts'
 import type { ReportKind } from './report-parse.ts'
+import { kbCheck, kbCheckText } from './check.ts'
 
 export const paRoutes = moduleApp()
 
@@ -20,6 +21,7 @@ paRoutes.get('/focus', (c) => c.json(ok(focusClasses())))
 paRoutes.get('/focus/:name', (c) => c.json(ok(focusList(decodeURIComponent(c.req.param('name'))))))
 paRoutes.get('/object', (c) => c.json(ok(focusObject(c.req.query('path') ?? ''))))
 paRoutes.get('/pending', (c) => c.json(ok(pendingItems())))
+paRoutes.get('/check', (c) => { const r = kbCheck(); return c.json(ok({ ...r, text: kbCheckText(r) })) })
 
 paRoutes.get('/progress', async (c) => {
   const scanned = await scanIfStale()
