@@ -4,7 +4,7 @@ import assert from 'node:assert/strict'
 import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import os from 'node:os'
-import { checkKb, checkText, NEXT_SAY } from './kb-check.mjs'
+import { checkKb, checkText, deriveClasses, NEXT_SAY } from './kb-check.mjs'
 
 function kb(files) {
   const root = mkdtempSync(join(os.tmpdir(), 'wb-kbcheck-'))
@@ -45,13 +45,40 @@ test('没有档案的已有知识库（比如自己一直在用的 Obsidian）�
   assert.ok(text.split('\n').length <= 20, '一屏说清')
 })
 
-test('老板知识库工具建的旧结构（01-AI协作/建库档案.md）：认得档案，但没有“我关注的”表，说清要升级检查', () => {
-  const r = checkKb(kb({ '01-AI协作/建库档案.md': '---\n格式: 老板知识库/2\n---\n\n## 目录对应\n', '02-关于我/基本情况.md': 'x', '04-客户/a.md': 'x', '06-项目/b.md': 'x', '00-收件箱/': '' }))
+test('老板知识库工具建的旧结构（01-AI协作/建库档案.md）：没有“我关注的”表，按标准层推出客户、项目，标待确认', () => {
+  const r = checkKb(kb({ '01-AI协作/建库档案.md': '---\n格式: 老板知识库/2\n---\n', '02-关于我/基本情况.md': 'x', '04-客户/README.md': 'x', '04-客户/云杉.md': 'x', '06-项目/春节茶礼.md': 'x', '00-收件箱/': '' }))
   assert.equal(r.profile.path, '01-AI协作/建库档案.md')
   assert.equal(r.profile.kind, '旧结构')
-  assert.equal(page(r, 'focus').status, '要升级检查')
-  assert.match(page(r, 'focus').need, /我关注的/)
+  const f = page(r, 'focus')
+  assert.equal(f.status, '能用')
+  assert.deepEqual(f.classes.map((c) => [c.name, c.folder, c.ok, c.derived]), [['客户', '04-客户', true, true], ['项目', '06-项目', true, true]])
+  assert.match(f.note, /目录对应.*待确认/)
+  assert.equal(r.ready, false, '推出来的要用户确认：提示做一次升级检查登记下来')
   assert.equal(page(r, 'confirm').status, '能用', '收件箱在默认位置，“要你确认的资料”能用')
+  assert.match(checkText(r), /推出来/)
+})
+
+test('就地建图的旧结构：按“目录对应”表找客户、项目的实际文件夹', () => {
+  const archive = '---\n格式: 老板知识库/2\n结构: 就地建图\n---\n\n## 目录对应\n\n| 层 | 实际位置 | 说明 |\n|---|---|---|\n| 04-客户 | 我的客户 | 接入时登记 |\n| 06-项目 | 在做的事/ | 接入时登记 |\n| 原有·只读 | 老资料 | |\n'
+  const r = checkKb(kb({ '01-AI协作/建库档案.md': archive, '我的客户/张总.md': 'x', '在做的事/开店.md': 'x' }))
+  assert.deepEqual(page(r, 'focus').classes.map((c) => [c.name, c.folder]), [['客户', '我的客户'], ['项目', '在做的事']])
+  assert.deepEqual(deriveClasses(archive, () => true).map((c) => c.folder), ['我的客户', '在做的事'])
+})
+
+test('旧结构里找不到客户、项目（文件夹没有，或里面没有文件）：要升级检查，说清是资料没存还是散着', () => {
+  const r = checkKb(kb({ '01-AI协作/建库档案.md': '---\n格式: 老板知识库/2\n---\n', '04-客户/README.md': 'x', '00-收件箱/': '' }))
+  const f = page(r, 'focus')
+  assert.equal(f.status, '要升级检查')
+  assert.match(f.need, /推不出来/)
+  assert.match(f.need, /04-客户.*没有文件/)
+  assert.match(f.need, /06-项目.*没有/)
+})
+
+test('旧结构只推出一部分：推出来的照常用，没推出来的说清为什么', () => {
+  const r = checkKb(kb({ '01-AI协作/建库档案.md': '---\n格式: 老板知识库/2\n---\n', '04-客户/张总.md': 'x', '06-项目/README.md': 'x' }))
+  const f = page(r, 'focus')
+  assert.equal(f.status, '能用')
+  assert.match(f.note, /项目没推出来（06-项目 里没有文件）/)
 })
 
 test('档案的“位置”小节：助理、报告、收件箱、你是谁这一页按登记的路径找；登记的文件夹不在，说出来', () => {

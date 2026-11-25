@@ -7,6 +7,8 @@ import { DEFAULT_REPORTS, parseProfile, type ReportSwitch } from './profile.ts'
 import { parseObject } from './object-parse.ts'
 import { front, sections, str } from './text.ts'
 import type { FocusClass, KbObject } from './types.ts'
+import { typeDef } from './type-library.ts'
+import { deriveClasses } from '../../../scripts/kb-check.mjs'
 
 export const PROFILE_FILE = '知识库档案.md'
 const readable = (rel: string) => { const abs = join(ROOT, rel); return existsSync(abs) && canReadKbPath(abs) }
@@ -15,8 +17,26 @@ export const readRel = (rel: string) => readKbTextFile(join(ROOT, rel))
 export type Profile = ReturnType<typeof parseProfile> & { hasProfile: boolean }
 /** 知识库档案：“我关注的”有哪几类、候选类型、报告开关。没有档案、表头不对都写进 problems，页面上告诉用户怎么补 */
 export function profile(): Profile {
+  if (!readable(PROFILE_FILE) && readable(OLD_PROFILE)) return oldProfile()
   if (!readable(PROFILE_FILE)) return { classes: [], problems: [`知识库根目录没有 ${PROFILE_FILE}（“我关注的”有哪几类、开哪几种报告写在这份文件里）`], candidates: [], reports: { ...DEFAULT_REPORTS }, reportsSet: false, hasProfile: false }
   try { return { ...parseProfile(readRel(PROFILE_FILE)), hasProfile: true } } catch (err) { return { classes: [], problems: [`读不了 ${PROFILE_FILE}：${(err as Error).message}`], candidates: [], reports: { ...DEFAULT_REPORTS }, reportsSet: false, hasProfile: true } }
+}
+/** 老板知识库工具建的旧结构：档案是 01-AI协作/建库档案.md，没有“我关注的”表 */
+export const OLD_PROFILE = '01-AI协作/建库档案.md'
+
+/** 旧结构按“目录对应”推出客户、项目在哪（约定 9.1，2026-11-25 A梦 定）。推出来的都是待确认；推不出来的说清，请用户做一次升级检查 */
+function oldProfile(): Profile {
+  let text = ''
+  try { text = readRel(OLD_PROFILE) } catch (err) { return { classes: [], problems: [`读不了 ${OLD_PROFILE}：${(err as Error).message}`], candidates: [], reports: { ...DEFAULT_REPORTS }, reportsSet: false, hasProfile: true } }
+  const derived = deriveClasses(text, (f) => readable(f))
+  const classes: FocusClass[] = derived.filter((d) => d.state === 'ok').flatMap((d) => {
+    const def = typeDef(d.name)
+    return def ? [{ name: d.name, folder: d.folder, statuses: def.statuses, fields: def.fields, links: def.links, icon: def.icon, rename: {}, confirmed: false }] : []
+  })
+  const problems = classes.length
+    ? [`旧结构的档案里没有“我关注的”表：${classes.map((c) => `${c.name}按目录对应推的是 ${c.folder}`).join('，')}，待确认。对 AI 说“检查一下我的知识库”就能登记下来`]
+    : [`旧结构的档案里没有“我关注的”表，按目录对应也找不到客户、项目的文件夹（${derived.map((d) => d.folder).join('、')}）。对 AI 说“检查一下我的知识库”`]
+  return { classes, problems, candidates: [], reports: { ...DEFAULT_REPORTS }, reportsSet: false, hasProfile: true }
 }
 export const focusClasses = () => profile()
 export const reportSwitch = (): ReportSwitch => profile().reports

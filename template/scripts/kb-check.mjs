@@ -6,7 +6,7 @@
 // 用法（搭工作台之前，对老板说的那个知识库文件夹跑；不在电脑上到处找）：
 //   node scripts/kb-check.mjs "<知识库文件夹>" [--json]
 // 搭好以后个人助理模块的页面、命令 pa-check 用的也是这一份（checkKb）。故意写成普通 JS，零依赖。
-import { existsSync, readFileSync, statSync } from 'node:fs'
+import { readFileSync, readdirSync, statSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -38,6 +38,36 @@ function table(text, heading) {
   return rows.length ? { head: rows[0], rows: rows.slice(1) } : { head: [], rows: [] }
 }
 
+/** 旧结构（老板知识库工具建的）里客户、项目在哪一层；就地建图的库按“目录对应”表换成实际文件夹（约定 9.1，2026-11-25 A梦 定） */
+const LAYERS = [{ name: '客户', layer: '04-客户' }, { name: '项目', layer: '06-项目' }]
+
+/**
+ * 档案里没有“我关注的”表时，按“目录对应”推出客户、项目在哪。probe(folder) 看那个文件夹：
+ * true / 'ok' 有文件；'empty' 文件夹在但里面没有对象文件；false / 'missing' 没有这个文件夹。推出来的都要用户确认（待确认）。
+ */
+export function deriveClasses(text, probe) {
+  const map = {}
+  const t = table(text, '目录对应')
+  if (t) {
+    const iLayer = Math.max(0, t.head.indexOf('层'))
+    const iPlace = (() => { const i = t.head.findIndex((h) => ['实际位置', '位置', '文件夹'].includes(h)); return i < 0 ? 1 : i })()
+    for (const row of t.rows) { const layer = clean(row[iLayer]); const place = clean(row[iPlace]); if (layer && place && !place.includes('..')) map[layer] = place }
+  }
+  return LAYERS.map(({ name, layer }) => {
+    const folder = map[layer] ?? layer
+    const p = probe(folder)
+    return { name, layer, folder, state: p === true ? 'ok' : p === false ? 'missing' : p }
+  })
+}
+
+/** 一个文件夹里有没有对象文件：<名称>.md 或 <名称>/README.md；README、索引这类不算 */
+function probeFolder(abs) {
+  if (!isDir(abs)) return 'missing'
+  const skip = /^(readme|index|索引|agents|claude)\.md$/i
+  const has = readdirSync(abs, { withFileTypes: true }).some((e) => !e.name.startsWith('.') && ((e.isFile() && e.name.endsWith('.md') && !skip.test(e.name)) || (e.isDirectory() && isFile(join(abs, e.name, 'README.md')))))
+  return has ? 'ok' : 'empty'
+}
+
 /**
  * 看一个知识库。返回：exists、profile（找到的档案和是哪种）、positions（六个位置，登记的优先）、
  * pages（每页：能用 / 要升级检查 / 不用知识库照样能用，缺什么、在哪）、ready（全都对得上）、next（下一步说的话）。
@@ -58,9 +88,13 @@ export function checkKb(rootIn) {
     const why = !ALL_TYPES.includes(name) ? `“${name}”不在类型库里，没有页面` : !PAGE_TYPES.includes(name) ? `“${name}”这一类还没做页面` : !f || f.includes('..') ? '没写文件夹' : !isDir(at(f)) ? `登记的文件夹 ${f} 没有` : ''
     return { name, folder: f, ok: !why, ...(why ? { why } : {}) }
   })
+  // 旧结构没有“我关注的”表：按目录对应推出客户、项目（推出来的标待确认）；推不出来的说清是没有还是空的
+  const derived = found?.kind === '旧结构' && !focusTable ? deriveClasses(text, (f) => probeFolder(at(f))) : []
+  for (const d of derived.filter((x) => x.state === 'ok')) classes.push({ name: d.name, folder: d.folder, ok: true, derived: true })
   const okClasses = classes.filter((c) => c.ok)
   const focusNeed = !found ? '还没有知识库档案（知识库档案.md），不知道项目、客户这些放在哪'
-    : !focusTable ? `${found.kind === '旧结构' ? '旧结构的' : ''}档案里没有“我关注的”表，不知道项目、客户这些放在哪`
+    : derived.length && !okClasses.length ? `旧结构的档案里没有“我关注的”表，按目录对应也推不出来：${derived.map((d) => (d.state === 'missing' ? `${d.folder} 没有` : `${d.folder} 里没有文件`)).join('；')}。客户、项目要是放在别处或散在几个地方，先做一次升级检查`
+    : !focusTable && !derived.length ? `${found.kind === '旧结构' ? '旧结构的' : ''}档案里没有“我关注的”表，不知道项目、客户这些放在哪`
     : !okClasses.length ? `“我关注的”表里登记的类都对不上：${classes.map((c) => c.why).join('；') || '表是空的'}`
     : ''
 
@@ -72,12 +106,13 @@ export function checkKb(rootIn) {
   const pages = [
     { id: 'progress', label: '进展', status: '能用', does: '所有 AI 对话做到哪了', kb: false },
     { id: 'outputs', label: '产出', status: '能用', does: 'AI 生成的图和写出来的文件', kb: false },
-    { id: 'focus', label: '我关注的', status: focusNeed ? '要升级检查' : '能用', does: '项目、客户这些对象的列表和详情', classes, ...(focusNeed ? { need: focusNeed } : {}) },
+    { id: 'focus', label: '我关注的', status: focusNeed ? '要升级检查' : '能用', does: '项目、客户这些对象的列表和详情', classes, ...(focusNeed ? { need: focusNeed } : {}),
+      ...(!focusNeed && derived.length ? { note: `按建库档案的“目录对应”推出来的（${okClasses.map((c) => `${c.name}：${c.folder}`).join('，')}），待确认${derived.filter((d) => d.state !== 'ok').map((d) => `；${d.name}没推出来（${d.state === 'missing' ? `${d.folder} 没有` : `${d.folder} 里没有文件`}）`).join('')}` } : {}) },
     folderPage('roles', '助理', '助理', '总助、内容助理、分身的文件齐不齐'),
     folderPage('reports', '报告', '报告', '日报、周报'),
     folderPage('confirm', '驾驶舱里“要你确认的资料”', '收件箱', '收件箱里等你看的材料'),
   ]
-  const ready = pages.every((p) => p.status === '能用') && classes.every((c) => c.ok)
+  const ready = pages.every((p) => p.status === '能用') && classes.every((c) => c.ok && !c.derived)
   return { root, exists: true, profile: { path: found?.path ?? null, kind: found?.kind ?? null }, positions, pages, ready, next: NEXT_SAY }
 }
 
@@ -95,6 +130,7 @@ export function checkText(r) {
     `现在就能用：${ok.map((p) => p.label).join('、') || '（没有）'}；待办、日程、收件箱这些不靠知识库，也都能用。`,
     ...(need.length ? ['', '要先做升级检查才能用：', ...need.map((p) => `- ${p.label}：${p.need}`)] : []),
     ...(bad.length && !need.some((p) => p.id === 'focus') ? ['', '我关注的里有几类对不上：', ...bad.map((c) => `- ${c.name}：${c.why}`)] : []),
+    ...(r.pages.find((p) => p.id === 'focus')?.note ? ['', `我关注的：${r.pages.find((p) => p.id === 'focus').note}；做一次升级检查就能登记下来`] : []),
     '',
     `下一步：可以先搭能用的部分；想把上面这些也用起来，对 AI 说“${r.next}”（知识库工具会读你的结构、列出差异，你确认了才改）。`,
   ].join('\n')

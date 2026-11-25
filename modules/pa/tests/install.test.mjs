@@ -275,3 +275,15 @@ test('知识库检测：没有档案的已有知识库，驾驶舱先说“你�
   assert.match(note, /检查一下我的知识库/)
   assert.equal(json('pa-check').pages.find((p) => p.id === 'focus').status, '要升级检查')
 })
+
+test('老板知识库工具建的旧结构（没有知识库档案.md，只有 01-AI协作/建库档案.md）：按目录对应推出客户、项目，“我关注的”照样有，标待确认', { skip: !ready && '先在 template/ 里 npm install' }, () => {
+  const { KB, json, tool } = setup()
+  assert.equal(tool('add', 'pa', '--from', PACK, '--no-build').code, 0)
+  rmSync(join(KB, '知识库档案.md'))
+  put(join(KB, '01-AI协作', '建库档案.md'), '---\n格式: 老板知识库/2\n结构: 就地建图\n---\n\n## 目录对应\n\n| 层 | 实际位置 | 说明 |\n|---|---|---|\n| 04-客户 | 10-客户 | 接入时登记 |\n| 06-项目 | 02-项目 | 接入时登记 |\n')
+  const f = json('pa-focus')
+  assert.deepEqual(f.classes.map((c) => [c.name, c.folder, c.confirmed]), [['客户', '10-客户', false], ['项目', '02-项目', false]])
+  assert.ok(f.problems.some((p) => /目录对应.*待确认/.test(p)))
+  assert.equal(json('pa-focus', '客户').items[0].name, '云杉物流')
+  assert.ok(json('pa-find', '春节茶礼').length >= 1, '推出来的对象照样能在对话里认出来')
+})
