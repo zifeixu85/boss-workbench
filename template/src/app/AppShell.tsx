@@ -10,6 +10,7 @@ import { ComplexShell } from './ComplexShell'
 import { DualShell } from './DualShell'
 import { TopShell } from './TopShell'
 import { Overlays } from './Overlays'
+import { PanelShell } from './PanelShell'
 
 const THEME_KEY = 'wb.theme'
 
@@ -46,7 +47,7 @@ export function AppShell() {
   const data = useSettingsEffects()
   const embed = useEmbed()
   const mode = data?.nav_mode ?? 'dual'
-  if (embed) return <NavModeContext.Provider value={mode}><main className="min-h-dvh min-w-0 bg-background"><Outlet /></main><Overlays /></NavModeContext.Provider>
+  if (embed) return <NavModeContext.Provider value={mode}><PanelShell><Outlet /></PanelShell><Overlays /></NavModeContext.Provider>
   return (
     <NavModeContext.Provider value={mode}>
       {mode === 'simple' ? <SimpleShell live={live} /> : mode === 'top' ? <TopShell live={live} /> : mode === 'dual' ? <DualShell live={live} /> : <ComplexShell live={live} />}

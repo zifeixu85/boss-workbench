@@ -21,6 +21,8 @@ export type KbObject = {
   next: { text: string; done: boolean }[]
   log: { date: string; channel: string; text: string; pending: boolean }[]
   sources: string[]
+  /** 老板自己的写法（开头没写“类型”）：不报缺字段，读不到的小节不显示 */
+  own?: boolean
   /** 缺的必填字段 */
   missing: string[]
   /** 写法上要改的（旧写法、不在类型库的类型……），照样能读 */

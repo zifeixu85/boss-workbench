@@ -3,15 +3,19 @@ import { isMain } from './is-main.mjs'
 // 先找命令行 codex，再找 Codex 桌面版自带的那一个；找到了再看有没有登录。只读，不改任何东西。
 // 普通 JS：老版本 Node 也能跑（install.mjs 要用）。
 import { spawn, spawnSync } from 'node:child_process'
-import { accessSync, constants, existsSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
+import { accessSync, constants, existsSync, readdirSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
 import { delimiter, dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import os from 'node:os'
 
 const isWin = process.platform === 'win32'
 
-/** 找不到时怎么说：不断言“没装”（2026-11-26 Mac mini 上明明装着桌面版，旧写法照样说没找到） */
-export const NOT_FOUND = '工作台没认出这台电脑上的 Codex 在哪（找过 Codex 桌面版和 codex 命令）。装着的话，在 Codex 里说一句“把工作台接进 Codex”，工作台会记下它的位置；还没装就先装好 Codex 桌面版'
+/** 现在 Codex 桌面版装在哪个应用里（给老板的话里用） */
+const APP_NAME = 'Codex（现在装在 ChatGPT 应用里，也可能单独叫 Codex）'
+/** 找不到时怎么说：不断言“没装”（2026-11-26 Mac mini 上明明在用，应用叫 ChatGPT.app，旧写法照样说没找到） */
+export const NOT_FOUND = '工作台没认出这台电脑上的 Codex 在哪（找过 Codex、ChatGPT 应用和 codex 命令）。在用 Codex 的话，在 Codex 里说一句“把工作台接进 Codex”，工作台会记下它的位置；还没装就先装好 ' + APP_NAME
+/** 这台电脑在用 Codex：有 ~/.codex（或 CODEX_HOME）。在用就不说“没装”，只说工作台没认出命令在哪 */
+const codexUsed = (env) => existsSync(env.CODEX_HOME || join(env.HOME || env.USERPROFILE || os.homedir(), '.codex'))
 
 /** 系统级的位置（不在家目录里的）；测试里可以去掉 */
 const SYSTEM_PREFIX = /^\/(Applications|opt|usr)\//
@@ -21,14 +25,27 @@ const SYSTEM_PREFIX = /^\/(Applications|opt|usr)\//
  * 自带的 bin/codex 只是转到 CodexCLI.app 的小脚本，CodexCLI.app 里那个也直接认）→ 命令行装的常见位置（Homebrew、npm、~/.local）。
  * Windows 的路径还没在真机上核对过。
  */
+/** 一个应用包里自带的 codex：bin/codex 是转到 CodexCLI.app 的小脚本，CodexCLI.app 里那个也直接认 */
+const inBundle = (app) => [join(app, 'Contents', 'Resources', 'codex-cli', 'bin', 'codex'), join(app, 'Contents', 'Resources', 'codex-cli', 'CodexCLI.app', 'Contents', 'MacOS', 'codex')]
+/**
+ * 应用文件夹里带着 Codex 命令行的应用：Codex.app、ChatGPT.app（2026-11 起 Codex 桌面版就是 ChatGPT.app，包名还是 com.openai.codex）排前面，
+ * 再看别的名字的 .app 里有没有 codex-cli（改名了也认；ChatGPT Classic、Atlas 里没有，不算）
+ */
+function appBundles(dir) {
+  let names = []
+  try { names = readdirSync(dir).filter((n) => n.endsWith('.app')) } catch { /* 没有这个文件夹 */ }
+  const first = ['Codex.app', 'ChatGPT.app']
+  const order = [...first, ...names.filter((n) => !first.includes(n)).sort()]
+  return order.filter((n) => first.includes(n) || existsSync(join(dir, n, 'Contents', 'Resources', 'codex-cli'))).flatMap((n) => inBundle(join(dir, n)))
+}
+
 export function codexCandidates(env = process.env) {
   const names = isWin ? ['codex.exe', 'codex.cmd', 'codex'] : ['codex']
   const fromPath = (env.PATH || '').split(delimiter).filter(Boolean).flatMap((d) => names.map((n) => join(d, n)))
   const home = env.HOME || env.USERPROFILE || os.homedir()
-  const bundle = (apps) => [join(apps, 'Codex.app', 'Contents', 'Resources', 'codex-cli', 'bin', 'codex'), join(apps, 'Codex.app', 'Contents', 'Resources', 'codex-cli', 'CodexCLI.app', 'Contents', 'MacOS', 'codex')]
   const app = isWin
     ? [join(env.LOCALAPPDATA || join(home, 'AppData', 'Local'), 'Programs', 'Codex', 'resources', 'codex-cli', 'bin', 'codex.exe')]
-    : [...bundle('/Applications'), ...bundle(join(home, 'Applications'))]
+    : [...appBundles('/Applications'), ...appBundles(join(home, 'Applications'))]
   const cli = isWin ? [join(env.APPDATA || join(home, 'AppData', 'Roaming'), 'npm', 'codex.cmd')]
     : ['/opt/homebrew/bin/codex', '/usr/local/bin/codex', join(home, '.local', 'bin', 'codex'), join(home, '.npm-global', 'bin', 'codex'), join(home, '.bun', 'bin', 'codex'), join(home, '.volta', 'bin', 'codex')]
   return [...new Set([env.WORKBENCH_CODEX_BIN, env.CODEX_BIN?.trim(), ...fromPath, ...app, ...cli].filter(Boolean))]
@@ -48,7 +65,7 @@ function remember(file, bin) {
 function spotlightApps() {
   if (process.platform !== 'darwin') return []
   const r = spawnSync('mdfind', ["kMDItemCFBundleIdentifier == 'com.openai.codex'"], { encoding: 'utf8', timeout: 3000 })
-  return r.status === 0 ? r.stdout.split('\n').map((s) => s.trim()).filter((s) => s.endsWith('.app')).flatMap((a) => [join(a, 'Contents', 'Resources', 'codex-cli', 'bin', 'codex'), join(a, 'Contents', 'Resources', 'codex-cli', 'CodexCLI.app', 'Contents', 'MacOS', 'codex')]) : []
+  return r.status === 0 ? r.stdout.split('\n').map((s) => s.trim()).filter((s) => s.endsWith('.app')).flatMap(inBundle) : []
 }
 
 /**
@@ -88,12 +105,14 @@ export function small(bin, args, ms = 8000) {
  */
 export async function findCodex(env = process.env, opts = {}) {
   const bin = findCodexBin(env, opts)
-  if (!bin) return { ready: false, bin: null, version: null, loggedIn: false, detail: '工作台没认出这台电脑上的 Codex 在哪（找过 Codex 桌面版和 codex 命令）：还不能把工作台接进 Codex，工作台网页照常能用', fix: '装好 Codex 桌面版并登录，再跟 AI 说“把工作台接进 Codex”' }
+  if (!bin) return codexUsed(env)
+    ? { ready: false, bin: null, version: null, loggedIn: false, detail: '这台电脑在用 Codex，但工作台没认出它的命令在哪（找过 Codex、ChatGPT 应用和 codex 命令）', fix: '在 Codex 里说一句“把工作台接进 Codex”，工作台会记下它的位置，再点“重新检查”' }
+    : { ready: false, bin: null, version: null, loggedIn: false, detail: `这台电脑上还没找到 ${APP_NAME}，工作台网页照常能用`, fix: '装好 ChatGPT 应用（里面带 Codex）并登录，再跟 AI 说“把工作台接进 Codex”' }
   let real = bin
   try { real = realpathSync(bin) } catch { /* 用原路径 */ }
   const [ver, login] = await Promise.all([small(real, ['--version']), small(real, ['login', 'status'])])
   const version = ver.ok ? ver.text.trim().split('\n').pop() : null
-  if (!ver.ok) return { ready: false, bin: real, version: null, loggedIn: false, detail: `找到了 Codex（${real}），但它没能正常运行`, fix: '打开 Codex 桌面版看看能不能用；不行就重装或更新 Codex' }
+  if (!ver.ok) return { ready: false, bin: real, version: null, loggedIn: false, detail: `找到了 Codex（${real}），但它没能正常运行`, fix: '打开 Codex（ChatGPT 应用）看看能不能用；不行就更新到最新版' }
   const loggedIn = login.ok && /logged in/i.test(login.text)
   if (!loggedIn) return { ready: false, bin: real, version, loggedIn: false, detail: 'Codex 装好了，但还没登录', fix: '打开 Codex 登录你的 ChatGPT 账号（或在终端运行 codex login），再刷新这一页' }
   return { ready: true, bin: real, version, loggedIn: true, detail: `本机 Codex（${version}）已登录`, fix: null }

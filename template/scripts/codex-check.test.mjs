@@ -5,7 +5,7 @@ import assert from 'node:assert/strict'
 import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import os from 'node:os'
-import { codexCandidates, findCodexBin, NOT_FOUND } from './codex-check.mjs'
+import { codexCandidates, findCodex, findCodexBin, NOT_FOUND } from './codex-check.mjs'
 
 const onlyUnix = process.platform === 'win32'
 const tmp = () => mkdtempSync(join(os.tmpdir(), 'wb-codex-'))
@@ -39,4 +39,33 @@ test('都找不到：返回 null，文案不断言“没装”；记下的位置
   assert.equal(findCodexBin({ HOME: tmp(), PATH: '' }, { remember, spotlight: false, system: false }), null)
   assert.ok(!/^这台电脑上没找到/.test(NOT_FOUND) && /没认出/.test(NOT_FOUND), NOT_FOUND)
   assert.ok(existsSync(remember))
+})
+
+// 2026-11-26 Mac mini 实测：Codex 桌面版现在叫 ChatGPT.app（包名还是 com.openai.codex），PATH 里没有 codex。三种都要认：
+// 只有 Codex.app、只有 ChatGPT.app、只装了命令行；应用改了名、只要包里带着 codex-cli 也认（ChatGPT Classic、Atlas 这类不带的不算）
+const appBin = (home, name) => exe(join(home, 'Applications', `${name}.app`, 'Contents', 'Resources', 'codex-cli', 'bin', 'codex'))
+for (const [what, make] of [
+  ['只有 Codex.app', (home) => appBin(home, 'Codex')],
+  ['只有 ChatGPT.app', (home) => appBin(home, 'ChatGPT')],
+  ['应用改了名（包里带 codex-cli）', (home) => appBin(home, 'Codex Beta')],
+  ['只装了命令行（~/.local/bin）', (home) => exe(join(home, '.local', 'bin', 'codex'))],
+]) {
+  test(`找 Codex：${what}`, { skip: onlyUnix }, () => {
+    const home = tmp()
+    mkdirSync(join(home, 'Applications', 'ChatGPT Classic.app', 'Contents', 'Resources'), { recursive: true })
+    const bin = make(home)
+    assert.equal(findCodexBin({ HOME: home, PATH: '' }, { remember: null, spotlight: false, system: false }), bin)
+  })
+}
+
+test('找不到时的说法：在用 Codex（有 ~/.codex）就不说“没装”，说工作台没认出命令在哪、怎么让它记下；没有 ~/.codex 才说去装，并说明现在在 ChatGPT 应用里', { skip: onlyUnix }, async () => {
+  const used = tmp()
+  mkdirSync(join(used, '.codex'))
+  const a = await findCodex({ HOME: used, PATH: '' }, { remember: null, spotlight: false, system: false })
+  assert.equal(a.ready, false)
+  assert.doesNotMatch(`${a.detail}${a.fix}`, /还不能把工作台接进 Codex|装好 Codex/)
+  assert.match(a.detail, /在用 Codex/)
+  assert.match(a.fix, /把工作台接进 Codex/)
+  const none = await findCodex({ HOME: tmp(), PATH: '' }, { remember: null, spotlight: false, system: false })
+  assert.match(`${none.detail}${none.fix}`, /ChatGPT 应用/)
 })

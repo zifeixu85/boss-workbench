@@ -204,7 +204,7 @@ test('Codex 里原来接的是另一个工作台：说一声，换成这一个',
 
 test('没有 Codex、Codex 太旧不认 plugin 命令：插件目录照样生成，告诉老板怎么办', { skip: onlyUnix }, async () => {
   const a = makeApp('nocodex')
-  assert.throws(() => installPlugin(ctxOf(a, null).o), /没认出这台电脑上的 Codex 在哪.*装好 Codex 桌面版并登录，再说一次“把工作台接进 Codex”/)
+  assert.throws(() => installPlugin(ctxOf(a, null).o), /没认出这台电脑上的 Codex 在哪.*装好 ChatGPT 应用（里面带 Codex）并登录，再说一次“把工作台接进 Codex”/)
   assert.ok(existsSync(join(a.app, OUT_DIR, 'plugins', PLUGIN, '.mcp.json')))
   const old = fakeCodex('codex-old', { old: true })
   assert.throws(() => installPlugin(ctxOf(a, old).o), /版本太旧，还不能装插件[\s\S]*更新到最新/)

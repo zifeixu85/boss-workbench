@@ -21,7 +21,7 @@ node scripts/codex-plugin.mjs install
 
 - 这是在改老板的 Codex 设置（只经 `codex plugin` 命令加一个本地插件，不直接改它的配置文件）。搭工作台时一起做，做之前说一声“我把工作台接进你的 Codex”；老板明确说不要就跳过，以后他说“把工作台接进 Codex”再跑。
 - 程序放在知识库外面的（知识库在云盘里），第一次接要带上 `WORKBENCH_ROOT`、`WORKBENCH_DB`（和安装时一样）；以后重新接不用再带，上次的位置记在插件目录里。
-- 找 Codex 的顺序：环境变量 `WORKBENCH_CODEX_BIN` → Codex 桌面版自带的命令行 → `PATH` 里的 `codex`。太老的 Codex 没有 `plugin` 命令，脚本会跳过它往下找；都不行就说“把 Codex 桌面版更新到最新”。
+- 找 Codex 的顺序：环境变量 `WORKBENCH_CODEX_BIN` → Codex 桌面版自带的命令行（2026-11 起桌面版叫 ChatGPT.app，包名还是 `com.openai.codex`，命令在 `ChatGPT.app/Contents/Resources/codex-cli/bin/codex`；老的 Codex.app、改了名但包里带 `codex-cli` 的也认）→ `PATH` 里的 `codex`。找到的位置记在工作台 `数据/codex-bin.txt`，页面里的 AI 助手照它用。太老的 Codex 没有 `plugin` 命令，脚本会跳过它往下找；都不行就说“把 Codex 桌面版更新到最新”。
 - 一台电脑的 Codex 只接一个工作台。接第二个时脚本会说“原来接的是另一个工作台”，换成新的这一个。
 
 ## 插件里有什么
@@ -78,7 +78,7 @@ node scripts/codex-check.mjs
 |---|---|
 | `ready: true` | 运行 `node scripts/codex-plugin.mjs install`，说“接好了，重开 Codex 试试” |
 | 找到了但没登录 | 插件照样能装；说“Codex 装好了但还没登录。打开 Codex 登录你的 ChatGPT 账号，就能在里面用工作台” |
-| 没找到 | 说“这台电脑上还没有 Codex，工作台网页照常能用。装好 Codex 桌面版并登录以后，跟我说‘把工作台接进 Codex’” |
+| 没找到 | 在用 Codex（有 `~/.codex`）：说“工作台没认出 Codex 的命令在哪，我现在把工作台接进 Codex，它会记下位置”。真没装：说“这台电脑上还没有 Codex（现在装在 ChatGPT 应用里），工作台网页照常能用。装好 ChatGPT 应用并登录以后，跟我说‘把工作台接进 Codex’” |
 | 不是用 Codex 在搭（用别的 AI 工具） | 电脑上有 Codex 就照样接；没有就告诉他“你现在用的工具也能读写工作台：让它用工作台命令（`node 工作台/程序/server/cli.ts`），页面会自动刷新” |
 
 不替老板装 Codex、不替他登录。
@@ -96,4 +96,5 @@ node scripts/codex-check.mjs
 
 - 已在 Mac 上实测（Codex 桌面版自带的 `codex-cli 0.164`，临时 `CODEX_HOME`，没动真实的 Codex 配置）：`install` / `status` / `uninstall` 跑通，路径带中文和空格也行；在一个和工作台无关的文件夹里用 `codex exec` 说一句进展 → 拆成清单预演 → 改一处 → 重新预演 → 确认 → 项目页的下一步、待办、往来记录都更新 → 工作台没开自己拉起来 → 拿到 `…/projects?embed=1&project=…`；装上行业资讯模块后不重装插件，新对话里能读资讯、拿到 `/news?embed=1`。
 - 全新的 Codex 环境里，第一次查全部插件清单要先同步远程目录，实测 71 秒；脚本只查本地这一个市场，不等它。
-- 还没验证：Codex 桌面版里 `open_in_codex` 真的把页面开在右侧面板（`codex exec` 里没有这个工具，只验证到拿到地址）；桌面版对写入工具会不会再弹一次“是否允许”；Windows（桌面版自带命令行的位置、`.cmd` 的调用、后台拉起工作台）。
+- 2026-11-26 A梦 在 Mac mini 的 ChatGPT 应用（Codex）里验证过：`open_in_codex` 把待办、客户详情开在右侧面板。
+- 还没验证：桌面版对写入工具会不会再弹一次“是否允许”；Windows（桌面版自带命令行的位置、`.cmd` 的调用、后台拉起工作台）。

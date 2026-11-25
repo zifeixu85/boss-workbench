@@ -183,8 +183,8 @@ export function findPluginCodex(ctx) {
 }
 
 const noCodex = (found) => (found.tried.length
-  ? `这台电脑上的 Codex 版本太旧，还不能装插件（试过：${found.tried.join('、')}）。把 Codex 桌面版更新到最新，再说一次“把工作台接进 Codex”`
-  : '工作台没认出这台电脑上的 Codex 在哪（找过 Codex 桌面版和 codex 命令）。装好 Codex 桌面版并登录，再说一次“把工作台接进 Codex”')
+  ? `这台电脑上的 Codex 版本太旧，还不能装插件（试过：${found.tried.join('、')}）。把 Codex（ChatGPT 应用）更新到最新，再说一次“把工作台接进 Codex”`
+  : '工作台没认出这台电脑上的 Codex 在哪（找过 Codex、ChatGPT 应用和 codex 命令）。装好 ChatGPT 应用（里面带 Codex）并登录，再说一次“把工作台接进 Codex”')
 
 /** 市场清单里 boss-workbench 那一行指向哪个文件夹（没加过返回 null）。codex 的输出是“名字 + 根目录”一行一条 */
 export function marketplaceRoot(listing) {
@@ -232,7 +232,7 @@ export function installPlugin(o = {}) {
   const state = pluginState(ctx, found.bin)
   if (state.known && !state.installed) fail('装完以后在 Codex 的插件清单里没看到“老板工作台”。运行 node scripts/codex-plugin.mjs status 看看；不行就把 Codex 更新到最新再试')
   ctx.say(`接好了：老板工作台插件 ${built.version}（用的 Codex：${found.bin}）。`)
-  ctx.say('把 Codex 桌面版关掉重开一次，新开一个对话，说一句“今天我先做哪件事？”试试；工作台会开在右边。')
+  ctx.say('把 Codex（ChatGPT 应用）关掉重开一次，新开一个对话，说一句“今天我先做哪件事？”试试；工作台会开在右边。')
   return { ...built, codex: found.bin, replaced: before && real(before) !== real(built.dir) ? before : null }
 }
 

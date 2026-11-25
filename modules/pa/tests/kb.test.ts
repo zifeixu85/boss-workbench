@@ -265,3 +265,18 @@ test('状态写的就是阶段名（未开始、进行中、已结束）：哪�
   assert.equal(stageOf(al, '进行中'), null, '案例不套阶段，阶段名也不加')
   assert.ok(!al.statuses.includes('进行中'))
 })
+
+test('老板自己结构的对象（开头没写“类型”，按对照表登记进来的）：不报缺字段、不报写法要改，标成自己的写法；照我们格式写的照常提示', () => {
+  // 木槿花艺这种：升级检查只在开头补了一行状态，正文是老板自己的写法
+  const own = parseObject('---\n状态: 进行中\n别名: 青岚、青岚设计工作室\n---\n\n# 青岚设计\n\n合作两年，每季度一单。\n', '3-客户需求库/企业客户/青岚设计.md')
+  assert.equal(own.own, true)
+  assert.deepEqual(own.missing, [])
+  assert.deepEqual(own.warnings, [])
+  assert.equal(own.status, '进行中')
+  assert.equal(own.now, '')
+  const plain = parseObject('# 半亩书店\n\n只写了正文\n', '3-客户需求库/企业客户/半亩书店.md')
+  assert.deepEqual([plain.own, plain.missing.length, plain.name], [true, 0, '半亩书店'])
+  const ours = parseObject('---\n类型: 客户\n名称: 云杉物流\n---\n\n## 现在\n在谈\n', '10-客户/云杉物流.md')
+  assert.equal(ours.own, false)
+  assert.deepEqual(ours.missing, ['状态', '更新', '确认', '隐私', '来源'])
+})

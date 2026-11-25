@@ -18,11 +18,14 @@ import { Children, useEffect, useRef, useState, type ReactNode } from 'react'
 import { ChevronRight } from 'lucide-react'
 import { Table } from '@/components/ui/table'
 import { cn } from '@/lib/utils'
+import { useEmbedded } from '@/lib/embed'
 
 /** 表格：自带滚动区域，表头吸顶。maxHeight 默认留出页头的高度 */
 export function StickyTable({ children, className, maxHeight = 'calc(100dvh - 230px)' }: { children: ReactNode; className?: string; maxHeight?: string }) {
+  // 嵌入模式（Codex 右边面板）：不自己限高，整页一起滚，表头照样吸顶
+  const embedded = useEmbedded()
   return (
-    <div className={cn('min-w-0 rounded-xl border bg-card shadow-paper', className)} style={{ '--tbl-h': maxHeight } as React.CSSProperties}>
+    <div className={cn('min-w-0 rounded-xl border bg-card shadow-paper', className)} style={{ '--tbl-h': embedded ? 'none' : maxHeight } as React.CSSProperties}>
       <Table containerClassName="max-h-(--tbl-h) overflow-auto rounded-xl [&_thead]:sticky [&_thead]:top-0 [&_thead]:z-10 [&_thead_th]:bg-surface-2 [&_thead_tr]:shadow-[0_1px_0_var(--border)]">
         {children}
       </Table>
@@ -34,6 +37,7 @@ export function StickyTable({ children, className, maxHeight = 'calc(100dvh - 23
  *  右边还有内容时，边缘淡出并给一个小箭头，提示可以往右滑 */
 export function Board({ children, className, minCol = 228 }: { children: ReactNode; className?: string; minCol?: number }) {
   const n = Children.count(children)
+  const embedded = useEmbedded()
   const ref = useRef<HTMLDivElement>(null)
   const [edge, setEdge] = useState({ left: false, right: false })
   useEffect(() => {
@@ -46,6 +50,8 @@ export function Board({ children, className, minCol = 228 }: { children: ReactNo
     el.addEventListener('scroll', check, { passive: true })
     return () => { ro.disconnect(); el.removeEventListener('scroll', check) }
   }, [n])
+  // 嵌入模式（Codex 右边面板，常常只有 500—1000 像素宽）：放不下的列折到下一行，不左右滑、不出横向滚动条
+  if (embedded) return <div className={cn('grid min-w-0 gap-3', className)} style={{ gridTemplateColumns: `repeat(auto-fill, minmax(min(${minCol}px, 100%), 1fr))` }}>{children}</div>
   return (
     <div className={cn('relative min-w-0', className)}>
       <div ref={ref} className="-mx-1 snap-x snap-mandatory overflow-x-auto px-1 pb-2 [scrollbar-width:thin] sm:snap-none">
@@ -64,8 +70,9 @@ export function Board({ children, className, minCol = 228 }: { children: ReactNo
 
 /** 看板列：每列自己滚动，列标题吸顶（规则⑤）；列内卡片可以拖动（拖放逻辑由页面决定） */
 export function BoardColumn({ title, meta, children, className, highlight }: { title: ReactNode; meta?: ReactNode; children: ReactNode; className?: string; highlight?: boolean }) {
+  const embedded = useEmbedded()
   return (
-    <section className={cn('flex max-h-[calc(100dvh-250px)] min-w-0 snap-start flex-col rounded-xl border bg-surface-2/60 transition-colors', highlight && 'border-primary bg-accent/60', className)}>
+    <section className={cn('flex min-w-0 snap-start flex-col', !embedded && 'max-h-[calc(100dvh-250px)]', 'rounded-xl border bg-surface-2/60 transition-colors', highlight && 'border-primary bg-accent/60', className, embedded && 'max-h-none')}>
       <header className="sticky top-0 z-10 flex flex-wrap items-center gap-x-2 gap-y-0.5 rounded-t-xl border-b bg-surface-2/95 px-3 py-2.5 backdrop-blur">
         {title}
         {meta && <span className="num ml-auto text-xs whitespace-nowrap text-muted-foreground">{meta}</span>}

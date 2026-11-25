@@ -2,7 +2,7 @@
 // 2026-10-17：侧栏里的新建、头像整行宽（wide），设置用和菜单项同一种样式（SideSettingsLink、sideItemCls）
 // 2026-10-13 分区 + 二级分组：搜索里的页面写成“分区 › 页面”；“更多”和汉堡菜单按分区分段；设置、组件规范从用户菜单进。
 // 菜单一律经 useNav（nav-sections.ts）取：模块开关关掉的模块不出现在搜索、底栏、“更多”、汉堡菜单里
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router'
 import { BookOpen, CalendarPlus, ChevronDown, Inbox, ListPlus, Menu, MessageSquarePlus, Plus, Search, UserPlus, UserRound, Check, Settings as SettingsIcon } from 'lucide-react'
 import { api, useApi, useWrite, type LiveState } from '@/lib/api'
@@ -206,7 +206,8 @@ export function UserMenu({ settings, compact, wide }: { settings?: Settings; com
 }
 
 /** 手机汉堡菜单：左上角按钮，左侧滑出完整菜单（分区 → 分组小标题 → 页面）；设置里可选“底部标签”或“汉堡菜单” */
-export function MobileMenuButton({ overview, business }: { overview?: Overview; business: string }) {
+/** 汉堡菜单：手机上（设置里选了抽屉导航）用；Codex 右边面板里也用它（always：宽屏也显示；footer：菜单底部再放点东西） */
+export function MobileMenuButton({ overview, business, always, footer }: { overview?: Overview; business: string; always?: boolean; footer?: ReactNode }) {
   const [open, setOpen] = useState(false)
   const { pathname } = useLocation()
   useEffect(() => setOpen(false), [pathname])
@@ -214,7 +215,7 @@ export function MobileMenuButton({ overview, business }: { overview?: Overview; 
   const activeId = resolveNav(pathname, sections).page?.id
   return (
     <>
-      <Button variant="ghost" size="icon" aria-label="打开菜单" onClick={() => setOpen(true)} className="md:hidden"><Menu /></Button>
+      <Button variant="ghost" size="icon" aria-label="打开菜单" onClick={() => setOpen(true)} className={always ? undefined : 'md:hidden'}><Menu /></Button>
       <Sheet open={open} onOpenChange={setOpen}>
         <SheetContent side="left" className="w-[82vw] max-w-[320px] gap-0 bg-sidebar p-0 text-sidebar-foreground">
           <SheetHeader className="border-b border-sidebar-border px-4 py-4"><SheetTitle asChild><div><Brand name={business} /></div></SheetTitle></SheetHeader>
@@ -241,6 +242,7 @@ export function MobileMenuButton({ overview, business }: { overview?: Overview; 
               </div>
             ))}
           </nav>
+          {footer && <div className="border-t border-sidebar-border px-3 py-3">{footer}</div>}
         </SheetContent>
       </Sheet>
     </>

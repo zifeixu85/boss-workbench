@@ -37,6 +37,8 @@ export type ObjectDetail = {
   object: {
     name: string; path: string; type: string; status: string; updated: string; confirm: string; privacy: string; aliases: string[]; workdirs: string[]
     now: string; next: { text: string; done: boolean }[]; missing: string[]; warnings: string[]; fields_shown: Field[]
+    /** 老板自己的写法：读不到的“现在”“下一步”不显示 */
+    own?: boolean
     /** 开头里其余的字段（作品的“工作台: xhs-piece:<编号>”从这里取） */
     fields?: Record<string, string>
   }

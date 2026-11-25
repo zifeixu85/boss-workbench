@@ -35,17 +35,18 @@ export function ObjectSheet({ path, onClose }: { path: string | null; onClose: (
       {d && o && (
         <>
           {(o.missing.length > 0 || o.warnings.length > 0) && <p className="mb-4 rounded-lg bg-warn-soft px-3 py-2 text-xs text-warn">{[o.missing.length ? `这份文件开头还缺：${o.missing.join('、')}` : '', ...o.warnings].filter(Boolean).join('；')}。</p>}
-          <SheetSection title="现在">
+          {/* 老板自己写法的文件（按对照表登记进来的）：没有“现在”“下一步”这两节就不显示，不催他补（约定 9.4） */}
+          {(!o.own || o.now) && <SheetSection title="现在">
             <p className="rounded-lg bg-accent px-3.5 py-3 text-sm leading-relaxed text-accent-foreground">{o.now || '文件里还没写“现在”这一节。'}</p>
-          </SheetSection>
+          </SheetSection>}
 
-          <SheetSection title="下一步">
+          {(!o.own || o.next.length > 0) && <SheetSection title="下一步">
             {o.next.length ? (
               <ul className="grid gap-1.5 text-sm">
                 {o.next.map((n) => <li key={n.text} className={`flex items-start gap-2 ${n.done ? 'text-muted-foreground line-through' : ''}`}>{n.done ? <CheckSquare className="mt-0.5 size-4 shrink-0" /> : <Square className="mt-0.5 size-4 shrink-0" />}<span>{n.text}</span></li>)}
               </ul>
             ) : <p className="text-sm text-muted-foreground">没写下一步。</p>}
-          </SheetSection>
+          </SheetSection>}
 
           <SheetSection title="时间线 · 人做的和 AI 做的放一起">
             {d.timeline.length ? (
