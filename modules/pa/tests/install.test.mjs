@@ -92,7 +92,7 @@ test('装上个人助理：我关注的、进展、产出、报告、助理都�
   const add = tool('add', 'pa', '--from', PACK, '--no-build')
   assert.equal(add.code, 0, add.out)
 
-  assert.deepEqual(json('pa-focus').classes.map((c) => [c.name, c.confirmed, c.statuses.length]), [['项目', true, 3], ['客户', false, 3]])
+  assert.deepEqual(json('pa-focus').classes.map((c) => [c.name, c.confirmed, c.statuses.length]), [['项目', true, 4], ['客户', false, 6]]) // 默认叫法加上三个阶段名（项目的“进行中”“已结束”本来就有）
   const list = json('pa-focus', '项目')
   assert.deepEqual(list.items[0].fields, [{ key: '截止', value: '2026-12-20' }, { key: '负责人', value: '孙蕾' }])
 

@@ -44,6 +44,8 @@ export function classStates(def: TypeDef, rename: Record<string, string>, mappin
   const add = (label: string, stage?: Stage) => { if (!statuses.includes(label)) statuses.push(label); if (stage) stageOf[label] = stage }
   for (const s of def.statuses) add(rename[s] ?? s, def.stages?.[s])
   for (const s of def.statuses) if (rename[s] && def.stages?.[s]) stageOf[s] = def.stages[s] // 文件里还写原来的叫法也认
+  // 状态写的就是阶段名，哪一类都直接归那个阶段，不用写进对照（和知识库工具一致）；不分阶段的类（案例）不加
+  if (def.stages) for (const st of STAGES) if (!stageOf[st]) add(st, st)
   for (const pair of mapping.split(/[;；]/).map((x) => x.trim()).filter(Boolean)) {
     const m = pair.match(/^(.+?)\s*[=＝]\s*(.+)$/)
     if (!m) { problems.push(`${def.name}的状态对照“${pair}”要写成“自己的值=阶段”`); continue }

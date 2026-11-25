@@ -6,7 +6,7 @@ import { listSessions, type SessionView } from './store.ts'
 import { listOutputs } from './outputs.ts'
 import type { FocusClass, KbObject } from './types.ts'
 import { kbFiles } from './text.ts'
-import { STAGES, UNMATCHED, UNSET } from './stages.ts'
+import { STAGES, UNMATCHED, UNSET, stageOf } from './stages.ts'
 
 const KNOWN: Record<string, (o: KbObject) => string> = { 更新: (o) => o.updated, 确认: (o) => o.confirm, 状态: (o) => o.status }
 /** 列表上显示的字段：先看开头里有没有这个字段，没有就空着 */
@@ -20,12 +20,7 @@ export function focusNav() {
 
 /** 状态显示成本人的叫法（文件里写原名或新叫法都认） */
 const shown = (cls: FocusClass, status: string) => cls.rename[status] ?? status
-/** 这个状态在哪个阶段（约定 10.2）：对不上的是“未归类”，没写的是“没标”；不分阶段的类（案例）是 null */
-export const stageOf = (cls: FocusClass, status: string): string | null => {
-  if (!Object.keys(cls.stageOf ?? {}).length) return null
-  if (!status) return UNSET
-  return cls.stageOf[shown(cls, status)] ?? cls.stageOf[status] ?? UNMATCHED
-}
+export { stageOf }
 
 function summary(cls: FocusClass, o: KbObject, sessions: SessionView[]) {
   const mine = sessions.filter((s) => s.object?.path === o.path)

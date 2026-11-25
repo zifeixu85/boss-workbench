@@ -52,7 +52,7 @@ test('“我关注的”：只认类型库里的；还没做页面的、库里�
   const r = parseProfile(PROFILE)
   assert.deepEqual(r.classes.map((c) => [c.name, c.folder, c.confirmed]), [['项目', '02-项目', true], ['客户', '10-客户', true], ['产品', '11-产品', false]])
   const kh = r.classes[1]
-  assert.deepEqual(kh.statuses, ['跟进中', '合作中', '沉默'], '“在谈”换成本人的叫法')
+  assert.deepEqual(kh.statuses, ['跟进中', '合作中', '沉默', '未开始', '进行中', '已结束'], '“在谈”换成本人的叫法；阶段名本身也收')
   assert.deepEqual(kh.rename, { 在谈: '跟进中' })
   assert.deepEqual(kh.fields, ['上次联系', '下次跟进'])
   assert.ok(r.problems.some((p) => /渠道.*还没做/.test(p)))
@@ -225,8 +225,8 @@ test('“我关注的”的状态字段、状态对照（右边写三个阶段�
   const r = parseProfile(md)
   const [xm, kh, al] = r.classes
   assert.equal(xm.statusField, 'status')
-  assert.deepEqual(xm.stageOf, { 进行中: '进行中', 搁着: '已结束', 已结束: '已结束', active: '进行中', waiting: '已结束', completed: '已结束' })
-  assert.deepEqual(xm.statuses, ['进行中', '搁着', '已结束', 'active', 'waiting', 'completed'])
+  assert.deepEqual(xm.stageOf, { 进行中: '进行中', 搁着: '已结束', 已结束: '已结束', 未开始: '未开始', active: '进行中', waiting: '已结束', completed: '已结束' })
+  assert.deepEqual(xm.statuses, ['进行中', '搁着', '已结束', '未开始', 'active', 'waiting', 'completed'])
   assert.equal(kh.statusField, '阶段')
   assert.equal(kh.stageOf['跟进中'], '未开始', '换了叫法的跟着原来的“在谈”归未开始')
   assert.equal(kh.stageOf['意向'], '未开始')
@@ -234,4 +234,34 @@ test('“我关注的”的状态字段、状态对照（右边写三个阶段�
   assert.ok(r.problems.some((p) => /签了=成交/.test(p) && /未开始、进行中、已结束/.test(p)))
   assert.deepEqual(al.stageOf, {}, '案例不套阶段')
   assert.equal(al.statusField, '状态')
+})
+
+test('状态写的就是阶段名（未开始、进行中、已结束）：哪一类都直接归那个阶段，不用写进对照；写了对照，类型库的默认叫法照样兜底（和知识库工具一致）', async () => {
+  const { stageOf } = await import('../files/server/modules/pa/stages.ts')
+  // 知识库工具升级检查写出来的样子：原话恰好是阶段名的不进对照；产品那行对照空着
+  const md = `## 我关注的
+
+| 类型 | 文件夹 | 确认 | 文件怎么认 | 名称取自 | 状态字段 | 状态对照 |
+|---|---|---|---|---|---|---|
+| 项目 | 7-正在做的事 | 已确认 |  |  |  | 暂停=已结束；弄完了=已结束 |
+| 客户 | 3-客户需求库 | 已确认 | 企业客户/*.md |  |  | 报了价没回=未开始；在合作=进行中 |
+| 产品 | 2-产品库 | 已确认 |  |  |  |  |
+| 案例 | 12-案例 | 已确认 |  |  |  |  |
+`
+  const { classes, problems } = parseProfile(md)
+  assert.deepEqual(problems, [])
+  const [xm, kh, cp, al] = classes
+  assert.equal(stageOf(kh, '进行中'), '进行中')
+  assert.equal(stageOf(kh, '已结束'), '已结束')
+  assert.equal(stageOf(kh, '未开始'), '未开始')
+  assert.equal(stageOf(kh, '报了价没回'), '未开始')
+  assert.equal(stageOf(kh, '合作中'), '进行中', '默认叫法照样认')
+  assert.equal(stageOf(xm, '进行中'), '进行中')
+  assert.equal(stageOf(xm, '暂停'), '已结束')
+  assert.equal(stageOf(cp, '在卖'), '进行中', '对照空着，默认叫法兜底')
+  assert.equal(stageOf(kh, '有点悬'), '未归类')
+  assert.equal(stageOf(kh, ''), '没标')
+  assert.ok(kh.statuses.includes('已结束'), '对话里 pa-update 写阶段名也收')
+  assert.equal(stageOf(al, '进行中'), null, '案例不套阶段，阶段名也不加')
+  assert.ok(!al.statuses.includes('进行中'))
 })

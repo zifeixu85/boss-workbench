@@ -46,7 +46,7 @@ export default function FocusPage() {
   const byStage = stages ? Object.entries(cls.stageOf ?? {}).reduce<Record<string, string[]>>((m, [label, st]) => ({ ...m, [st]: [...(m[st] ?? []), label] }), {}) : null
   return (
     <>
-      <PageHeader eyebrow="我关注的" title={cls.name} desc={`知识库 ${cls.folder}/ 里的每一份文件是一个${cls.name}（${byStage ? `状态分三个阶段：${Object.entries(byStage).map(([st, ls]) => `${st}（${ls.join('、')}）`).join('，')}` : `状态有${cls.statuses.join('、')}`}）。这一页只读；要改，在对话里让助理改知识库。`} />
+      <PageHeader eyebrow="我关注的" title={cls.name} desc={`知识库 ${cls.folder}/ 里的每一份文件是一个${cls.name}（${byStage ? `状态分三个阶段：${Object.entries(byStage).map(([st, ls]) => `${st}${ls.some((l) => l !== st) ? `（${ls.filter((l) => l !== st).join('、')}）` : ''}`).join('，')}` : `状态有${cls.statuses.join('、')}`}）。这一页只读；要改，在对话里让助理改知识库。`} />
       <PageBody className="grid gap-4">
         {!cls.confirmed && (
           <Alert><AlertTitle>这一类还没确认</AlertTitle><AlertDescription>“{cls.name}”是 AI 按你的资料提的分类，知识库档案里还标着待确认。看着对就在对话里说一声“{cls.name}这一类确认”。</AlertDescription></Alert>
