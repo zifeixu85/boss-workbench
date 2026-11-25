@@ -44,7 +44,8 @@
       { "command": "xhs", "what": "小红书：今天发什么、今天的选题、近两周排期" }
     ],
     "write": [
-      { "command": "xhs-topics-add", "what": "把一批选题写进灵感池（同名的跳过）" }
+      { "command": "xhs-topics-add", "what": "把一批选题写进灵感池（同名的跳过）" },
+      { "command": "xhs-draft-save", "what": "内容助理写完一篇：存成内容页里的草稿、知识库里的作品（--draft 稿件 JSON，改稿带 --id）；只回标题、一句说明和打开方式" }
     ]
   },
   "replaces": {

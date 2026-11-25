@@ -22,7 +22,7 @@ export const TYPE_LIBRARY: TypeDef[] = [
   { name: '客户', what: '付钱或可能付钱的人和公司', statuses: ['在谈', '合作中', '沉默'], fields: ['上次联系', '下次跟进'], links: ['项目', '产品', '案例'], icon: 'Users', page: true },
   { name: '产品', what: '卖的东西，含服务和课程', statuses: ['在卖', '筹备', '下架'], fields: ['价格'], links: ['项目', '渠道'], icon: 'Package', page: true },
   { name: '案例', what: '做成或没做成的一单，可复用', statuses: ['可对外', '仅内部'], fields: ['日期', '结果'], links: ['客户', '产品'], icon: 'FileText', page: true },
-  { name: '作品', what: '发出去的内容', statuses: ['草稿', '已发', '下线'], fields: ['平台', '日期'], links: ['渠道', '项目'], icon: 'PenLine', page: false },
+  { name: '作品', what: '发出去的内容', statuses: ['草稿', '已发', '下线'], fields: ['平台', '日期'], links: ['渠道', '项目'], icon: 'PenLine', page: true },
   { name: '渠道', what: '卖货或发内容的地方', statuses: ['在做', '观察', '停了'], fields: ['负责人'], links: ['产品', '作品'], icon: 'Megaphone', page: false },
   { name: '门店', what: '线下的点', statuses: ['营业', '筹备', '关停'], fields: ['负责人'], links: ['产品'], icon: 'Store', page: false },
   { name: '伙伴', what: '团队成员、供应商、合作方', statuses: ['在合作', '暂停'], fields: ['角色', '上次联系'], links: ['项目'], icon: 'Handshake', page: false },

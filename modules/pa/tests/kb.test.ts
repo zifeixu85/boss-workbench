@@ -9,9 +9,9 @@ import { parseReport, periodOf, reportSummary } from '../files/server/modules/pa
 import { front, unlink } from '../files/server/modules/pa/text.ts'
 import { cardLines, memoryStats, CARD_MAX_LINES, MEMORY_MAX_LINES } from '../files/server/modules/pa/role-parse.ts'
 
-test('类型库：九种类型，前四种出页面；每种有状态、列表字段、常关联', () => {
+test('类型库：九种类型，前五种出页面（作品 2026-11-25 加，内容助理写的每篇存成一个作品）；每种有状态、列表字段、常关联', () => {
   assert.deepEqual(TYPE_LIBRARY.map((t) => t.name), ['项目', '客户', '产品', '案例', '作品', '渠道', '门店', '伙伴', '主题'])
-  assert.deepEqual(PAGE_TYPES, ['项目', '客户', '产品', '案例'])
+  assert.deepEqual(PAGE_TYPES, ['项目', '客户', '产品', '案例', '作品'])
   const kh = TYPE_LIBRARY.find((t) => t.name === '客户')!
   assert.deepEqual([kh.statuses, kh.fields, kh.links], [['在谈', '合作中', '沉默'], ['上次联系', '下次跟进'], ['项目', '产品', '案例']])
 })
@@ -25,7 +25,7 @@ const PROFILE = `# 知识库档案
 | 项目 | 02-项目 | 已确认 |
 | 客户 | \`10-客户\` | 已确认 |
 | 产品 | 11-产品/ | 待确认 |
-| 作品 | 12-作品 | 已确认 |
+| 渠道 | 12-渠道 | 已确认 |
 | 学员 | 13-学员 | 已确认 |
 
 ### 叫法
@@ -55,7 +55,7 @@ test('“我关注的”：只认类型库里的；还没做页面的、库里�
   assert.deepEqual(kh.statuses, ['跟进中', '合作中', '沉默'], '“在谈”换成本人的叫法')
   assert.deepEqual(kh.rename, { 在谈: '跟进中' })
   assert.deepEqual(kh.fields, ['上次联系', '下次跟进'])
-  assert.ok(r.problems.some((p) => /作品.*还没做/.test(p)))
+  assert.ok(r.problems.some((p) => /渠道.*还没做/.test(p)))
   assert.ok(r.problems.some((p) => /学员.*不在类型库/.test(p)))
   assert.deepEqual(r.candidates, [{ what: '学员', count: 6, at: '2026-11-24' }])
   assert.deepEqual(r.reports, { 日报: false, 周报: true, 月报: true })
@@ -190,4 +190,9 @@ test('角色文件（约定 v0.4 第 5.3、5.5 节）：人设数正文行数，
   assert.deepEqual(memoryStats(''), { lines: 0, entries: 0, undated: 0, first: '', last: '' })
   // 全角竖线、半角竖线都认
   assert.equal(memoryStats('- 2026-11-24 | 规矩；原因\n').undated, 0)
+})
+
+test('详情里“这个对象里的东西”：来源写的是一句话（和 AI 的对话）不当成文件；双链、路径照常补 .md', async () => {
+  const { kbFiles } = await import('../files/server/modules/pa/text.ts')
+  assert.deepEqual(kbFiles(['13-作品/一篇.md', '和内容助理的对话', '99-原始材料/a', '工作台内容页：/content/studio/p_1', '知识库档案.md']), ['13-作品/一篇.md', '99-原始材料/a.md', '知识库档案.md'])
 })

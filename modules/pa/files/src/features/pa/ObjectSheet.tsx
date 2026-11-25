@@ -11,6 +11,8 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { KbFile, ObjectStatus, SessionBadge, kbLink, when } from './parts'
 import type { ObjectDetail } from './types'
 
+const xhsPiece = (v?: string) => v?.match(/^xhs-piece:([\w-]+)$/)?.[1]
+
 export function ObjectSheet({ path, onClose }: { path: string | null; onClose: () => void }) {
   const { data: d, error } = useApi<ObjectDetail>(path ? `/m/pa/object?path=${encodeURIComponent(path)}` : null)
   const o = d?.object
@@ -23,7 +25,11 @@ export function ObjectSheet({ path, onClose }: { path: string | null; onClose: (
         {o.confirm && o.confirm !== '已确认' && <StatusBadge value={o.confirm} tone={o.confirm === '已过期' ? 'danger' : 'warn'} />}
         {o.privacy === '私密' && <StatusBadge value="私密" tone="neutral" />}
       </>}
-      actions={o && <Button asChild size="sm" variant="outline"><Link to={kbLink(o.path)}>看知识库原文</Link></Button>}>
+      actions={o && <>
+        {/* 内容助理写的作品：开头记着它在工作台内容页的编号（工作台: xhs-piece:<编号>），能直接去看图文预览 */}
+        {xhsPiece(o.fields?.['工作台']) && <Button asChild size="sm"><Link to={`/content/studio/${xhsPiece(o.fields?.['工作台'])}`}>看图文预览</Link></Button>}
+        <Button asChild size="sm" variant="outline"><Link to={kbLink(o.path)}>看知识库原文</Link></Button>
+      </>}>
       {error && !d && <EmptyNote>没读到这个对象：{error.message}</EmptyNote>}
       {!d && !error && <div className="grid gap-3"><Skeleton className="h-16" /><Skeleton className="h-40" /></div>}
       {d && o && (

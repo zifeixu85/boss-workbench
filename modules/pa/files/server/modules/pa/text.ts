@@ -117,3 +117,6 @@ export function looksLikeAsking(text: string | null | undefined): boolean {
     return false
   })
 }
+
+/** 详情里列的知识库文件：对象自己、来源、关联里的路径（没带扩展名的补 .md）。来源只是一句话的（“和 AI 的对话”）不当成文件 */
+export const kbFiles = (list: string[]): string[] => [...new Set(list.filter((p) => !/[：:]/.test(p) && (p.includes('/') || /\.md$/i.test(p))).map((p) => (/\.[a-z0-9]+$/i.test(p) ? p : `${p}.md`)))]

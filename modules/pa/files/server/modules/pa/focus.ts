@@ -5,6 +5,7 @@ import { allObjects, findObject, focusClasses, objectsOf } from './kb.ts'
 import { listSessions, type SessionView } from './store.ts'
 import { listOutputs } from './outputs.ts'
 import type { FocusClass, KbObject } from './types.ts'
+import { kbFiles } from './text.ts'
 
 const KNOWN: Record<string, (o: KbObject) => string> = { 更新: (o) => o.updated, 确认: (o) => o.confirm, 状态: (o) => o.status }
 /** 列表上显示的字段：先看开头里有没有这个字段，没有就空着 */
@@ -60,12 +61,12 @@ export function focusObject(path: string) {
   return {
     class: cls, object: { ...o, status: shown(cls, o.status), fields_shown: cls.fields.map((k) => ({ key: k, value: fieldOf(o, k) })) },
     timeline, sessions, files: files.items, files_total: files.total, links, backlinks,
-    kb_files: [...new Set([o.path, ...o.source, ...o.sources].map(mdPath))],
+    kb_files: kbFiles([o.path, ...o.source, ...o.sources]),
   }
 }
 
 /** 双链里的路径不带 .md：补上，知识库页才打得开 */
-const mdPath = (p: string) => (/\.[a-z0-9]+$/i.test(p) ? p : `${p}.md`)
+
 
 const localDay = (iso: string) => { const d = new Date(iso); const p = (n: number) => String(n).padStart(2, '0'); return Number.isNaN(d.getTime()) ? '' : `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}` }
 
