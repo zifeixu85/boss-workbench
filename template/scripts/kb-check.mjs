@@ -30,6 +30,12 @@ export const DEFAULT_PATTERNS = ['*.md', '*/README.md']
 // 用 * 认到的这些不算对象；最后一段写明了文件名（比如 README.md）才算
 const NOT_OBJECT = /^(readme|readme-知识库|index|索引|agents|claude)\.md$/i
 const SKIP_DIRS = new Set(['工作台', 'node_modules'])
+/**
+ * 一份写着很多个对象的汇总（客户原话集、成交反馈、价格表、商机总表……）不算一个对象（约定 9.7）。
+ * 只看文件名的结尾；“文件怎么认”里写明了文件名的照认。和知识库工具 scripts/mapping.mjs 的 SUMMARY_NAME 是同一份词表，改要两边一起改。
+ */
+export const SUMMARY_NAME = /(总表|汇总|清单|列表|价格表|价目表|报价单|原话集|合集|集锦|反馈|模板|索引|目录)\.md$/i
+export const isSummaryName = (name) => SUMMARY_NAME.test(name)
 
 const isDir = (p) => { try { return statSync(p).isDirectory() } catch { return false } }
 const isFile = (p) => { try { return statSync(p).isFile() } catch { return false } }
@@ -62,7 +68,7 @@ function typeOf(abs) {
 
 /**
  * 一类对象的文件（约定 9.3）：按“文件怎么认”找，* 代表任意一段名字、一段一层；没写就是 <名称>.md 或 <名称>/README.md。
- * 用 * 认到的 README、索引这类不算，写明了文件名的才算；开头写了“类型”、又不是这一类的不算（项目层里“类型: 待办”的近期要事）。
+ * 用 * 认到的 README、索引、汇总（原话集、价格表……）这类不算，写明了文件名的才算；开头写了“类型”、又不是这一类的不算（项目层里“类型: 待办”的近期要事）。
  * 返回从知识库根目录起的路径，排好序。
  */
 export function objectFiles(root, folder, patterns, type) {
@@ -80,7 +86,7 @@ export function objectFiles(root, folder, patterns, type) {
         if (e.name.startsWith('.') || SKIP_DIRS.has(e.name) || !re.test(e.name)) continue
         const rel = `${dirRel}/${e.name}`
         if (rest.length > 1) { if (e.isDirectory()) walk(rel, rest.slice(1)); continue }
-        if (!e.isFile() || !/\.md$/i.test(e.name) || (!literal && NOT_OBJECT.test(e.name))) continue
+        if (!e.isFile() || !/\.md$/i.test(e.name) || (!literal && (NOT_OBJECT.test(e.name) || isSummaryName(e.name)))) continue
         const t = type ? typeOf(join(root, rel)) : ''
         if (t && t !== type && TYPE_ALIAS[t.toLowerCase()] !== type) continue
         found.add(rel)

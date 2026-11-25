@@ -4,7 +4,7 @@ import assert from 'node:assert/strict'
 import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import os from 'node:os'
-import { checkKb, checkText, deriveClasses, objectFiles, splitPatterns, NEXT_SAY, ASSISTANT_SAY, DEFAULT_POSITIONS } from './kb-check.mjs'
+import { checkKb, checkText, deriveClasses, objectFiles, isSummaryName, splitPatterns, NEXT_SAY, ASSISTANT_SAY, DEFAULT_POSITIONS } from './kb-check.mjs'
 
 function kb(files) {
   const root = mkdtempSync(join(os.tmpdir(), 'wb-kbcheck-'))
@@ -158,4 +158,19 @@ test('旧结构推客户：客户在分组文件夹里（04-客户/企业客户/
   const f = page(r, 'focus')
   assert.deepEqual(f.classes.map((c) => [c.name, c.count]), [['客户', 1]])
   assert.match(f.note, /项目没推出来（06-项目 里没有文件）/)
+})
+
+test('汇总文件不算对象（约定 9.7，和知识库工具 SUMMARY_NAME 同一份词表）：用 * 认到的原话集、反馈、价格表这类跳过；写明了文件名的照认', () => {
+  const root = kb({
+    '3-客户需求库/客户原话集.md': 'x', '3-客户需求库/成交反馈.md': 'x', '3-客户需求库/未成交记录.md': 'x', '3-客户需求库/评论区痛点.md': 'x',
+    '3-客户需求库/企业客户/青禾书店.md': 'x', '3-客户需求库/企业客户/商机总表.md': 'x', '3-客户需求库/企业客户/目录.md': 'x',
+    '2-产品库/花束订阅.md': 'x', '2-产品库/价格表.md': 'x', '2-产品库/报价单.md': 'x', '2-产品库/文案模板.md': 'x',
+  })
+  assert.deepEqual(objectFiles(root, '3-客户需求库', ['企业客户/*.md'], '客户'), ['3-客户需求库/企业客户/青禾书店.md'])
+  assert.deepEqual(objectFiles(root, '2-产品库', ['*.md'], '产品'), ['2-产品库/花束订阅.md'])
+  // 没被词表盖住的（未成交记录、评论区痛点）照认，要不要算客户由升级检查问
+  assert.deepEqual(objectFiles(root, '3-客户需求库', ['*.md'], '客户'), ['3-客户需求库/评论区痛点.md', '3-客户需求库/未成交记录.md'])
+  assert.deepEqual(objectFiles(root, '2-产品库', ['价格表.md'], '产品'), ['2-产品库/价格表.md'])
+  for (const name of ['总表', '汇总', '清单', '列表', '价格表', '价目表', '报价单', '原话集', '合集', '集锦', '反馈', '模板', '索引', '目录']) assert.ok(isSummaryName(`客户${name}.md`), name)
+  assert.ok(!isSummaryName('青禾书店.md'))
 })
