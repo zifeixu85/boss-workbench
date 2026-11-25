@@ -1,7 +1,9 @@
 // 这个模块里来回传的数据形状。对话记录只取这些元信息，不取正文。
 
 /** “我关注的”里启用的一类：类型库里的定义 + 这份库的文件夹、叫法、确认 */
-export type FocusClass = { name: string; folder: string; statuses: string[]; fields: string[]; links: string[]; icon: string; rename: Record<string, string>; confirmed: boolean }
+export type FocusClass = { name: string; folder: string; statuses: string[]; fields: string[]; links: string[]; icon: string; rename: Record<string, string>; confirmed: boolean
+  /** “文件怎么认”：几种放法（* 一段一层）；没写就是 <名称>.md 或 <名称>/README.md */
+  match?: string[] }
 
 export type KbObject = {
   type: string; name: string

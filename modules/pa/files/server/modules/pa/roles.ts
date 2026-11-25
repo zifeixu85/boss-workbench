@@ -8,6 +8,7 @@ import { join } from 'node:path'
 import { ROOT } from '../../db.ts'
 import { canReadKbPath, readKbTextFile } from '../../services/kb.ts'
 import { front, sections, str, type MetaValue } from './text.ts'
+import { places } from './places.ts'
 import { CARD_MAX_LINES, MEMORY_MAX_LINES, SOUL_MAX_LINES, cardLines, memoryStats } from './role-parse.ts'
 
 export const ROLE_KINDS = ['总助', '内容', '分身', '合伙人'] as const
@@ -19,8 +20,9 @@ export type Role = { kind: RoleKind; name: string; display: string; folder: stri
 export type UserFile = { path: string; exists: boolean; updated: string; confirm: string; problems: string[] }
 export type Roles = { base: string; exists: boolean; roles: Role[]; problems: string[]; user: UserFile }
 
-const BASE = '01-关于我/助理'
-const USER_PATH = '01-关于我/USER.md'
+// 放哪按档案的“位置”（约定 9.2，助理、你是谁这一页由建助理的引导工具登记），没登记用默认 01-关于我/助理、01-关于我/USER.md
+const base = () => places()['助理']
+const userPath = () => places()['你是谁这一页']
 const IDENTITY_SECTIONS = ['我是谁', '我怎么称呼你', '我管什么，不管什么']
 const SOUL_SECTIONS = ['我怎么想', '我怎么说话', '我会说的，和我绝不说的', '什么时候我会反对你', '每次开始先读什么', '我能自己做的', '要先问你的', '我不做的', '定期要做的']
 const PARTNER_SECTIONS = ['专业或思路来源', '边界']
@@ -74,7 +76,7 @@ function roleFile(kind: RoleKind, folder: string, name: RoleFileName, optional =
 const NEW_FILES = ['IDENTITY', 'SOUL', 'MEMORY'] as const
 const OLD_FILES = ['角色', '规矩', '记忆'] as const
 
-function roleAt(dir: string): Role | null {
+function roleAt(dir: string, BASE = base()): Role | null {
   const m = dir.match(/^(总助|内容|分身|合伙人)(?:[-－—·\s]+(.+))?$/)
   if (!m) return null
   const kind = m[1] as RoleKind
@@ -103,6 +105,7 @@ function roleAt(dir: string): Role | null {
 }
 
 function userFile(): UserFile {
+  const USER_PATH = userPath()
   if (!readable(USER_PATH)) return { path: USER_PATH, exists: false, updated: '', confirm: '', problems: [] }
   const { meta, body } = front(readRel(USER_PATH))
   const missing = missingOf(body, USER_SECTIONS)
@@ -111,16 +114,17 @@ function userFile(): UserFile {
 
 /** 按文件夹列出全部角色：总助、内容助理、分身、合伙人，同类里旧格式排后面、再按名字排。不认识的文件夹写进 problems */
 export function roles(): Roles {
+  const BASE = base()
   const dir = join(ROOT, BASE)
   const exists = existsSync(dir) && canReadKbPath(dir)
   const user = userFile()
   if (!exists) return { base: BASE, exists, roles: [], problems: [], user }
   const dirs = readdirSync(dir, { withFileTypes: true }).filter((e) => e.isDirectory() && !e.name.startsWith('.')).map((e) => e.name)
-  const list = dirs.map(roleAt).filter((r): r is Role => !!r)
+  const list = dirs.map((d) => roleAt(d, BASE)).filter((r): r is Role => !!r)
     .sort((a, b) => ROLE_KINDS.indexOf(a.kind) - ROLE_KINDS.indexOf(b.kind) || Number(a.legacy) - Number(b.legacy) || a.name.localeCompare(b.name, 'zh'))
   const chiefs = list.filter((r) => r.kind === '总助')
   const problems = [
-    ...dirs.filter((d) => !roleAt(d)).map((d) => `“${d}”认不出是哪种助理（文件夹名要以 总助-、内容-、分身-、合伙人- 开头）`),
+    ...dirs.filter((d) => !roleAt(d, BASE)).map((d) => `“${d}”认不出是哪种助理（文件夹名要以 总助-、内容-、分身-、合伙人- 开头）`),
     ...(chiefs.length > 1 ? [`总助只能有一个，现在有 ${chiefs.length} 个：${chiefs.map((r) => r.folder.split('/').pop()).join('、')}`] : []),
   ]
   return { base: BASE, exists, roles: list, problems, user }

@@ -4,7 +4,7 @@ import assert from 'node:assert/strict'
 import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import os from 'node:os'
-import { checkKb, checkText, deriveClasses, NEXT_SAY } from './kb-check.mjs'
+import { checkKb, checkText, deriveClasses, objectFiles, splitPatterns, NEXT_SAY, ASSISTANT_SAY, DEFAULT_POSITIONS } from './kb-check.mjs'
 
 function kb(files) {
   const root = mkdtempSync(join(os.tmpdir(), 'wb-kbcheck-'))
@@ -34,21 +34,21 @@ test('没有档案的已有知识库（比如自己一直在用的 Obsidian）�
   assert.equal(r.ready, false)
   assert.equal(page(r, 'progress').status, '能用')
   assert.equal(page(r, 'outputs').status, '能用')
-  for (const id of ['focus', 'roles', 'reports']) assert.equal(page(r, id).status, '要升级检查', id)
+  for (const id of ['focus', 'reports']) assert.equal(page(r, id).status, '要升级检查', id)
+  assert.equal(page(r, 'roles').status, '还没建助理')
   assert.match(page(r, 'focus').need, /知识库档案/)
-  assert.match(page(r, 'roles').need, /助理/)
   assert.equal(r.next, NEXT_SAY)
   const text = checkText(r)
   assert.match(text, /现在就能用/)
   assert.match(text, /要先做升级检查/)
   assert.match(text, /检查一下我的知识库/)
-  assert.ok(text.split('\n').length <= 20, '一屏说清')
+  assert.ok(text.split('\n').length <= 22, '一屏说清')
 })
 
 test('老板知识库工具建的旧结构（01-AI协作/建库档案.md）：没有“我关注的”表，按标准层推出客户、项目，标待确认', () => {
   const r = checkKb(kb({ '01-AI协作/建库档案.md': '---\n格式: 老板知识库/2\n---\n', '02-关于我/基本情况.md': 'x', '04-客户/README.md': 'x', '04-客户/云杉.md': 'x', '06-项目/春节茶礼.md': 'x', '00-收件箱/': '' }))
   assert.equal(r.profile.path, '01-AI协作/建库档案.md')
-  assert.equal(r.profile.kind, '旧结构')
+  assert.equal(r.profile.kind, '老板知识库')
   const f = page(r, 'focus')
   assert.equal(f.status, '能用')
   assert.deepEqual(f.classes.map((c) => [c.name, c.folder, c.ok, c.derived]), [['客户', '04-客户', true, true], ['项目', '06-项目', true, true]])
@@ -107,4 +107,55 @@ test('知识库文件夹不存在、不是文件夹：直接说清，不猜', ()
   const r = checkKb('/没有这个文件夹/xyz')
   assert.equal(r.exists, false)
   assert.match(checkText(r), /找不到这个文件夹/)
+})
+
+// ── v0.7（2026-11-26 知识库和助理解耦）
+test('只缺助理：不算知识库有问题，不指向升级检查；下一步说“认识一下我的总助”', () => {
+  const r = checkKb(kb({ '知识库档案.md': PROFILE, '02-项目/a.md': 'x', '10-客户/b.md': 'x', '90-日志与报告/': '', '00-收件箱/': '' }))
+  const roles = page(r, 'roles')
+  assert.equal(roles.status, '还没建助理')
+  assert.doesNotMatch(roles.need, /升级检查/)
+  assert.deepEqual(r.says.map((s) => s.say), [ASSISTANT_SAY])
+  const text = checkText(r)
+  assert.match(text, /知识库对得上/)
+  assert.match(text, /认识一下我的总助/)
+  assert.doesNotMatch(text, /检查一下我的知识库/)
+  assert.doesNotMatch(text, /要先做升级检查/)
+})
+
+test('知识库和助理都缺：两句都给，先知识库后助理', () => {
+  const r = checkKb(kb({ 'AGENTS.md': '# 库' }))
+  assert.deepEqual(r.says.map((s) => s.say), [NEXT_SAY, ASSISTANT_SAY])
+  const text = checkText(r)
+  assert.ok(text.indexOf('检查一下我的知识库') < text.indexOf('认识一下我的总助'))
+  assert.equal(page(r, 'roles').status, '还没建助理')
+  assert.equal(page(r, 'focus').status, '要升级检查')
+})
+
+test('位置认七行：往来记录（写不进原文件时放这）有默认，也能登记', () => {
+  assert.equal(Object.keys(DEFAULT_POSITIONS).length, 7)
+  assert.equal(DEFAULT_POSITIONS['往来记录（写不进原文件时放这）'], '90-日志与报告/往来记录')
+  const profile = `${PROFILE}\n## 位置\n\n| 是什么 | 在哪 |\n|---|---|\n| 往来记录（写不进原文件时放这） | 00-系统工作台/往来记录 |\n`
+  const r = checkKb(kb({ '知识库档案.md': profile, '02-项目/a.md': 'x', '10-客户/': '' }))
+  assert.equal(r.positions['往来记录（写不进原文件时放这）'], '00-系统工作台/往来记录')
+})
+
+test('文件怎么认：分号隔开几种放法（中英文分号都认）；开头写了别的类型的、README 和索引不算，除非写明了文件名', () => {
+  const root = kb({
+    '04-客户/README.md': 'x', '04-客户/张总.md': '---\n类型: 客户\n---\n', '04-客户/企业客户/云杉物流.md': 'x', '04-客户/企业客户/索引.md': 'x',
+    '06-项目/近期要事.md': '---\n类型: 待办\n---\n', '06-项目/春茶预售.md': '---\n类型: 项目\n---\n', '06-项目/开店/README.md': 'x', '06-项目/README.md': 'x',
+  })
+  assert.deepEqual(objectFiles(root, '04-客户', ['*.md', '*/*.md'], '客户'), ['04-客户/企业客户/云杉物流.md', '04-客户/张总.md'])
+  assert.deepEqual(objectFiles(root, '06-项目', undefined, '项目'), ['06-项目/春茶预售.md', '06-项目/开店/README.md'])
+  assert.deepEqual(splitPatterns('*.md；*/*.md; */README.md'), ['*.md', '*/*.md', '*/README.md'])
+  const profile = '## 我关注的\n\n| 类型 | 文件夹 | 确认 | 文件怎么认 |\n|---|---|---|---|\n| 客户 | 04-客户 | 已确认 | *.md；*/*.md |\n'
+  writeFileSync(join(root, '知识库档案.md'), profile)
+  assert.equal(page(checkKb(root), 'focus').classes[0].count, 2)
+})
+
+test('旧结构推客户：客户在分组文件夹里（04-客户/企业客户/云杉物流.md）也推得出来；项目层里的“近期要事”不算项目', () => {
+  const r = checkKb(kb({ '01-AI协作/建库档案.md': '---\n格式: 老板知识库/2\n---\n', '04-客户/README.md': 'x', '04-客户/企业客户/云杉物流.md': 'x', '06-项目/近期要事.md': '---\n类型: 待办\n---\n', '06-项目/README.md': 'x' }))
+  const f = page(r, 'focus')
+  assert.deepEqual(f.classes.map((c) => [c.name, c.count]), [['客户', 1]])
+  assert.match(f.note, /项目没推出来（06-项目 里没有文件）/)
 })

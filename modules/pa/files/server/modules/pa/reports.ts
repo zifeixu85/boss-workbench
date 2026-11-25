@@ -9,11 +9,14 @@ import { readRel, reportSwitch } from './kb.ts'
 import { parseReport, periodOf, reportLine, reportSummary, weekOf, REPORT_KINDS, type Report, type ReportKind } from './report-parse.ts'
 import { listSessions, now } from './store.ts'
 import { outputStats } from './outputs.ts'
+import { places } from './places.ts'
 
-export const REPORT_DIR = '90-日志与报告'
+/** 报告放哪：档案“位置”里的“报告”，没登记是 90-日志与报告（约定 9.2） */
+export const reportDir = () => places()['报告']
 
 /** 某一种报告有哪些（按期间从新到旧） */
 export function listReports(kind: ReportKind): Report[] {
+  const REPORT_DIR = reportDir()
   const dir = join(ROOT, REPORT_DIR, kind)
   if (!existsSync(dir) || !canReadKbPath(dir)) return []
   return readdirSync(dir).filter((f) => f.endsWith('.md') && !f.startsWith('.') && !/^readme\.md$/i.test(f))
@@ -86,10 +89,12 @@ export function latestNote(): { report: Report; lines: string[]; twin: string } 
   return null
 }
 
-/** AI 写好报告后登记：文件要在知识库的 90-日志与报告/<日报|周报|月报>/ 里，开头字段要齐。登记只记下时间，不改文件 */
+/** AI 写好报告后登记：文件要在知识库的报告文件夹（默认 90-日志与报告）/<日报|周报|月报>/ 里，开头字段要齐。登记只记下时间，不改文件 */
 export function registerReport(path: string, actor: Actor) {
   const rel = path.replace(/\\/g, '/').replace(/^\.?\//, '')
-  const m = rel.match(/^90-日志与报告\/(日报|周报|月报)\/[^/]+\.md$/)
+  const REPORT_DIR = reportDir()
+  const esc = REPORT_DIR.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  const m = rel.match(new RegExp(`^${esc}/(日报|周报|月报)/[^/]+\\.md$`))
   if (!m) throw new BadRequest(`报告要放在知识库的 ${REPORT_DIR}/日报|周报|月报/ 下，写从知识库根目录起的路径，比如 ${REPORT_DIR}/周报/2026-W48.md`)
   const abs = join(ROOT, rel)
   if (!existsSync(abs) || !canReadKbPath(abs)) throw new NotFound(`知识库里没有这个文件：${rel}（先把报告写进知识库，再登记）`)

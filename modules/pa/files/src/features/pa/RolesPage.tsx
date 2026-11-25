@@ -97,7 +97,7 @@ export default function RolesPage() {
       <PageBody className="grid grid-cols-[minmax(0,1fr)] gap-6">
         {d.problems.length > 0 && <Alert className="border-warn/30 bg-warn-soft/50"><AlertTitle>有几处要看一下</AlertTitle><AlertDescription>{d.problems.join('；')}</AlertDescription></Alert>}
         <UserCard u={d.user} />
-        {!d.exists && <Panel><EmptyNote>知识库里还没有 {d.base}/ 这个文件夹。在对话里让助理生成总助（第一次会问你三件事：叫它什么、怎么称呼你、喜欢它怎么说话），这里就会显示。</EmptyNote></Panel>}
+        {!d.exists && <Panel><EmptyNote>知识库里还没有 {d.base}/ 这个文件夹。在 Codex 里对 AI 说“认识一下我的总助”（会问你三件事：叫它什么、怎么称呼你、喜欢它怎么说话），建好这里就会显示。</EmptyNote></Panel>}
         {d.exists && KINDS.map((k) => {
           const list = d.roles.filter((r) => r.kind === k.kind)
           return (

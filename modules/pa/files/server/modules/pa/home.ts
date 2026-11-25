@@ -9,6 +9,7 @@ import { buildPulse } from './pulse-calc.ts'
 import { recentOutputs } from './outputs.ts'
 import { now } from './store.ts'
 import { kbCheck, needsUpgrade } from './check.ts'
+import { places } from './places.ts'
 
 /** 离上次扫超过 5 分钟：后台悄悄扫一遍（不等它，今日页先用现有的数） */
 function refreshSoon() {
@@ -24,7 +25,7 @@ export function homeCards() {
   const list = recent()
   const done = list.filter((s) => s.status === '做完未读')
   const waiting = list.filter((s) => s.status === '在等我')
-  const pending = [...inboxFiles().map((f) => ({ kind: '收件箱', title: f.name, sub: '00-收件箱 · 等你看', to: `/kb?path=${encodeURIComponent(f.path)}` })), ...pendingItems()]
+  const pending = [...inboxFiles().map((f) => ({ kind: '收件箱', title: f.name, sub: `${places()['收件箱']} · 等你看`, to: `/kb?path=${encodeURIComponent(f.path)}` })), ...pendingItems()]
   return {
     'pa-done': { count: done.length, items: done.slice(0, 4).map(item) },
     'pa-waiting': { count: waiting.length, items: waiting.slice(0, 4).map(item) },
@@ -60,8 +61,8 @@ export const paHooks: ModuleHooks = {
     const c = kbCheck()
     if (needsUpgrade(c)) {
       const ok = c.pages.filter((p) => p.status === '能用').map((p) => p.label)
-      const need = c.pages.filter((p) => p.status !== '能用')
-      return { title: '你的知识库还差几步', lines: [`现在就能用：${ok.join('、')}`, ...need.map((p) => `${p.label}：${p.need}`)].slice(0, 5), foot: `想都用起来，对 AI 说“${c.next}”`, to: '/kb-check' }
+      const need = c.pages.filter((p) => p.status === '要升级检查')
+      return { title: '你的知识库还差几步', lines: [`现在就能用：${ok.join('、')}`, ...need.map((p) => `${p.label}：${p.need}`)].slice(0, 5), foot: `想都用起来，对 AI 说${c.says.map((x) => `“${x.say}”`).join('，再说')}`, to: '/kb-check' }
     }
     const d = latestNote()
     if (!d || !d.lines.length) return null

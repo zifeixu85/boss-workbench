@@ -44,7 +44,11 @@ export function parseProfile(raw: string): { classes: FocusClass[]; problems: st
     const t = table(focus)
     if (!t.head.length) problems.push('“我关注的”这一节里没有表')
     else if (FOCUS_HEAD.some((h, i) => t.head[i] !== h)) problems.push(`“我关注的”的表头要一字不改：${FOCUS_HEAD.join(' | ')}（现在是：${t.head.join(' | ')}）`)
-    else for (const [name, rawFolder, confirm] of t.rows) {
+    else for (const row of t.rows) {
+      const [name, rawFolder, confirm] = row
+      // “文件怎么认”（约定 9.3）：按表头找这一列，几种放法用分号隔开（中文、英文分号都认）
+      const iPat = t.head.indexOf('文件怎么认')
+      const match = iPat >= 0 ? (row[iPat] ?? '').split(/[;；]/).map((x) => x.trim().replace(/^\/+/, '')).filter(Boolean) : []
       const folder = (rawFolder ?? '').replace(/\\/g, '/').replace(/^\.\//, '').replace(/\/+$/, '')
       const def = typeDef(name)
       if (!name || !folder) { problems.push(`有一行没写类型或文件夹：${name ?? ''}`); continue }
@@ -54,7 +58,7 @@ export function parseProfile(raw: string): { classes: FocusClass[]; problems: st
       if (classes.some((x) => x.name === name)) { problems.push(`“${name}”写了两次，只认第一次`); continue }
       const rename = names[name] ?? {}
       for (const k of Object.keys(rename)) if (!def.statuses.includes(k)) problems.push(`“叫法”里给${name}的“${k}”换了叫法，但类型库里${name}没有这个状态`)
-      classes.push({ name, folder, statuses: def.statuses.map((s) => rename[s] ?? s), fields: def.fields, links: def.links, icon: def.icon, rename, confirmed: (confirm ?? '').trim() === '已确认' })
+      classes.push({ name, folder, statuses: def.statuses.map((s) => rename[s] ?? s), fields: def.fields, links: def.links, icon: def.icon, rename, confirmed: (confirm ?? '').trim() === '已确认', ...(match.length ? { match } : {}) })
     }
   }
   const cand = section(md, '候选类型')
