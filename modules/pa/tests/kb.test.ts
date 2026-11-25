@@ -198,12 +198,12 @@ test('详情里“这个对象里的东西”：来源写的是一句话（和 A
 })
 
 // ── v0.8 第 10.2 节：状态分三个阶段，叫法是用户自己的
-test('三个阶段：类型库每类原来的状态是默认叫法，各归一个阶段；“搁着”归进行中；案例不套阶段', async () => {
+test('三个阶段：类型库每类原来的状态是默认叫法，各归一个阶段；项目“搁着”归已结束、客户“沉默”归进行中（2026-11-26 A梦 定）；案例不套阶段', async () => {
   const { STAGES } = await import('../files/server/modules/pa/stages.ts')
   assert.deepEqual([...STAGES], ['未开始', '进行中', '已结束'])
   const stagesOf = (n: string) => TYPE_LIBRARY.find((t) => t.name === n)?.stages
-  assert.deepEqual(stagesOf('项目'), { 进行中: '进行中', 搁着: '进行中', 已结束: '已结束' })
-  assert.deepEqual(stagesOf('客户'), { 在谈: '未开始', 合作中: '进行中', 沉默: '已结束' })
+  assert.deepEqual(stagesOf('项目'), { 进行中: '进行中', 搁着: '已结束', 已结束: '已结束' })
+  assert.deepEqual(stagesOf('客户'), { 在谈: '未开始', 合作中: '进行中', 沉默: '进行中' })
   assert.deepEqual(stagesOf('产品'), { 筹备: '未开始', 在卖: '进行中', 下架: '已结束' })
   assert.deepEqual(stagesOf('作品'), { 草稿: '未开始', 已发: '已结束', 下线: '已结束' })
   assert.equal(stagesOf('案例'), undefined)
@@ -214,7 +214,7 @@ test('“我关注的”的状态字段、状态对照（右边写三个阶段�
 
 | 类型 | 文件夹 | 确认 | 文件怎么认 | 名称取自 | 状态字段 | 状态对照 |
 |---|---|---|---|---|---|---|
-| 项目 | 30-项目实验室 | 已确认 | */*/项目总览.md | | status | active=进行中；waiting=进行中；completed=已结束 |
+| 项目 | 30-项目实验室 | 已确认 | */*/项目总览.md | | status | active=进行中；waiting=已结束；completed=已结束 |
 | 客户 | 10-客户 | 已确认 | | | 阶段 | 意向=未开始; 已流失=已结束; 签了=成交 |
 | 案例 | 12-案例 | 已确认 | | | | |
 
@@ -225,7 +225,7 @@ test('“我关注的”的状态字段、状态对照（右边写三个阶段�
   const r = parseProfile(md)
   const [xm, kh, al] = r.classes
   assert.equal(xm.statusField, 'status')
-  assert.deepEqual(xm.stageOf, { 进行中: '进行中', 搁着: '进行中', 已结束: '已结束', active: '进行中', waiting: '进行中', completed: '已结束' })
+  assert.deepEqual(xm.stageOf, { 进行中: '进行中', 搁着: '已结束', 已结束: '已结束', active: '进行中', waiting: '已结束', completed: '已结束' })
   assert.deepEqual(xm.statuses, ['进行中', '搁着', '已结束', 'active', 'waiting', 'completed'])
   assert.equal(kh.statusField, '阶段')
   assert.equal(kh.stageOf['跟进中'], '未开始', '换了叫法的跟着原来的“在谈”归未开始')

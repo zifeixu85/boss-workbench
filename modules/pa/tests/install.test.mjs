@@ -330,4 +330,8 @@ test('状态分三个阶段（约定 10.2）：列表显示自己的叫法、带
   assert.equal(cli('pa-update', '10-客户/老周.md', '--status', '已流失', '--confirm', '对，老周不做了').code, 0)
   assert.match(readFileSync(join(KB, '10-客户', '老周.md'), 'utf8'), /^状态: 已流失$/m)
   assert.equal(json('pa-focus', '客户').items.find((i) => i.name === '老周').stage, '已结束')
+  // 已结束的能恢复：改回进行中的叫法照样收
+  assert.equal(cli('pa-update', '10-客户/老周.md', '--status', '合作中').code, 0)
+  assert.equal(cli('pa-update', '10-客户/老周.md', '--status', '合作中', '--confirm', '老周又回来了').code, 0)
+  assert.equal(json('pa-focus', '客户').items.find((i) => i.name === '老周').stage, '进行中')
 })

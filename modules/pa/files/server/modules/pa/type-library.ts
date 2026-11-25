@@ -9,7 +9,7 @@ export type TypeDef = {
   what: string
   /** 默认叫法（没写状态对照时按这些认） */
   statuses: string[]
-  /** 默认叫法各归哪个阶段（约定 10.2）；不分阶段的类（案例）不写 */
+  /** 默认叫法各归哪个阶段（约定 10.2）；不分阶段的类（案例）不写。项目“搁着”归已结束（以后能改回进行中）、客户“沉默”归进行中（不因久没动就算结束，用户要求才改）：2026-11-26 A梦 定 */
   stages?: Record<string, Stage>
   /** 列表上显示的字段（对象文件开头的属性名） */
   fields: string[]
@@ -22,8 +22,8 @@ export type TypeDef = {
 }
 
 export const TYPE_LIBRARY: TypeDef[] = [
-  { name: '项目', what: '有终点的事', statuses: ['进行中', '搁着', '已结束'], stages: { 进行中: '进行中', 搁着: '进行中', 已结束: '已结束' }, fields: ['截止', '负责人'], links: ['客户', '产品'], icon: 'FolderKanban', page: true },
-  { name: '客户', what: '付钱或可能付钱的人和公司', statuses: ['在谈', '合作中', '沉默'], stages: { 在谈: '未开始', 合作中: '进行中', 沉默: '已结束' }, fields: ['上次联系', '下次跟进'], links: ['项目', '产品', '案例'], icon: 'Users', page: true },
+  { name: '项目', what: '有终点的事', statuses: ['进行中', '搁着', '已结束'], stages: { 进行中: '进行中', 搁着: '已结束', 已结束: '已结束' }, fields: ['截止', '负责人'], links: ['客户', '产品'], icon: 'FolderKanban', page: true },
+  { name: '客户', what: '付钱或可能付钱的人和公司', statuses: ['在谈', '合作中', '沉默'], stages: { 在谈: '未开始', 合作中: '进行中', 沉默: '进行中' }, fields: ['上次联系', '下次跟进'], links: ['项目', '产品', '案例'], icon: 'Users', page: true },
   { name: '产品', what: '卖的东西，含服务和课程', statuses: ['在卖', '筹备', '下架'], stages: { 筹备: '未开始', 在卖: '进行中', 下架: '已结束' }, fields: ['价格'], links: ['项目', '渠道'], icon: 'Package', page: true },
   { name: '案例', what: '做成或没做成的一单，可复用', statuses: ['可对外', '仅内部'], fields: ['日期', '结果'], links: ['客户', '产品'], icon: 'FileText', page: true },
   { name: '作品', what: '发出去的内容', statuses: ['草稿', '已发', '下线'], stages: { 草稿: '未开始', 已发: '已结束', 下线: '已结束' }, fields: ['平台', '日期'], links: ['渠道', '项目'], icon: 'PenLine', page: true },
