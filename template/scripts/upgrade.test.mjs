@@ -7,6 +7,8 @@ import { DatabaseSync } from 'node:sqlite'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import os from 'node:os'
+import { createHash } from 'node:crypto'
+import { spawnSync } from 'node:child_process'
 
 const TEMPLATE = join(dirname(fileURLToPath(import.meta.url)), '..')
 const tmp = mkdtempSync(join(os.tmpdir(), 'wb-upgrade-'))
@@ -85,3 +87,44 @@ test('老工作台在用“以前自带、现在是模块包”的功能：Skill
   assert.ok(!existsSync(join(dirname(db), '备份')), '连备份都还没做')
   assert.equal(U.upgrade(app, { check: true, without: ['xhs-pro-test'], catalog }).need[0].skip, true)
 }))
+
+// 2026-11-26：“把工作台升级到新版”一句话要把装着的模块一起换（坤汀、Mac mini 上的都靠这一句）。
+// 新版 Skill 的 modules/ 里有同一个模块、内容和装着的不一样，就列进 updates；老板改过的文件列出来（升级时先挪进备份）
+test('升级时装着的模块一起换：Skill 里的模块包和装着的不一样就换，一样就不动；老板改过的文件列出来', () => withEnv(makeOld('kb3'), (app) => {
+  const packs = join(tmp, 'kb3-packs')
+  const sha = (s) => createHash('sha256').update(s).digest('hex')
+  put(join(packs, 'demo', 'module.json'), JSON.stringify({ id: 'demo', name: '示范模块', version: '0.2.0' }))
+  put(join(packs, 'demo', 'files', 'server/modules/demo/a.ts'), '// 新版 a\n')
+  put(join(packs, 'demo', 'files', 'server/modules/demo/b.ts'), '// b\n')
+  put(join(packs, 'same', 'module.json'), JSON.stringify({ id: 'same', name: '没变的模块', version: '1.0.0' }))
+  put(join(packs, 'same', 'files', 'server/modules/same/x.ts'), '// x\n')
+  put(join(app, 'server/modules/demo/a.ts'), '// 旧版 a\n')
+  put(join(app, 'server/modules/demo/b.ts'), '// b 被老板改过\n')
+  put(join(app, 'server/modules/same/x.ts'), '// x\n')
+  put(join(app, 'modules.lock.json'), JSON.stringify({ modules: {
+    demo: { name: '示范模块', version: '0.1.0', files: { 'server/modules/demo/a.ts': sha('// 旧版 a\n'), 'server/modules/demo/b.ts': sha('// b\n') } },
+    same: { name: '没变的模块', version: '1.0.0', files: { 'server/modules/same/x.ts': sha('// x\n') } },
+  } }))
+  const p = U.plan(app, { packs })
+  assert.deepEqual(p.updates.map((x) => [x.id, x.from, x.to]), [['demo', '0.1.0', '0.2.0']])
+  assert.deepEqual(p.updates[0].modified, ['server/modules/demo/b.ts'])
+  assert.equal(p.updates[0].pack, join(packs, 'demo'))
+}))
+
+test('升完让工作台用上新版：本来没开着的不开；在后台开着的（服务.json 记着进程号）停掉、按原来的端口在后台重开', { skip: process.platform === 'win32' }, async () => {
+  const app = makeOld('kb4')
+  const db = join(tmp, 'kb4', '工作台', '数据', 'workbench.db')
+  const p = { root: join(tmp, 'kb4'), db }
+  assert.match(U.restartService(app, p).how, /本来没开着/)
+  // 一个“开着的工作台”：等着被停掉；新版的 server/index.ts 起来以后写一个记号
+  // 不能是本测试的子进程（停掉后等不到回收会一直像“还活着”）：经一个中间进程起，真的工作台也不是升级脚本的子进程
+  const pid = Number(spawnSync(process.execPath, ['-e', "const c = require('node:child_process').spawn(process.execPath, ['-e', 'setInterval(() => {}, 1000)'], { detached: true, stdio: 'ignore' }); c.unref(); console.log(c.pid)"], { encoding: 'utf8' }).stdout.trim())
+  const alive = () => { try { process.kill(pid, 0); return true } catch { return false } }
+  put(join(dirname(db), '服务.json'), JSON.stringify({ port: 4999, pid }))
+  put(join(app, 'server', 'index.ts'), "require('node:fs').writeFileSync('started.txt', process.env.PORT)\n".replace("require('node:fs')", "(await import('node:fs'))"))
+  const r = U.restartService(app, p)
+  assert.match(r.how, /用新版重新开好（端口 4999）/)
+  assert.equal(alive(), false, '原来那个停掉了')
+  for (let i = 0; i < 50 && !existsSync(join(app, 'started.txt')); i++) await new Promise((d) => setTimeout(d, 100))
+  assert.equal(readFileSync(join(app, 'started.txt'), 'utf8'), '4999')
+})

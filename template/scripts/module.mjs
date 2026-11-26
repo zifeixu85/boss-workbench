@@ -9,7 +9,7 @@
 //   node scripts/module.mjs list                       有哪些模块包可以装、装了哪些
 //   node scripts/module.mjs add <编号> [--from <包>]    装（--no-build 不重新构建网页）；<包> 可以是文件夹或 .zip。
 //                                                       另外发的模块包（目录里写了 get 的，比如以后的 pro 版）：放进知识库的 工作台/模块包/，或用 --from 指过去
-//   node scripts/module.mjs update <编号> [--from <包>] [--force]   换成包里的新版；老板改过的文件默认不覆盖
+//   node scripts/module.mjs update <编号> [--from <包>] [--force] [--adopt]   换成包里的新版；老板改过的文件默认不覆盖（--force 先挪进备份再换；--adopt 程序里同名、又不是这个模块装的文件也先挪进备份）
 //   node scripts/module.mjs remove <编号>               拿掉代码和菜单，数据留着；改过的文件挪进备份
 //   node scripts/module.mjs status                     装了哪些、哪些文件改过
 //   node scripts/module.mjs gen                        按 modules/*/module.json 重新生成清单（自己写的模块改了 module.json 后用）
@@ -428,9 +428,10 @@ export async function updateModule(id, o = {}) {
   const touched = changed.filter((f) => files.includes(f) ? sha(join(pack, 'files', f)) !== sha(join(app, f)) : true)
   if (touched.length && !o.force) fail(`这些文件装好以后被改过（多半是 Codex 按老板的要求改的），直接换新版会盖掉：\n${touched.map((f) => `  - ${f}`).join('\n')}\n要用新版加 --force（改过的先挪进备份），或者让 Codex 把新版的改动合进去`)
   const clash = files.filter((f) => !old.files[f] && existsSync(join(app, f)) && sha(join(app, f)) !== sha(join(pack, 'files', f)))
-  if (clash.length) fail(`新版要放的这些文件程序里已经有了、又不是这个模块装的：\n${clash.map((f) => `  - ${f}`).join('\n')}`)
+  // adopt（升级时用）：程序里已经有、又不是这个模块装的同名文件，也先挪进备份再放新版，不停下
+  if (clash.length && !o.adopt) fail(`新版要放的这些文件程序里已经有了、又不是这个模块装的：\n${clash.map((f) => `  - ${f}`).join('\n')}\n确认用模块里的，加 --adopt（原来的先挪进备份）`)
   const bk = backupDir(app, id)
-  for (const f of touched) if (existsSync(join(app, f))) moveTo(join(app, f), join(bk, f))
+  for (const f of [...touched, ...(o.adopt ? clash : [])]) if (existsSync(join(app, f))) moveTo(join(app, f), join(bk, f))
   for (const f of Object.keys(old.files)) if (!files.includes(f) && existsSync(join(app, f))) { rmSync(join(app, f)); pruneDirs(app, f) }
   const fp = {}
   for (const f of files) fp[f] = put(join(pack, 'files', f), join(app, f))
@@ -440,7 +441,7 @@ export async function updateModule(id, o = {}) {
   writeGen(app)
   cliRun(app, ['modules']) // 跑新版的数据库迁移
   if (!o.noBuild) build(app)
-  return { module: m, from: old.version, backup: touched.length ? bk : null }
+  return { module: m, from: old.version, backup: touched.length || (o.adopt && clash.length) ? bk : null }
 }
 
 export async function removeModule(id, o = {}) {
@@ -535,7 +536,7 @@ async function main(argv) {
   const [cmd, id] = argv.filter((a) => !a.startsWith('--'))
   const flag = (k) => argv.includes(k)
   const val = (k) => { const i = argv.indexOf(k); return i >= 0 ? argv[i + 1] : undefined }
-  const o = { from: val('--from'), noBuild: flag('--no-build'), force: flag('--force') }
+  const o = { from: val('--from'), noBuild: flag('--no-build'), force: flag('--force'), adopt: flag('--adopt') }
   const say = (s) => console.log(s)
   switch (cmd) {
     case 'list': {
@@ -590,7 +591,7 @@ async function main(argv) {
       return r.problems.length ? 1 : 0
     }
     default:
-      say('用法：node scripts/module.mjs list | add <编号> [--from 模块包文件夹或.zip] [--no-build] | update <编号> [--force] | remove <编号> | status | gen | check')
+      say('用法：node scripts/module.mjs list | add <编号> [--from 模块包文件夹或.zip] [--no-build] | update <编号> [--force] [--adopt] | remove <编号> | status | gen | check')
       return cmd ? 2 : 0
   }
 }
