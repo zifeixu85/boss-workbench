@@ -164,6 +164,8 @@ export const settingsInput = z.object({
   edit_mode: z.enum(['content', 'open']).optional(),
   /** AI 助手开关（设置页）：'0' 关；没设过 = 开（本机 Codex 能用时） */
   assistant_on: z.enum(['0', '1']).optional(),
+  /** AI 助手用哪种方式调 Codex（2026-11-26）：simple 一问一答（默认）；codex 常驻对话，和在 Codex 里开对话一样（进阶） */
+  assistant_engine: z.enum(['simple', 'codex']).optional(),
   // 提醒（2026-10-12 加，见 server/reminders/）：总开关、每天看汇总的时间、免打扰时段、演示模式下弹不弹系统通知
   remind_on: z.enum(['0', '1']).optional(),
   /** 每天几点提醒看汇总（确认页第 4 步老板说的时间）；空着 = 开机 5 分钟后提醒一次 */

@@ -50,6 +50,7 @@ export type Settings = { nav_mode: NavMode; theme: Theme; mobile_nav: 'tabs' | '
   home?: string
   /** 页面里的 AI 助手开没开（默认关；老服务没有这个字段 = 关） */
   assistant_on?: boolean
+  assistant_engine?: 'simple' | 'codex'
   /** 只改内容（content）还是放开改（open），见 server/services/edit-mode.ts */
   edit_mode?: 'content' | 'open' }
 

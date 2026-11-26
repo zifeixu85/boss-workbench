@@ -15,18 +15,29 @@ import { useIdentity } from '@/lib/identity'
 import type { Settings } from '@/lib/types'
 
 type Step = { tool: string; label: string; state: 'running' | 'ok' | 'failed'; detail?: string }
-type Msg = { id: string; role: 'user' | 'assistant'; text: string; status: 'running' | 'done' | 'failed' | 'cancelled'; error: string | null; steps: Step[]; page_title: string | null; created_at: string }
-type Status = { ready: boolean; version: string | null; detail: string; fix: string | null; on: boolean; running: string | null }
+type Approval = { key: string; kind: '跑命令' | '改文件' | '要权限'; text: string; reason: string }
+type Msg = { id: string; role: 'user' | 'assistant'; text: string; status: 'running' | 'done' | 'failed' | 'cancelled'; error: string | null; steps: Step[]; page_title: string | null; created_at: string; approvals?: Approval[] }
+type Status = { ready: boolean; version: string | null; detail: string; fix: string | null; on: boolean; running: string | null; engine?: 'simple' | 'codex' }
 
 const OPEN_KEY = 'wb.assistant.open'
 const WIDE = '(min-width: 1280px)'
 const readOpen = () => { try { return localStorage.getItem(OPEN_KEY) === '1' } catch { return false } }
 
-/** 当前页面：标题、地址、正文（只取主区域，不含对话栏自己），给 AI 当上下文 */
+/** 页面上最后选中的文字（对话栏外面的）：点进输入框时页面上的选区会没，所以选的时候就记下来；换页清掉 */
+let lastSelection = ''
+if (typeof document !== 'undefined') document.addEventListener('selectionchange', () => {
+  const sel = document.getSelection()
+  const t = sel?.toString().trim() ?? ''
+  if (t && !(sel?.anchorNode && (sel.anchorNode as Element).parentElement?.closest('aside[aria-label="AI 助手"]'))) lastSelection = t.slice(0, 2000)
+})
+
+/** 当前页面：标题、地址、正文（只取主区域，不含对话栏自己）、选中的文字，给 AI 当上下文 */
 function pageContext(path: string) {
   const main = document.querySelector('main')
   const title = main?.querySelector('h1')?.textContent?.trim() || document.title
-  return { title, path, text: (main?.innerText ?? '').slice(0, 6000) }
+  // 打开着的详情抽屉也算在看的内容
+  const sheet = [...document.querySelectorAll('[role="dialog"]')].map((d) => (d as HTMLElement).innerText).join('\n')
+  return { title, path, text: `${sheet ? `${sheet}\n` : ''}${main?.innerText ?? ''}`.slice(0, 6000), selection: lastSelection }
 }
 
 const SUGGEST = ['今天我先做哪件事？', '整理一下收件箱', '这页上有什么要我注意的？']
@@ -48,6 +59,7 @@ export function AssistantDock() {
   })
   const running = msgs?.some((m) => m.status === 'running') ?? false
   const listRef = useRef<HTMLDivElement>(null)
+  useEffect(() => { lastSelection = '' }, [loc.pathname])
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const wasRunning = useRef(false)
 
@@ -83,6 +95,7 @@ export function AssistantDock() {
       await qc.invalidateQueries({ queryKey: ['assistant-messages'] })
     } catch (e) { setError((e as Error).message) } finally { setSending(false) }
   }
+  const answer = async (key: string, choice: 'allow' | 'allow-session' | 'deny') => { await api.post('/assistant/approve', { key, choice }).catch((e) => setError((e as Error).message)); qc.invalidateQueries({ queryKey: ['assistant-messages'] }) }
   const stop = async () => { await api.post('/assistant/stop', {}).catch(() => {}); qc.invalidateQueries({ queryKey: ['assistant-messages'] }) }
   const restart = async () => { await api.del('/assistant/messages').catch(() => {}); qc.invalidateQueries({ queryKey: ['assistant-messages'] }) }
 
@@ -102,7 +115,7 @@ export function AssistantDock() {
         <Sparkles className="size-4 text-primary" />
         <div className="min-w-0 flex-1">
           <div className="text-sm font-semibold">AI 助手</div>
-          <div className="truncate text-xs text-muted-foreground">{status ? (usable ? `本机 Codex · 读写工作台、查${kb}` : status.on ? '还用不了' : '已在设置里关掉') : '检查中…'}</div>
+          <div className="truncate text-xs text-muted-foreground">{status ? (usable ? (status.engine === 'codex' ? '你的 Codex · 和在 Codex 里对话一样，看得到这一页' : `本机 Codex · 读写工作台、查${kb}`) : status.on ? '还用不了' : '已在设置里关掉') : '检查中…'}</div>
         </div>
         {!!msgs?.length && <Button size="icon-sm" variant="ghost" aria-label="新对话" title="新对话" onClick={restart}><RotateCcw /></Button>}
         <Button size="icon-sm" variant="ghost" aria-label="收起 AI 助手" onClick={() => setOpen(false)}><X /></Button>
@@ -136,6 +149,19 @@ export function AssistantDock() {
               ))}</div>
             )}
             {m.text && <div className="text-sm leading-relaxed whitespace-pre-wrap">{m.text.replace(/\*\*(.+?)\*\*/g, '$1')}</div>}
+            {/* 常驻对话：他的 Codex 要问“是否允许”的，照他 Codex 自己的设置弹在这里 */}
+            {m.approvals?.map((a) => (
+              <div key={a.key} className="grid gap-2 rounded-lg border border-warn/40 bg-warn-soft/40 px-3 py-2.5 text-sm">
+                <div className="font-medium">Codex 想{a.kind}，要你点一下</div>
+                <code className="block rounded bg-muted px-2 py-1 text-[12px] break-all whitespace-pre-wrap">{a.text}</code>
+                {a.reason && <div className="text-xs text-muted-foreground">原因：{a.reason}</div>}
+                <div className="flex flex-wrap gap-1.5">
+                  <Button size="sm" onClick={() => answer(a.key, 'allow')}>允许</Button>
+                  <Button size="sm" variant="outline" onClick={() => answer(a.key, 'allow-session')}>这次对话都允许</Button>
+                  <Button size="sm" variant="ghost" onClick={() => answer(a.key, 'deny')}>不允许</Button>
+                </div>
+              </div>
+            ))}
             {m.status === 'running' && !m.text && <div className="flex items-center gap-1.5 text-sm text-muted-foreground"><Loader2 className="size-4 animate-spin" />在想…</div>}
             {m.status === 'failed' && <div className="text-[13px] text-danger">{m.error}</div>}
             {m.status === 'cancelled' && <div className="text-xs text-muted-foreground">已停止</div>}
@@ -153,7 +179,7 @@ export function AssistantDock() {
             ? <Button type="button" size="icon" variant="outline" aria-label="停止" onClick={stop}><Square /></Button>
             : <Button type="submit" size="icon" aria-label="发送" disabled={!usable || !text.trim() || sending}>{sending ? <Loader2 className="animate-spin" /> : <Send />}</Button>}
         </div>
-        <p className="mt-1.5 text-[11px] text-muted-foreground">Enter 发送，Shift+Enter 换行 · 用的是你自己电脑上的 Codex</p>
+        <p className="mt-1.5 text-[11px] text-muted-foreground">Enter 发送，Shift+Enter 换行 · {status?.engine === 'codex' ? '选中页面上的字再问，它知道你指的是哪段；对话也记在你的 Codex 里' : '用的是你自己电脑上的 Codex'}</p>
       </form>
     </aside>
   )

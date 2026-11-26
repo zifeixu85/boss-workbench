@@ -5,11 +5,12 @@ import { api, useApi, useWrite } from '@/lib/api'
 import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
 
-type Status = { ready: boolean; version: string | null; detail: string; fix: string | null; on: boolean }
+type Status = { ready: boolean; version: string | null; detail: string; fix: string | null; on: boolean; engine?: 'simple' | 'codex' }
 
 export function AssistantSettings() {
   const { data, refetch } = useApi<Status>('/assistant/status')
   const save = useWrite((on: boolean) => api.patch('/settings', { assistant_on: on ? '1' : '0' }), 'AI 助手设置已保存')
+  const engine = useWrite((codex: boolean) => api.patch<{ assistant_engine?: string }>('/settings', { assistant_engine: codex ? 'codex' : 'simple' }), (o) => (o.assistant_engine === 'codex' ? '换成常驻对话了：和在 Codex 里对话一样' : '换回一问一答了'))
   if (!data) return <p className="text-sm text-muted-foreground">检查本机 Codex…</p>
   return (
     <div className="grid gap-4">
@@ -28,6 +29,15 @@ export function AssistantSettings() {
         </div>
         <Switch checked={data.on} disabled={save.isPending} aria-label="AI 助手" onCheckedChange={(c) => save.mutate(c)} />
       </label>
+      {data.on && (
+        <label className="flex items-center gap-3 border-t pt-4">
+          <div className="min-w-0 flex-1">
+            <div className="text-sm font-medium">常驻对话（进阶）</div>
+            <div className="text-xs text-muted-foreground">打开后和在 Codex 里开一个对话一样：用你的插件、技能和规矩，看得到你在看的页面和选中的字，能接着聊；对话也记在你的 Codex 里。Codex 要问“是否允许”时会弹在对话栏里。关着是一问一答。</div>
+          </div>
+          <Switch checked={data.engine === 'codex'} disabled={engine.isPending} aria-label="常驻对话" onCheckedChange={(c) => engine.mutate(c)} />
+        </label>
+      )}
       <ul className="grid gap-1.5 border-t pt-4 text-[13px] text-muted-foreground">
         <li>· 使用本机 Codex 和你的账号。文件保存在本机，AI 处理时会把用到的内容发给模型服务商。</li>
         <li>· 能读写工作台（待办、日程、项目、收件箱、客户跟进）和读知识库；它写的东西记在“最近改动”里，操作人是 Codex。</li>

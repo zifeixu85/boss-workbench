@@ -176,6 +176,7 @@ export function getSettings() {
     home: s.home ?? '',
     // 页面里的 AI 助手开没开（默认关：日常在 Codex 里说，工作台开在右侧面板）
     assistant_on: s.assistant_on === '1',
+    assistant_engine: s.assistant_engine === 'codex' ? 'codex' as const : 'simple' as const,
     // 只改内容还是放开改（services/edit-mode.ts；没写过 = 放开）
     edit_mode: editMode(),
   }
@@ -204,7 +205,7 @@ export function saveSettings(input: unknown, actor: Actor) {
     run('INSERT INTO settings (key, value) VALUES (:key, :value) ON CONFLICT(key) DO UPDATE SET value = :value', { key, value })
   }
   const NAMES: Record<string, string> = {
-    nav_mode: '电脑导航', theme: '风格', mobile_nav: '手机导航', owner: '称呼', business: '工作台名称（店名）', kb_name: '“知识库”页的名字', home: '首页重点卡', assistant_on: 'AI 助手开关', edit_mode: '只改内容 / 放开改',
+    nav_mode: '电脑导航', theme: '风格', mobile_nav: '手机导航', owner: '称呼', business: '工作台名称（店名）', kb_name: '“知识库”页的名字', home: '首页重点卡', assistant_on: 'AI 助手开关', assistant_engine: 'AI 助手的方式（一问一答 / 常驻对话）', edit_mode: '只改内容 / 放开改',
     remind_on: '提醒开关', notify_at: '每天看汇总的时间', quiet_start: '免打扰时段', quiet_end: '免打扰时段', remind_demo_system: '演示时弹不弹系统通知',
   }
   const changed = [...new Set([...Object.entries(data).filter(([, v]) => v !== undefined).map(([k]) => NAMES[k] ?? k), ...extraNames])]

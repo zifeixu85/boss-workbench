@@ -37,6 +37,8 @@ routes.get('/assistant/status', async (c) => c.json(ok(await assistant.status(c.
 routes.get('/assistant/messages', (c) => c.json(ok(assistant.messages())))
 routes.post('/assistant/ask', async (c) => c.json(ok(await assistant.ask(await body(c) as { text?: unknown }))))
 routes.post('/assistant/stop', (c) => c.json(ok(assistant.stop())))
+// 常驻对话里 Codex 问“是否允许”：网页点了允许 / 这次对话都允许 / 不允许
+routes.post('/assistant/approve', async (c) => c.json(ok(assistant.approve(await body(c) as { key?: unknown; choice?: unknown }))))
 routes.delete('/assistant/messages', (c) => c.json(ok(assistant.clear())))
 routes.patch('/settings', async (c) => c.json(ok(home.saveSettings(await body(c), WEB))))
 // 模块开关（shared/modules.ts）：GET 看每个模块开没开；PATCH { on: [...], off: [...] } 打开 / 收起，或 { set: [...] | 'all' } 整组设
