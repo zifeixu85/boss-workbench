@@ -47,6 +47,12 @@ function ownsFromBody(body: string): { owns: string; notOwns: string } {
   return { owns: owns.join(' '), notOwns: notOwns.join(' ') }
 }
 
+/** 信条：开头没写“信条”这一项时，从正文里“我的信条：……”或“信条：……”那一行取（引导工具写在“我是谁”第一条） */
+function mottoFromBody(body: string): string {
+  const m = body.match(/^\s*(?:[-*>]\s*)*(?:\*\*)?(?:我的)?信条(?:\*\*)?[:：]\s*(.+?)(?:\*\*)?\s*$/m)
+  return m ? m[1].replace(/\*\*/g, '').trim() : ''
+}
+
 /** 一个助理的属性（IDENTITY.md 全文；没有这份文件传空串） */
 export function assistantProps(folder: string, identity: string): Assistant {
   const { meta, body } = front(identity)
@@ -65,7 +71,7 @@ export function assistantProps(folder: string, identity: string): Assistant {
     call: str(meta['怎么叫']) || `叫${name}`,
     can: list(meta['能做什么']),
     chief: has('总协调') ? str(meta['总协调']) === '是' : oldKind === '总助',
-    motto: str(meta['信条']),
+    motto: str(meta['信条']) || mottoFromBody(body),
     legacy: missing.length > 0,
     missing,
   }
@@ -136,14 +142,10 @@ export function matchAssistant(s: { title: string; first: string; dock: boolean;
 
 /** 看家本领（约定 11.12）：每条写成“**叫什么**。什么时候用：…。用了我会：…”。取名字：加粗的开头、小节标题、列表项“名字。/名字：”开头 */
 export function skillNames(md: string): string[] {
-  const out: string[] = []
-  for (const raw of front(md).body.split(/\r?\n/)) {
-    const line = raw.trim()
-    const name = line.match(/^(?:[-*]\s+|\d+[.、]\s*)?\*\*([^*]{1,30})\*\*/)?.[1]
-      ?? line.match(/^#{2,4}\s+(.{1,30})$/)?.[1]
-      ?? line.match(/^[-*]\s+([^。：:，,]{1,20})[。：:]/)?.[1]
-    const n = name?.replace(/[。：:，,\s]+$/, '').trim()
-    if (n && !out.includes(n)) out.push(n)
-  }
-  return out
+  const lines = front(md).body.split(/\r?\n/).map((l) => l.trim())
+  const uniq = (xs: (string | undefined)[]) => [...new Set(xs.map((x) => x?.replace(/[。：:，,\s]+$/, '').trim()).filter((x): x is string => !!x))]
+  // 有加粗开头的条目，就只认它们（新版里还有“招牌打法”“自查清单”这些小节，标题不是本领名）
+  const bold = uniq(lines.map((l) => l.match(/^(?:[-*]\s+|\d+[.、]\s*)?\*\*([^*]{1,30})\*\*/)?.[1]))
+  if (bold.length) return bold
+  return uniq(lines.map((l) => l.match(/^#{2,4}\s+(.{1,30})$/)?.[1] ?? l.match(/^[-*]\s+([^。：:，,]{1,20})[。：:]/)?.[1]))
 }
