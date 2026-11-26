@@ -19,6 +19,8 @@ import { archiveGroups } from './archive-groups'
 import type { AssistantDetail } from './types'
 
 type KbFile = { path: string; body: string; updated: string }
+/** 产出的阶段配色：选题、草稿、定稿、已发布 */
+const WORK_TONE: Record<string, 'neutral' | 'info' | 'primary' | 'ok'> = { 选题: 'neutral', 草稿: 'info', 定稿: 'primary', 已发布: 'ok' }
 
 export default function AssistantPage() {
   const key = useParams().key ?? ''
@@ -75,6 +77,23 @@ export default function AssistantPage() {
               {a.resident?.link ? <Button asChild variant="outline" className="w-full justify-between"><a href={a.resident.link}><span className="truncate">{a.resident.title}</span><ExternalLink /></a></Button>
                 : a.thread ? <EmptyNote>花名册里登记的是“{a.thread}”，这台电脑近 30 天没读到这个对话。</EmptyNote>
                 : <EmptyNote>花名册里还没登记它的常驻对话。</EmptyNote>}
+            </Panel>
+            <Panel title="产出" desc={`${a.name}存下的选题、稿子等，按时间倒序`}>
+              {a.works.length ? (
+                <ul className="-mx-2 grid">
+                  {a.works.map((w) => (
+                    <li key={w.id}>
+                      <Link to={w.to} className="flex items-center gap-3 rounded-lg px-2 py-2 hover:bg-muted/60">
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate text-[14px] font-medium">{w.title}</span>
+                          <span className="block truncate text-xs text-muted-foreground">{w.kind} · {when(w.at)}</span>
+                        </span>
+                        <StatusBadge value={w.status} tone={WORK_TONE[w.status] ?? 'neutral'} />
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              ) : <EmptyNote>还没有记在{a.name}名下的产出。它用工作台的命令存选题、存稿时写上自己的名字，就会出现在这里。</EmptyNote>}
             </Panel>
             <Panel title="工作记录" desc={`近 30 天${a.name}参与的对话，按时间倒序`}>
               {a.sessions.length ? (

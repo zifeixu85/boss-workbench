@@ -149,3 +149,15 @@ export function skillNames(md: string): string[] {
   if (bold.length) return bold
   return uniq(lines.map((l) => l.match(/^#{2,4}\s+(.{1,30})$/)?.[1] ?? l.match(/^[-*]\s+([^。：:，,]{1,20})[。：:]/)?.[1]))
 }
+
+/** 一份产出（核心接入点 works 给的）：谁做的、网页上怎么打开 */
+export type Work = { id: string; kind: string; title: string; status: string; by: string[]; at: string; to: string }
+
+/** 哪些产出是这位助理做的（约定 11.13）：命令里 --by 记的名字等于它的名字，或名字单独出现（“✍️ 阿柚”“小红书助理 阿柚”）；
+ *  名字前后紧挨着别的字的不算（“阿柚子”不是阿柚）。按时间倒序 */
+export function worksFor(items: Work[], name: string): Work[] {
+  const n = name.trim()
+  if (!n) return []
+  const re = new RegExp(`(?<![\\p{L}\\p{N}])${esc(n)}(?![\\p{L}\\p{N}])`, 'u')
+  return items.filter((w) => w.by.some((b) => re.test(b.trim()))).sort((a, b) => b.at.localeCompare(a.at))
+}

@@ -3,7 +3,7 @@
 // 运行：node --test modules/pa/tests/*.test.ts
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { assistantProps, matchAssistant, parseColleagues, parseDispatch, parseRetired, skillNames, titleKey, type AssistantKey } from '../files/server/modules/pa/assistant-parse.ts'
+import { assistantProps, matchAssistant, parseColleagues, parseDispatch, parseRetired, skillNames, worksFor, titleKey, type AssistantKey } from '../files/server/modules/pa/assistant-parse.ts'
 
 const NEW_ID = `---
 类型: 角色
@@ -117,4 +117,12 @@ test('引导工具新版的写法（2026-11-27）：信条写在“我是谁”�
   assert.equal(assistantProps('a', `---\n信条: 开头写的优先\n---\n\n## 我是谁\n- 我的信条：正文里的\n`).motto, '开头写的优先')
   const md = `# 小满的看家本领\n\n## 七条本领\n\n1. **把关**。什么时候用：……\n2. **紧急重要四象限**。什么时候用：……\n\n## 三套招牌打法\n\n### A. 一句含糊的话，变成派出去的活（五步）\n1. 先问清楚\n\n## 交活前的自查清单（八条）\n- 有没有写清哪天前\n`
   assert.deepEqual(skillNames(md), ['把关', '紧急重要四象限'])
+})
+
+test('助理的产出（约定 11.13）：按命令里记的名字认，名字单独出现的也算；前后紧挨着别的字的不算；按时间倒序', () => {
+  const w = (id: string, by: string[], at: string) => ({ id, kind: '小红书', title: id, status: '草稿', by, at, to: `/content/studio/${id}` })
+  const items = [w('a', ['阿柚'], '2026-11-27T01:00:00Z'), w('b', ['本机 Codex', '✍️ 阿柚'], '2026-11-27T03:00:00Z'), w('c', ['小红书助理 阿柚'], '2026-11-26T00:00:00Z'), w('d', ['阿柚子'], '2026-11-25T00:00:00Z'), w('e', ['小满'], '2026-11-27T05:00:00Z')]
+  assert.deepEqual(worksFor(items, '阿柚').map((x) => x.id), ['b', 'a', 'c'], '“阿柚子”不是阿柚')
+  assert.deepEqual(worksFor([w('x', ['小满'], '1'), w('y', ['满'], '2')], '满').map((x) => x.id), ['y'], '“小满”里的“满”不算')
+  assert.deepEqual(worksFor(items, ''), [])
 })

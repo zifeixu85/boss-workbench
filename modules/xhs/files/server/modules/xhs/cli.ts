@@ -100,7 +100,7 @@ function run(argv: string[]): number {
     }
     case 'xhs-pieces': {
       const list = findPieces({ q: o.q, status: o.status, by: o.by })
-      print(list, list.length ? list.map((p) => `- ${p.id}｜${p.title}｜${p.stage}${p.version ? `（第 ${p.version} 版）` : ''}｜${[...new Set([p.by, ...p.authors])].join('、')}｜${p.updated_at.slice(0, 10)}｜${p.path}`).join('\n') : '没找到（换个关键词，或去掉 --status / --by 再找）')
+      print(list, list.length ? list.map((p) => `- ${p.id}｜${p.title}｜${p.stage}${p.version ? `（第 ${p.version} 版）` : ''}｜${[...new Set([p.by, ...p.authors])].join('、')}｜${p.day}｜${p.path}`).join('\n') : '没找到（换个关键词，或去掉 --status / --by 再找）')
       return 0
     }
     default:

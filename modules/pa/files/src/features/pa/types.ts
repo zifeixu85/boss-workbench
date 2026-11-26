@@ -114,7 +114,8 @@ export type AssistantBase = {
   skills: string[]
 }
 export type AssistantUsage = { today: number; d7: number; d30: number }
-export type AssistantCard = AssistantBase & { recent: { id: string; title: string; status: SessionStatus; last_at: string } | null; sessions: number; usage: AssistantUsage; file_problems: number }
+export type AssistantWork = { id: string; kind: string; title: string; status: string; by: string[]; at: string; to: string }
+export type AssistantCard = AssistantBase & { works: number; recent: { id: string; title: string; status: SessionStatus; last_at: string } | null; sessions: number; usage: AssistantUsage; file_problems: number }
 export type AssistantList = { base: string; exists: boolean; assistants: AssistantCard[]; unmatched: number; colleagues: boolean; problems: string[]; note: string
   /** 花名册：哪份文件（旧名同事清单也认）、有几位 */
   roster: { path: string | null; count: number; old: boolean }
@@ -126,6 +127,8 @@ export type AssistantDetail = AssistantBase & {
   files: { name: string; path: string; call: string; problems: string[] }[]; folder_problems: string[]
   sessions: { id: string; title: string; status: SessionStatus; why: string; last_at: string; started_at: string; link: string | null; by: string; outputs: number; object: Session['object'] }[]
   dispatch: Dispatch[]; usage: AssistantUsage
+  /** 它存下的产出（小红书的选题和稿子……），按时间倒序 */
+  works: AssistantWork[]
   resident: { id: string; title: string; link: string | null } | null
   note: string
 }

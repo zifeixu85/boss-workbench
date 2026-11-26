@@ -11,7 +11,8 @@ import { places } from './places.ts'
 import { roles, type Role } from './roles.ts'
 import { listSessions, now, type SessionView } from './store.ts'
 import { localDay } from './usage-calc.ts'
-import { assistantProps, matchAssistant, parseColleagues, parseDispatch, parseRetired, skillNames, type Assistant, type Colleague, type Dispatch, type MatchBy } from './assistant-parse.ts'
+import { moduleHooks } from '../../module-hooks.ts'
+import { assistantProps, matchAssistant, parseColleagues, parseDispatch, parseRetired, skillNames, worksFor, type Work, type Assistant, type Colleague, type Dispatch, type MatchBy } from './assistant-parse.ts'
 
 /** 花名册（约定 11.12；11.11 时叫同事清单）：先找新名字，没有再找旧的 */
 const ROSTER = ['花名册.md', '同事清单.md']
@@ -29,6 +30,8 @@ const read = (rel: string) => (readable(rel) ? readKbTextFile(join(ROOT, rel)) :
 type Usage = { today: number; d7: number; d30: number }
 export type AssistantCard = Assistant & {
   skills: string[]
+  /** 产出几份（各模块记着是它做的） */
+  works: number
   folder: string; thread: string; mismatch: string[]
   recent: { id: string; title: string; status: string; last_at: string } | null
   sessions: number; usage: Usage; file_problems: number
@@ -108,6 +111,11 @@ export function personaList() {
   return loadAssistants().list.filter((a) => !a.retired).map((a) => ({ key: a.key, name: a.name, avatar: a.avatar, duty: a.duty, call: a.call, page: `/roles/${a.key}` }))
 }
 
+/** 各模块存下的产出（核心接入点 works，约定 11.13）：小红书的选题和稿子，以后报价、方案草稿也从这里挂进来。哪个模块出错就跳过它 */
+function allWorks(): Work[] {
+  return moduleHooks().flatMap((h) => { try { return (h.hooks as { works?: () => Work[] }).works?.() ?? [] } catch { return [] } })
+}
+
 /** 这些对话的 token 用量：今日、近 7 日、近 30 日 */
 function usageOf(ids: string[]): Usage {
   if (!ids.length) return { today: 0, d7: 0, d30: 0 }
@@ -127,10 +135,11 @@ export function assistantList() {
   const sessions = listSessions({ days: 30 })
   const links = sessionAssistants(sessions, loaded)
   const dock = dockThreads()
+  const works = allWorks()
   const cards: AssistantCard[] = loaded.list.filter((a) => !a.retired).map(({ role, retired: _r, stopped: _s, ...a }) => {
     const mine = sessions.filter((s) => links.get(s.id)?.key === a.key)
     const r = mine[0]
-    return { ...a, recent: r ? { id: r.id, title: shown(r, dock), status: r.status, last_at: r.last_at } : null, sessions: mine.length, usage: usageOf(mine.map((s) => s.id)), file_problems: fileProblems(role) }
+    return { ...a, recent: r ? { id: r.id, title: shown(r, dock), status: r.status, last_at: r.last_at } : null, sessions: mine.length, usage: usageOf(mine.map((s) => s.id)), file_problems: fileProblems(role), works: worksFor(works, a.name).length }
   })
   const unmatched = sessions.filter((s) => !links.has(s.id)).length
   const chiefs = cards.filter((c) => c.chief).length
@@ -171,6 +180,7 @@ export function assistantDetail(key: string) {
     files, folder_problems: role?.problems ?? [],
     sessions: mine,
     dispatch: a.chief ? dispatchOf(loaded.list) : [],
+    works: worksFor(allWorks(), a.name).slice(0, 50),
     usage: usageOf(mine.map((s) => s.id)),
     resident: resident ? { id: resident.id, title: resident.title, link: resident.link } : null,
     note: '这里只看。想改它的设定，在 Codex 里说“改一下<名字>的……”，或打开知识库原文。用量是归到它的对话在这台电脑上的记录加起来，估的。',

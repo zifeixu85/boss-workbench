@@ -1,6 +1,6 @@
 // 列出、找到某一篇（2026-11-27，约定 11.13：小红书助理要能找回自己写过的那篇接着改）；也给助理页的“产出”用（接入点 works）。
 // 一篇从选题到发布是同一条：选题（灵感池、已选）→ 草稿（写稿中）→ 定稿（待发布）→ 已发布。谁做的：选题是谁存的，加上每一版的作者。归属：小红书内容模块。
-import { all } from '../../db.ts'
+import { all, localDate } from '../../db.ts'
 
 export type PieceBrief = {
   id: string; title: string; status: string
@@ -12,6 +12,8 @@ export type PieceBrief = {
   /** 每一版的作者（去重，先来的在前） */
   authors: string[]
   updated_at: string
+  /** 最后动的那天（本地日期） */
+  day: string
   /** 网页上这一篇的地址（创作页） */
   path: string
 }
@@ -30,7 +32,7 @@ export function findPieces(o: { q?: string; status?: string; by?: string; limit?
     ORDER BY p.updated_at DESC LIMIT 500`, { q: o.q?.trim() || null, like: `%${o.q?.trim() ?? ''}%` })
   const list = rows.map((r): PieceBrief => ({
     id: r.id, title: r.title, status: r.status, stage: STAGE[r.status] ?? r.status, version: r.version, by: r.created_by,
-    authors: [...new Set((r.authors ?? '').split('\u001f').filter(Boolean))], updated_at: r.updated_at, path: `/content/studio/${r.id}`,
+    authors: [...new Set((r.authors ?? '').split('\u001f').filter(Boolean))], updated_at: r.updated_at, day: localDate(new Date(r.updated_at)), path: `/content/studio/${r.id}`,
   }))
   const who = o.by?.trim()
   return list
