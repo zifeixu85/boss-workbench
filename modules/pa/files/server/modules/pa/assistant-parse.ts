@@ -33,12 +33,16 @@ function folderParts(folder: string): { duty: string; name: string } {
   return m ? { duty: m[1].trim(), name: m[2].trim() } : { duty: folder, name: '' }
 }
 
-/** 旧写法“管：……。不管：……。”从“我管什么，不管什么”那一节拆出来 */
+/** 旧写法“管：……。不管：……。”从“我管什么，不管什么”那一节拆出来；一行一条写了好几行“管：”的，接起来 */
 function ownsFromBody(body: string): { owns: string; notOwns: string } {
-  const t = sections(body).find((x) => x.title.replace(/\s/g, '') === '我管什么，不管什么')?.text.replace(/\s+/g, ' ').trim() ?? ''
-  const owns = t.match(/(?:^|[。；;\s])管[:：]\s*(.+?)(?=\s*不管[:：]|$)/)?.[1].trim() ?? ''
-  const notOwns = t.match(/不管[:：]\s*(.+)$/)?.[1].trim() ?? ''
-  return { owns, notOwns }
+  const t = sections(body).find((x) => x.title.replace(/\s/g, '') === '我管什么，不管什么')?.text ?? ''
+  const owns: string[] = []
+  const notOwns: string[] = []
+  for (const m of t.matchAll(/(?<=^|[\n。；;\s])(不管|管)[:：]\s*([\s\S]*?)(?=(?<=[\n。；;\s])(?:不管|管)[:：]|$)/g)) {
+    const v = m[2].replace(/\s+/g, ' ').trim()
+    if (v) (m[1] === '管' ? owns : notOwns).push(v)
+  }
+  return { owns: owns.join(' '), notOwns: notOwns.join(' ') }
 }
 
 /** 一个助理的属性（IDENTITY.md 全文；没有这份文件传空串） */

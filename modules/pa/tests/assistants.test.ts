@@ -50,6 +50,10 @@ test('旧格式：缺的从文件夹名、“角色”、“我管什么，不�
   assert.deepEqual(a.missing, ['头像', '职责', '管什么', '不管什么', '怎么叫', '能做什么', '总协调'])
   assert.equal(assistantProps('总助-小茶', '---\n角色: 总助\n名称: 小茶\n---\n').chief, true, '旧的总助文件夹也算总协调')
   assert.equal(assistantProps('分身-阿远', '').name, '阿远', '没有 IDENTITY 也能显示')
+  const many = assistantProps('分身-阿远', '## 我管什么，不管什么\n管：提醒你当初为什么开店。\n管：问一句这样还认得出产地吗。\n不管：具体报价，这些问总助。\n不管：合同、税。\n')
+  assert.equal(many.owns, '提醒你当初为什么开店。 问一句这样还认得出产地吗。', '一行一条的接起来')
+  assert.equal(many.notOwns, '具体报价，这些问总助。 合同、税。')
+  assert.equal(assistantProps('a', '## 我管什么，不管什么\n主管：x\n').owns, '', '“主管：”不是“管：”')
 })
 
 test('同事清单：一行一个助理，名字一栏的双链拆出路径和显示名；常驻对话去掉括号里的说明', () => {
