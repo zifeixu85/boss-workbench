@@ -92,14 +92,15 @@ test('档案的“位置”小节：助理、报告、收件箱、你是谁这�
   assert.equal(r.positions['你是谁这一页'], '10-自我说明书/USER.md')
 })
 
-test('我关注的：登记了但文件夹不在、登记了类型库里没有的类，单独说；至少一类对得上就算能用（部分）', () => {
+test('我关注的：登记了但文件夹不在的单独说（类型库里没有的是自定义的一类，文件夹在就算对得上）；至少一类对得上就算能用（部分）', () => {
   const profile = '## 我关注的\n\n| 类型 | 文件夹 | 确认 |\n|---|---|---|\n| 项目 | 02-项目 | 已确认 |\n| 客户 | 10-客户 | 已确认 |\n| 学员 | 20-学员 | 已确认 |\n'
   const r = checkKb(kb({ '知识库档案.md': profile, '02-项目/a.md': 'x', '01-关于我/助理/': '', '90-日志与报告/': '', '00-收件箱/': '' }))
   const f = page(r, 'focus')
   assert.equal(f.status, '能用')
   assert.deepEqual(f.classes.map((c) => [c.name, c.ok]), [['项目', true], ['客户', false], ['学员', false]])
   assert.match(f.classes[1].why, /10-客户.*没有/)
-  assert.match(f.classes[2].why, /类型库/)
+  assert.match(f.classes[2].why, /20-学员.*没有/)
+  assert.equal(f.classes[2].custom, true)
   assert.equal(r.ready, false, '有一类对不上，提示做一次升级检查')
 })
 
@@ -173,4 +174,10 @@ test('汇总文件不算对象（约定 9.7，和知识库工具 SUMMARY_NAME �
   assert.deepEqual(objectFiles(root, '2-产品库', ['价格表.md'], '产品'), ['2-产品库/价格表.md'])
   for (const name of ['总表', '汇总', '清单', '列表', '价格表', '价目表', '报价单', '原话集', '合集', '集锦', '反馈', '模板', '索引', '目录']) assert.ok(isSummaryName(`客户${name}.md`), name)
   assert.ok(!isSummaryName('青禾书店.md'))
+})
+
+test('自定义的一类（约定 11.8）：类型库里没有的也算对得上，数得出几份，标“自定义”', () => {
+  const root = kb({ '11-学员/张同学.md': '---\n类型: 学员\n状态: 在读\n---\n', '知识库档案.md': '## 我关注的\n\n| 类型 | 文件夹 | 确认 | 状态对照 |\n|---|---|---|---|\n| 学员 | 11-学员 | 已确认 | 在读=进行中 |\n' })
+  const c = page(checkKb(root), 'focus').classes[0]
+  assert.deepEqual([c.name, c.ok, c.count, c.custom], ['学员', true, 1, true])
 })

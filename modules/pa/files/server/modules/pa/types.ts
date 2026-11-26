@@ -7,7 +7,9 @@ export type FocusClass = { name: string; folder: string; statuses: string[]; fie
   /** 状态写在开头的哪个字段（“我关注的”表的“状态字段”，没写是“状态”） */
   statusField: string
   /** 每个叫法归哪个阶段（未开始、进行中、已结束；约定 10.2）：默认叫法、“叫法”里换的、“状态对照”里登记的。空的是不分阶段的类（案例） */
-  stageOf: Record<string, '未开始' | '进行中' | '已结束'> }
+  stageOf: Record<string, '未开始' | '进行中' | '已结束'>
+  /** 类型库里没有、老板自己登记的一类（约定 11.8）：通用列表和详情 */
+  custom?: boolean }
 
 export type KbObject = {
   type: string; name: string

@@ -54,7 +54,9 @@ export function objectsOf(cls: FocusClass): { objects: KbObject[]; problems: str
   for (const rel of objectFiles(ROOT, cls.folder, cls.match, cls.name)) {
     if (!readable(rel)) continue
     try {
-      const o = parseObject(readRel(rel), rel)
+      const parsed = parseObject(readRel(rel), rel)
+      // 自定义的一类（约定 11.8）：开头写的“类型: 学员”是登记过的，不算“不在类型库里”
+      const o = cls.custom ? { ...parsed, warnings: parsed.warnings.filter((w) => w !== `类型“${cls.name}”不在类型库里`) } : parsed
       // 状态写在登记的字段里（比如 status、阶段）：读那一个
       objects.push(cls.statusField && cls.statusField !== '状态' ? { ...o, status: String(o.fields[cls.statusField] ?? '').trim() } : o)
     } catch (err) { problems.push(`${rel} 读不了：${(err as Error).message}`) }

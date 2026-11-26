@@ -4,7 +4,7 @@ export const DEFAULT_POSITIONS: Record<string, string>
 export const DEFAULT_PATTERNS: string[]
 export const SUMMARY_NAME: RegExp
 export function isSummaryName(name: string): boolean
-export type KbCheckClass = { name: string; folder: string; ok: boolean; why?: string; derived?: boolean; count?: number }
+export type KbCheckClass = { custom?: boolean; name: string; folder: string; ok: boolean; why?: string; derived?: boolean; count?: number }
 export type KbCheckStatus = '能用' | '要升级检查' | '还没建助理'
 export type KbCheckPage = { id: 'progress' | 'outputs' | 'focus' | 'roles' | 'reports' | 'confirm'; label: string; status: KbCheckStatus; does: string; where?: string; need?: string; classes?: KbCheckClass[]; note?: string; kb?: boolean }
 export type KbCheckSay = { say: string; for: '知识库' | '助理' }

@@ -48,15 +48,15 @@ const PROFILE = `# 知识库档案
 | 月报 | 开 | 每月最后一天 |
 `
 
-test('“我关注的”：只认类型库里的；还没做页面的、库里没有的都说清楚；状态和字段来自类型库，叫法换过来', () => {
+test('“我关注的”：类型库里的照类型库；还没做页面的说清楚；库里没有的（学员）是自定义的一类（约定 11.8），没写状态对照要说；叫法换过来', () => {
   const r = parseProfile(PROFILE)
-  assert.deepEqual(r.classes.map((c) => [c.name, c.folder, c.confirmed]), [['项目', '02-项目', true], ['客户', '10-客户', true], ['产品', '11-产品', false]])
+  assert.deepEqual(r.classes.map((c) => [c.name, c.folder, c.confirmed, !!c.custom]), [['项目', '02-项目', true, false], ['客户', '10-客户', true, false], ['产品', '11-产品', false, false], ['学员', '13-学员', true, true]])
   const kh = r.classes[1]
   assert.deepEqual(kh.statuses, ['跟进中', '合作中', '沉默', '未开始', '进行中', '已结束'], '“在谈”换成本人的叫法；阶段名本身也收')
   assert.deepEqual(kh.rename, { 在谈: '跟进中' })
   assert.deepEqual(kh.fields, ['上次联系', '下次跟进'])
   assert.ok(r.problems.some((p) => /渠道.*还没做/.test(p)))
-  assert.ok(r.problems.some((p) => /学员.*不在类型库/.test(p)))
+  assert.ok(r.problems.some((p) => /学员.*自定义.*状态对照/.test(p)))
   assert.deepEqual(r.candidates, [{ what: '学员', count: 6, at: '2026-11-24' }])
   assert.deepEqual(r.reports, { 日报: false, 周报: true, 月报: true })
 })
@@ -279,4 +279,24 @@ test('老板自己结构的对象（开头没写“类型”，按对照表登�
   const ours = parseObject('---\n类型: 客户\n名称: 云杉物流\n---\n\n## 现在\n在谈\n', '10-客户/云杉物流.md')
   assert.equal(ours.own, false)
   assert.deepEqual(ours.missing, ['状态', '更新', '确认', '隐私', '来源'])
+})
+
+test('自定义的一类（约定 11.8，比如“学员”）：类型库里没有、登记在“我关注的”里就出页面，用通用的列表和详情；状态对照必须写，没写照样显示、说出来', async () => {
+  const { stageOf } = await import('../files/server/modules/pa/stages.ts')
+  const md = `## 我关注的
+
+| 类型 | 文件夹 | 确认 | 文件怎么认 | 名称取自 | 状态字段 | 状态对照 |
+|---|---|---|---|---|---|---|
+| 学员 | 11-学员 | 已确认 |  |  |  | 报名=未开始；在读=进行中；毕业=已结束 |
+| 讲师 | 12-讲师 | 待确认 |  |  |  |  |
+`
+  const r = parseProfile(md)
+  const [xy, js] = r.classes
+  assert.deepEqual(r.classes.map((c) => [c.name, c.folder, c.custom, c.icon]), [['学员', '11-学员', true, 'Tag'], ['讲师', '12-讲师', true, 'Tag']])
+  assert.equal(stageOf(xy, '在读'), '进行中')
+  assert.equal(stageOf(xy, '进行中'), '进行中', '阶段名本身也认')
+  assert.equal(stageOf(js, '上课中'), '未归类')
+  assert.ok(!r.problems.some((p) => /学员.*不在类型库/.test(p)))
+  assert.ok(r.problems.some((p) => /讲师.*状态对照/.test(p)))
+  assert.deepEqual(xy.fields, [])
 })

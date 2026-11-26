@@ -74,9 +74,10 @@ export function parseProfile(raw: string): { classes: FocusClass[]; problems: st
       const iPat = t.head.indexOf('文件怎么认')
       const match = iPat >= 0 ? (row[iPat] ?? '').split(/[;；]/).map((x) => x.trim().replace(/^\/+/, '')).filter(Boolean) : []
       const folder = (rawFolder ?? '').replace(/\\/g, '/').replace(/^\.\//, '').replace(/\/+$/, '')
-      const def = typeDef(name)
       if (!name || !folder) { problems.push(`有一行没写类型或文件夹：${name ?? ''}`); continue }
-      if (!def) { problems.push(`“${name}”不在类型库里，不出页面（类型库只有：项目、客户、产品、案例、作品、渠道、门店、伙伴、主题；类型库没有的东西记进“候选类型”）`); continue }
+      // 类型库里没有的（约定 11.8，比如“学员”）：老板实际在管的自定义一类，用通用的列表和详情显示；没有默认叫法，状态对照必须写
+      const custom = !typeDef(name)
+      const def: TypeDef = typeDef(name) ?? { name, what: '自定义的一类', statuses: [], stages: {}, fields: [], links: [], icon: 'Tag', page: true }
       if (!def.page) { problems.push(`“${name}”在类型库里，但工作台这一版还没做它的页面（现在有页面的：${PAGE_TYPES.join('、')}）`); continue }
       if (folder.startsWith('/') || folder.split('/').includes('..')) { problems.push(`“${name}”的文件夹要写知识库里面的（现在是 ${rawFolder}）`); continue }
       if (classes.some((x) => x.name === name)) { problems.push(`“${name}”写了两次，只认第一次`); continue }
@@ -85,7 +86,8 @@ export function parseProfile(raw: string): { classes: FocusClass[]; problems: st
       // 状态字段、状态对照（约定 9.3、10.2）：按表头找这两列，没有就是默认
       const col = (h: string) => { const i = t.head.indexOf(h); return i >= 0 ? (row[i] ?? '').trim() : '' }
       const { statuses, stageOf } = classStates(def, rename, col('状态对照'), problems)
-      classes.push({ name, folder, statuses, stageOf, statusField: col('状态字段') || '状态', fields: def.fields, links: def.links, icon: def.icon, rename, confirmed: (confirm ?? '').trim() === '已确认', ...(match.length ? { match } : {}) })
+      if (custom && !col('状态对照')) problems.push(`“${name}”是自定义的一类，没有默认叫法，要在“状态对照”里写清每个状态归哪个阶段（比如“报名=未开始；在读=进行中；毕业=已结束”），现在只认得未开始、进行中、已结束这三个词`)
+      classes.push({ name, folder, statuses, stageOf, statusField: col('状态字段') || '状态', fields: def.fields, links: def.links, icon: def.icon, rename, confirmed: (confirm ?? '').trim() === '已确认', ...(match.length ? { match } : {}), ...(custom ? { custom: true } : {}) })
     }
   }
   const cand = section(md, '候选类型')

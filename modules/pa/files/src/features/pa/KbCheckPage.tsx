@@ -8,7 +8,7 @@ import { StatusBadge } from '@/components/status'
 import { Failed } from '@/components/chart-kit'
 import { Skeleton } from '@/components/ui/skeleton'
 
-type CheckPage = { id: string; label: string; status: '能用' | '要升级检查' | '还没建助理'; does: string; where?: string; need?: string; classes?: { name: string; folder: string; ok: boolean; why?: string }[] }
+type CheckPage = { id: string; label: string; status: '能用' | '要升级检查' | '还没建助理'; does: string; where?: string; need?: string; classes?: { name: string; folder: string; ok: boolean; why?: string; custom?: boolean }[] }
 type Check = { root: string; exists: boolean; profile: { path: string | null; kind: string | null }; pages: CheckPage[]; ready: boolean; kbReady: boolean; says: { say: string; for: '知识库' | '助理' }[]; next: string }
 
 const LINK: Record<string, string> = { progress: '/progress', outputs: '/outputs', roles: '/roles', reports: '/reports', confirm: '/' }
@@ -25,7 +25,7 @@ function Row({ p }: { p: CheckPage }) {
           <span className="text-xs text-muted-foreground">{p.does}{p.where ? ` · ${p.where}` : ''}</span>
         </span>
         {p.need && <span className={`block text-xs ${p.status === '还没建助理' ? 'text-muted-foreground' : 'text-warn'}`}>{p.status === '还没建助理' ? p.need : `缺：${p.need}`}</span>}
-        {p.classes && p.classes.length > 0 && <span className="block text-xs text-muted-foreground">{p.classes.map((c) => `${c.name}${c.ok ? '' : `（${c.why}）`}`).join('、')}</span>}
+        {p.classes && p.classes.length > 0 && <span className="block text-xs text-muted-foreground">{p.classes.map((c) => `${c.name}${c.custom ? '（自定义）' : ''}${c.ok ? '' : `（${c.why}）`}`).join('、')}</span>}
         {ok && bad.length > 0 && <span className="block text-xs text-warn">有 {bad.length} 类对不上，其余照常能用</span>}
       </span>
     </li>

@@ -154,8 +154,10 @@ export function checkKb(rootIn) {
   const classes = (focusTable?.rows ?? []).filter((r) => r[0]).map((row) => {
     const [name, folder] = row
     const f = clean(folder)
-    const why = !ALL_TYPES.includes(name) ? `“${name}”不在类型库里，没有页面` : !PAGE_TYPES.includes(name) ? `“${name}”这一类还没做页面` : !f || f.includes('..') ? '没写文件夹' : !isDir(at(f)) ? `登记的文件夹 ${f} 没有` : ''
-    return { name, folder: f, ok: !why, ...(why ? { why } : { count: objectFiles(root, f, iPat >= 0 ? splitPatterns(row[iPat]) : [], name).length }) }
+    // 类型库里没有的是老板自己登记的一类（约定 11.8，比如“学员”）：用通用的列表和详情，照样算对得上
+    const custom = !ALL_TYPES.includes(name)
+    const why = !custom && !PAGE_TYPES.includes(name) ? `“${name}”这一类还没做页面` : !f || f.includes('..') ? '没写文件夹' : !isDir(at(f)) ? `登记的文件夹 ${f} 没有` : ''
+    return { name, folder: f, ok: !why, ...(custom ? { custom: true } : {}), ...(why ? { why } : { count: objectFiles(root, f, iPat >= 0 ? splitPatterns(row[iPat]) : [], name).length }) }
   })
   // 老结构没有“我关注的”表：按目录对应推出客户、项目（推出来的标待确认）；推不出来的说清是没有还是认不出文件
   const derived = found?.kind === '老板知识库' && !focusTable
