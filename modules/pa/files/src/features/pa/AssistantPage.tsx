@@ -119,16 +119,16 @@ function Files({ a }: { a: AssistantDetail }) {
   return (
     <Panel title="档案" desc="它的设定和记下的东西，都在知识库里" bodyClass="p-0">
       {!f ? <div className="p-4"><EmptyNote>它的文件夹里还没有文件。</EmptyNote></div> : <>
-        <div className="flex flex-wrap items-center gap-2 border-b px-4 py-2.5">
-          <ViewTabs className="min-w-0 flex-1" label="哪份文件" value={f.name} onChange={setPick} items={a.files.map((x) => ({ value: x.name, label: x.name }))} />
-          <Button size="sm" variant="ghost" onClick={copy}><Copy />在 Codex 里改</Button>
-          <Button size="sm" variant="ghost" asChild><Link to={kbLink(f.path)}><FileText />看知识库原文</Link></Button>
+        {/* 页签自己一行（窄的时候也看得到有几份），改、看原文的入口在下面一行 */}
+        <div className="grid gap-2 border-b px-4 pt-3 pb-2">
+          <ViewTabs className="min-w-0" label="哪份文件" value={f.name} onChange={setPick} items={a.files.map((x) => ({ value: x.name, label: x.name }))} />
+          <div className="flex flex-wrap items-center gap-x-1 gap-y-1 text-xs text-muted-foreground">
+            <span className="mr-auto">{f.call}{f.call && data ? ' · ' : ''}{data ? `更新于 ${data.updated.slice(0, 10)}` : ''}</span>
+            <Button size="sm" variant="ghost" onClick={copy}><Copy />在 Codex 里改</Button>
+            <Button size="sm" variant="ghost" asChild><Link to={kbLink(f.path)}><FileText />看知识库原文</Link></Button>
+          </div>
         </div>
         <div className="max-h-[640px] overflow-y-auto overscroll-contain px-5 py-4 md:px-7">
-          <div className="mb-3 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-            {f.call && <span>{f.call}</span>}
-            {data && <span>更新于 {data.updated.slice(0, 10)}</span>}
-          </div>
           {f.problems.length > 0 && <p className="mb-3 rounded-lg bg-warn-soft px-3 py-2 text-xs text-warn">{f.problems.join('；')}</p>}
           {isLoading || !data ? <div className="grid gap-2"><Skeleton className="h-6 w-1/3" /><Skeleton className="h-4" /><Skeleton className="h-4 w-4/5" /></div>
             : <article className="max-w-3xl min-w-0 break-words"><Markdown source={data.body} basePath={data.path} /></article>}
