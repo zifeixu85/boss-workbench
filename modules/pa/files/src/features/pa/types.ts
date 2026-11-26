@@ -115,9 +115,12 @@ export type AssistantUsage = { today: number; d7: number; d30: number }
 export type AssistantCard = AssistantBase & { recent: { id: string; title: string; status: SessionStatus; last_at: string } | null; sessions: number; usage: AssistantUsage; file_problems: number }
 export type AssistantList = { base: string; exists: boolean; assistants: AssistantCard[]; unmatched: number; colleagues: boolean; problems: string[]; note: string
   /** 花名册：哪份文件（旧名同事清单也认）、有几位 */
-  roster: { path: string | null; count: number; old: boolean } }
+  roster: { path: string | null; count: number; old: boolean }
+  /** 不用了的助理（文件夹留着）：收在页面最下面 */
+  retired: { key: string; name: string; avatar: string; duty: string; day: string; why: string }[] }
 export type Dispatch = { day: string; what: string; to: string; done: string; stage: string; note: string; open: boolean }
 export type AssistantDetail = AssistantBase & {
+  retired: boolean; stopped: { name: string; day: string; why: string } | null
   files: { name: string; path: string; call: string; problems: string[] }[]; folder_problems: string[]
   sessions: { id: string; title: string; status: SessionStatus; why: string; last_at: string; started_at: string; link: string | null; by: string; outputs: number; object: Session['object'] }[]
   dispatch: Dispatch[]; usage: AssistantUsage

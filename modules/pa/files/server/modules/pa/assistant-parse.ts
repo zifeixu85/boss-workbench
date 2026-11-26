@@ -102,6 +102,14 @@ export function parseColleagues(md: string): Colleague[] {
   })
 }
 
+/** 花名册里“不用了的”那张小表（删掉的助理不删文件夹，挪到这里）：名字、哪天停的、为什么 */
+export function parseRetired(md: string): { name: string; day: string; why: string }[] {
+  const body = front(md).body
+  const at = body.search(/^##\s+不用了的/m)
+  if (at < 0) return []
+  return table(body.slice(at).replace(/^##[^\n]*\n/, '')).filter((r) => r['名字']).map((r) => ({ name: unlink(r['名字']), day: r['哪天停的'] ?? '', why: r['为什么'] ?? '' }))
+}
+
 export function parseDispatch(md: string): Dispatch[] {
   return table(md).filter((r) => r['什么事'] || r['交给谁']).map((r) => {
     const stage = r['到哪一档'] ?? ''

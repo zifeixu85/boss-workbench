@@ -3,7 +3,7 @@
 // 运行：node --test modules/pa/tests/*.test.ts
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { assistantProps, matchAssistant, parseColleagues, parseDispatch, skillNames, titleKey, type AssistantKey } from '../files/server/modules/pa/assistant-parse.ts'
+import { assistantProps, matchAssistant, parseColleagues, parseDispatch, parseRetired, skillNames, titleKey, type AssistantKey } from '../files/server/modules/pa/assistant-parse.ts'
 
 const NEW_ID = `---
 类型: 角色
@@ -101,4 +101,10 @@ test('看家本领（约定 11.12）：每条“**叫什么**。什么时候用�
   assert.deepEqual(skillNames(md), ['金字塔原理', '要事第一', '关键节点和依赖', '复盘四问'])
   assert.deepEqual(skillNames('- 选题的钩子：什么时候用……\n- 标题套路。什么时候用……\n'), ['选题的钩子', '标题套路'])
   assert.deepEqual(skillNames(''), [])
+})
+
+test('不用了的助理（约定 11.11）：花名册“不用了的”那张小表里的名字；名字一栏是双链的取显示名', () => {
+  const md = `| 头像 | 名字 | 职责 | 管什么 | 不管什么 | 怎么叫 | 常驻对话 |\n|---|---|---|---|---|---|---|\n| ✍️ | 小叶 | 小红书助理 | 写稿 | 发布 | 叫小叶 | 还没有 |\n\n## 不用了的\n\n| 名字 | 哪天停的 | 为什么 |\n|---|---|---|\n| [[01-关于我/助理/报价助理-阿算/IDENTITY\\|阿算]] | 2026-11-20 | 报价归总助了 |\n| 老王 | 2026-11-21 |  |\n`
+  assert.deepEqual(parseRetired(md), [{ name: '阿算', day: '2026-11-20', why: '报价归总助了' }, { name: '老王', day: '2026-11-21', why: '' }])
+  assert.deepEqual(parseRetired('| 名字 |\n|---|\n| 小叶 |\n'), [], '没有“不用了的”那一节就是空的')
 })

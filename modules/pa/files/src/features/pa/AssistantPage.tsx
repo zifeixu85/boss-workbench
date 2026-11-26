@@ -36,6 +36,7 @@ export default function AssistantPage() {
               <span className="font-medium">{a.duty || '还没写职责'}</span>
               {a.chief && <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary"><Crown className="size-3" />总协调</span>}
               {a.legacy && <StatusBadge value="待补齐" tone="warn" />}
+              {a.retired && <StatusBadge value={a.stopped?.day ? `${a.stopped.day} 起不用了` : '不用了'} tone="neutral" />}
             </div>
             <span className="text-xs text-muted-foreground">在对话里说“{a.call}”叫到它 · 放在知识库 {a.folder}/</span>
           </div>

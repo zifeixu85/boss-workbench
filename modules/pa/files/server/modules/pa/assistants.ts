@@ -11,7 +11,7 @@ import { places } from './places.ts'
 import { roles, type Role } from './roles.ts'
 import { listSessions, now, type SessionView } from './store.ts'
 import { localDay } from './usage-calc.ts'
-import { assistantProps, matchAssistant, parseColleagues, parseDispatch, skillNames, type Assistant, type Colleague, type Dispatch, type MatchBy } from './assistant-parse.ts'
+import { assistantProps, matchAssistant, parseColleagues, parseDispatch, parseRetired, skillNames, type Assistant, type Colleague, type Dispatch, type MatchBy } from './assistant-parse.ts'
 
 /** 花名册（约定 11.12；11.11 时叫同事清单）：先找新名字，没有再找旧的 */
 const ROSTER = ['花名册.md', '同事清单.md']
@@ -41,11 +41,13 @@ function base() { return places()['助理'] }
 const rowOf = (rows: Colleague[], folder: string, name: string) => rows.find((r) => r.path && r.path.split('/').slice(-2, -1)[0] === folder) ?? rows.find((r) => r.name === name)
 
 /** 全部助理（总协调排最前，别的按名字），加上花名册里补来的常驻对话 */
-function loadAssistants(): { list: (Assistant & { folder: string; thread: string; mismatch: string[]; role: Role | undefined; skills: string[] })[]; colleagues: Colleague[]; rosterFile: string | null; base: string; exists: boolean } {
+function loadAssistants(): { list: (Assistant & { folder: string; thread: string; mismatch: string[]; role: Role | undefined; skills: string[]; retired: boolean; stopped: { name: string; day: string; why: string } | null })[]; colleagues: Colleague[]; rosterFile: string | null; base: string; exists: boolean } {
   const BASE = base()
   const r = roles()
   const rosterFile = ROSTER.map((f) => `${BASE}/${f}`).find(readable) ?? null
-  const colleagues = rosterFile ? parseColleagues(read(rosterFile)) : []
+  const rosterText = rosterFile ? read(rosterFile) : ''
+  const colleagues = rosterFile ? parseColleagues(rosterText) : []
+  const gone = rosterFile ? parseRetired(rosterText) : []
   const list = r.roles.map((role) => {
     const folder = role.folder.split('/').pop()!
     const idFile = role.files.find((f) => f.exists && (f.name === 'IDENTITY' || f.name === '角色'))
@@ -62,7 +64,10 @@ function loadAssistants(): { list: (Assistant & { folder: string; thread: string
     }
     const merged = { ...a, avatar: fill('avatar', '头像', row?.avatar), duty: fill('duty', '职责', row?.duty), owns: fill('owns', '管什么', row?.owns), notOwns: fill('notOwns', '不管什么', row?.notOwns), call: fill('call', '怎么叫', row?.call) }
     const skills = skillNames(read(`${role.folder}/看家本领.md`))
-    return { ...merged, folder: role.folder, thread: row?.thread ?? '', mismatch, role, skills }
+    // 删掉的助理（约定 11.11）：文件夹留着，IDENTITY 开头“确认: 已过期”，或挪进了花名册“不用了的”小表
+    const stopped = gone.find((g) => g.name === merged.name)
+    const retired = idFile?.confirm === '已过期' || !!stopped
+    return { ...merged, folder: role.folder, thread: row?.thread ?? '', mismatch, role, skills, retired, stopped: stopped ?? null }
   }).sort((x, y) => Number(y.chief) - Number(x.chief) || x.name.localeCompare(y.name, 'zh'))
   return { list, colleagues, rosterFile, base: BASE, exists: r.exists }
 }
@@ -100,7 +105,7 @@ export function sessionAssistants(sessions: SessionView[], loaded = loadAssistan
 
 /** 对话栏里能叫的助理（接入点 assistantPersonas）：总协调在前；page 是它自己那一页 */
 export function personaList() {
-  return loadAssistants().list.map((a) => ({ key: a.key, name: a.name, avatar: a.avatar, duty: a.duty, call: a.call, page: `/roles/${a.key}` }))
+  return loadAssistants().list.filter((a) => !a.retired).map((a) => ({ key: a.key, name: a.name, avatar: a.avatar, duty: a.duty, call: a.call, page: `/roles/${a.key}` }))
 }
 
 /** 这些对话的 token 用量：今日、近 7 日、近 30 日 */
@@ -122,7 +127,7 @@ export function assistantList() {
   const sessions = listSessions({ days: 30 })
   const links = sessionAssistants(sessions, loaded)
   const dock = dockThreads()
-  const cards: AssistantCard[] = loaded.list.map(({ role, ...a }) => {
+  const cards: AssistantCard[] = loaded.list.filter((a) => !a.retired).map(({ role, retired: _r, stopped: _s, ...a }) => {
     const mine = sessions.filter((s) => links.get(s.id)?.key === a.key)
     const r = mine[0]
     return { ...a, recent: r ? { id: r.id, title: shown(r, dock), status: r.status, last_at: r.last_at } : null, sessions: mine.length, usage: usageOf(mine.map((s) => s.id)), file_problems: fileProblems(role) }
@@ -132,6 +137,8 @@ export function assistantList() {
   return {
     base: loaded.base, exists: loaded.exists, assistants: cards, unmatched, colleagues: loaded.colleagues.length > 0,
     // 顶上那句总览：“团队里现在有 N 位”（按花名册数；没有花名册按助理文件夹数）
+    // 不用了的：页上收在最下面，点了照样能看它的页
+    retired: loaded.list.filter((a) => a.retired).map((a) => ({ key: a.key, name: a.name, avatar: a.avatar, duty: a.duty, day: a.stopped?.day ?? '', why: a.stopped?.why ?? '' })),
     roster: { path: loaded.rosterFile, count: loaded.colleagues.length || cards.length, old: !!loaded.rosterFile?.endsWith('同事清单.md') },
     problems: [
       ...roles().problems,

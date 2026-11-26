@@ -32,6 +32,17 @@ export default function RolesPage() {
         {!d.exists || !d.assistants.length
           ? <Panel><EmptyNote>还没有助理（知识库 {d.base}/ 下没有助理的文件夹）。在 Codex 里说“认识一下我的总助”，建好以后这里就会多一张卡；以后想加小红书助理、报价助理，也是说一句。</EmptyNote></Panel>
           : <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">{d.assistants.map((a) => <Card key={a.key} a={a} />)}</div>}
+        {d.retired.length > 0 && (
+          <details className="group rounded-xl border bg-card/60 px-4 py-3 text-sm">
+            <summary className="cursor-pointer list-none text-muted-foreground marker:hidden hover:text-foreground">不用了的 {d.retired.length} 位（文件夹还留着，点开能看）</summary>
+            <ul className="mt-2 grid gap-1.5">
+              {d.retired.map((r) => (
+                <li key={r.key}><Link to={`/roles/${encodeURIComponent(r.key)}`} className="text-primary hover:underline">{r.avatar ? `${r.avatar} ` : ''}{r.name}</Link>
+                  <span className="text-xs text-muted-foreground"> · {r.duty || '没写职责'}{r.day ? ` · ${r.day} 停的` : ''}{r.why ? ` · ${r.why}` : ''}</span></li>
+              ))}
+            </ul>
+          </details>
+        )}
         <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
           <span>{d.note}</span>
           {d.unmatched > 0 && <Link to="/progress?assistant=-" className="inline-flex items-center gap-1 text-primary hover:underline"><Users className="size-3.5" />近 30 天还有 {d.unmatched} 个对话没归到助理</Link>}
