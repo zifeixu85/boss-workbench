@@ -1,18 +1,52 @@
 // 报告：读知识库 90-日志与报告/ 下的日报、周报、月报（总助、分身写的）；顶上几个数来自进展和产出。
 // AI 写完报告用 pa-report-add 登记：检查格式、记下登记时间。工作台不替 AI 写报告，也不改报告原文。
-import { existsSync, readdirSync } from 'node:fs'
+import { existsSync, mkdirSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { ROOT, all, get, run, logChange, nowIso } from '../../db.ts'
-import { canReadKbPath } from '../../services/kb.ts'
+import { canReadKbPath, writeKb } from '../../services/kb.ts'
 import { BadRequest, NotFound, type Actor } from '../../services/common.ts'
 import { readRel, reportSwitch } from './kb.ts'
 import { parseReport, periodOf, reportLine, reportSummary, weekOf, REPORT_KINDS, type Report, type ReportKind } from './report-parse.ts'
 import { listSessions, now } from './store.ts'
 import { outputStats } from './outputs.ts'
 import { places } from './places.ts'
+import { DEFAULT_TEMPLATE, DATA, BLOCKS, TEMPLATE_FILE, parseTemplate } from './report-template.ts'
+import { periodData } from './week-calc.ts'
 
 /** 报告放哪：档案“位置”里的“报告”，没登记是 90-日志与报告（约定 9.2） */
 export const reportDir = () => places()['报告']
+
+/** 报告模板（报告文件夹里的 报告模板.md）：有就用它，没有用默认；写错的地方一起给出来 */
+export function reportTemplate() {
+  const path = `${reportDir()}/${TEMPLATE_FILE}`
+  const abs = join(ROOT, path)
+  let md: string | null = null
+  let problem: string | null = null
+  if (existsSync(abs)) { try { md = readRel(path) } catch (err) { problem = `读不了 ${path}：${(err as Error).message}` } }
+  const t = parseTemplate(md ?? DEFAULT_TEMPLATE)
+  return { path, exists: md !== null, ...t, problems: [...(problem ? [problem] : []), ...t.problems] }
+}
+
+/** 把默认模板写进知识库，让老板改（已经有了不覆盖） */
+export function initReportTemplate(actor: Actor) {
+  const t = reportTemplate()
+  if (t.exists) return { ...t, created: false }
+  mkdirSync(join(ROOT, reportDir()), { recursive: true })
+  writeKb(t.path, DEFAULT_TEMPLATE)
+  logChange(actor, 'pa_report', t.path, '新建', `报告：写进了默认的报告模板（${t.path}），以后在对话里说要加哪节、去掉哪节就改这份`)
+  return { ...reportTemplate(), created: true }
+}
+
+/** 报告模板的说明：有哪些块、哪些数据（pa-report-template 给 AI 看） */
+export const templateHelp = () => ({ blocks: BLOCKS, data: Object.entries(DATA).map(([name, d]) => ({ name, ...d })) })
+
+/** 这一期的数（报告里“来源：工作台”的节、pa-week 用） */
+export function weekData(from: string, to: string) {
+  const sessions = listSessions({ days: 3650 })
+  const outputs = all<{ at: string; kind: string }>("SELECT at, kind FROM pa_outputs WHERE action <> '修改' AND at >= :a AND at < :b", { a: dayStart(from), b: nextDay(to) })
+  const usage = all<{ tool: string; day: string; fresh: number; cached: number; output: number }>('SELECT tool, day, fresh, cached, output FROM pa_usage WHERE day >= :from AND day <= :to', { from, to })
+  return periodData({ sessions, outputs, usage, from, to, today: localDay(now()) })
+}
 
 /** 某一种报告有哪些（按期间从新到旧） */
 export function listReports(kind: ReportKind): Report[] {
@@ -76,6 +110,9 @@ export function reportView(asked: ReportKind | undefined, period?: string) {
     periods: list.map((r) => r.period),
     report: report ? { ...report, registered_at: registered } : null,
     stats: periodStats(range.from, range.to), prev_stats: periodStats(prevRange.from, prevRange.to),
+    // 报告模板：这种报告有哪几节、每节用哪种块（工作台按它显示，不认死标题）；这一期和上一期的数（“来源：工作台”的节画图用）
+    template: (() => { const t = reportTemplate(); return { path: t.path, exists: t.exists, sections: t.kinds[kind], problems: t.problems } })(),
+    data: weekData(range.from, range.to), prev_data: weekData(prevRange.from, prevRange.to),
   }
 }
 

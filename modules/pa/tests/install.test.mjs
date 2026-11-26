@@ -129,6 +129,20 @@ test('装上个人助理：我关注的、进展、产出、报告、助理都�
   assert.equal(by['codex:thread-z'], undefined, '归档的不进对话列表')
   assert.match(cli('pa-usage').out, /Codex 一共 1\.4万 token/)
 
+  // 报告模板：没有文件用默认；-init 写进知识库报告文件夹，再跑不覆盖；这一期的数
+  const tpl = json('pa-report-template')
+  assert.equal(tpl.exists, false)
+  assert.equal(tpl.kinds['周报'].length, 9)
+  assert.ok(tpl.help.data.some((x) => x.name === '按天对话'))
+  assert.match(cli('pa-report-template-init').out, /写好了：90-日志与报告\/报告模板\.md/)
+  assert.ok(existsSync(join(KB, '90-日志与报告', '报告模板.md')))
+  assert.match(cli('pa-report-template-init').out, /已经有了/)
+  assert.equal(cli('pa-report-template', '--init').code === 0, false, '读的命令不写')
+  const wk = json('pa-week')
+  assert.ok(wk.cards['对话数'].value >= 2)
+  assert.equal(wk.cards['token'].value, 14000)
+  assert.equal(wk.series['按天对话'].length, 7)
+
   // 产出：写文件动作 + 图片目录
   // 报价单.md 真写出来了；长文.md 不在原处：默认不列，只数在 gone 里
   const out = json('pa-outputs')

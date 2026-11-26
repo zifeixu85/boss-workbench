@@ -44,9 +44,12 @@
       { "command": "pa-reports", "what": "某一期的日报 / 周报 / 月报和这一期的几个数" },
       { "command": "pa-roles", "what": "总助、内容助理、分身、合伙人的角色文件齐不齐、哪天更新的" },
       { "command": "pa-check", "what": "知识库检测：按知识库档案看现在能用哪些页面、哪些要先做升级检查（各缺什么）、下一步对 AI 说哪一句" },
+      { "command": "pa-week", "what": "这一期的数（args 可写 --kind 周报 --period 2026-W48）：对话、做完、在等你、打断、产出、token、连续天数、没挂对象和深夜占比，按天、按小时、按对象，同一件事一天开了三个以上对话的。写报告里“来源：工作台”的节时先跑它" },
+      { "command": "pa-report-template", "what": "报告模板：每种报告有哪几节、每节用哪种块（一段话、要点、数字卡、柱图、线图、占比、表格、待你点头）、数据从哪来；写报告前先读它，老板要加节、去掉、改名时改报告文件夹里的 报告模板.md，改完再跑一次看有没有写错" },
       { "command": "pa-usage", "what": "AI 用量：这台电脑上 Codex 对话用了多少 token（args 可写 --range today|7d|30d），新算的、缓存、输出分开，加 Codex 自己记的额度；Claude Code 的单独一行" }
     ],
     "write": [
+      { "command": "pa-report-template-init", "what": "把默认报告模板写进知识库的报告文件夹（报告模板.md），老板想改报告的节时先跑它；已经有了不覆盖" },
       { "command": "pa-scan", "what": "现在扫一遍本机 Codex、Claude Code 的对话记录（只读；只存元信息）" },
       { "command": "pa-report-add", "what": "登记一份已经写进知识库 90-日志与报告/ 的报告（args 写路径）；只检查格式、记下登记时间，不改报告" },
       { "command": "pa-mark", "what": "给一次对话标已看、手动改状态、手动归到某个对象（只记在工作台里）" },

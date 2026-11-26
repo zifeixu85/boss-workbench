@@ -49,9 +49,9 @@ export function weekOf(day: string): string {
   return `${thu.getUTCFullYear()}-W${String(week).padStart(2, '0')}`
 }
 
-/** 摘要：有“摘要”小节用它，没有用“做了什么”，再没有用第一个小节；取前几条 */
+/** 摘要：有“摘要”小节用它，没有用“一句话”（报告模板默认的第一节），再没有用“做了什么”、第一个小节；取前几条 */
 export function reportSummary(r: Report, max = 3): string[] {
-  const s = r.sections.find((x) => x.title === '摘要') ?? r.sections.find((x) => x.title === '做了什么') ?? r.sections[0]
+  const s = r.sections.find((x) => x.title === '摘要') ?? r.sections.find((x) => x.title === '一句话') ?? r.sections.find((x) => x.title === '做了什么') ?? r.sections[0]
   return s ? bullets(s.text).slice(0, max) : []
 }
 

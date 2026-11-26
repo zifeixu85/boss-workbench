@@ -55,6 +55,20 @@ export type ReportView = { on: string[]; kind: null } | {
   counts: Record<string, number>; periods: string[]
   report: { path: string; by: string; updated: string; confirm: string; sections: { title: string; text: string }[]; problems: string[]; registered_at: string | null } | null
   stats: Stats; prev_stats: Stats
+  /** 报告模板：这种报告有哪几节、每节用哪种块（按它显示，不认死标题） */
+  template: { path: string; exists: boolean; sections: TemplateSection[]; problems: string[] }
+  /** 这一期、上一期的数（“来源：工作台”的节画图用） */
+  data: PeriodData; prev_data: PeriodData
+}
+
+export type Block = '一段话' | '要点' | '数字卡' | '柱图' | '线图' | '占比' | '表格' | '待你点头'
+export type TemplateSection = { title: string; blocks: Block[]; source: 'AI' | '工作台' | '工作台+AI'; data: string[]; note: string; who: '总助' | '分身' }
+export type PeriodCard = { value: number | null; unit: string }
+export type PeriodData = {
+  from: string; to: string
+  cards: Record<string, PeriodCard>
+  series: { 按天对话: { label: string; date: string; talks: number; done: number }[]; 按天token: { label: string; date: string; value: number }[]; 按小时: { label: string; value: number }[]; 按对象: { label: string; value: number }[] }
+  lists: { 重复开对话: { 对象: string; 日期: string; 对话: number }[] }
 }
 
 export type RoleKind = '总助' | '内容' | '分身' | '合伙人'

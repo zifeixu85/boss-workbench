@@ -39,6 +39,12 @@ node server/cli.ts settings-set --home pa-done,pa-waiting,pa-confirm   # 今日�
 node server/cli.ts pa-scan                                             # 第一次扫一遍（以后打开页面时自动补扫）
 ```
 
+## 报告模板
+
+报告有哪几节、每节叫什么、用哪种块、数据从哪来，写在报告文件夹里的 `报告模板.md`（没有就用默认的一套，`pa-report-template-init` 写进知识库让老板改）。一级标题是哪种报告（`# 周报`），二级标题是一节，下面几行：`块`（一段话、要点、数字卡、柱图、线图、占比、表格、待你点头）、`来源`（AI、工作台、工作台＋AI）、`数据`（工作台算的数，`pa-report-template` 列出全部）、`写法`、`写的人`（分身写的节写“分身”）。
+报告页按模板显示，不认死标题：来源有工作台的节，数和图从这一期的数据现算（`pa-week`），这一期还没写报告也照样显示；来源是 AI 的节显示报告文件里写的；AI 写的图表块按那一节的第一张表画；报告里多写、模板里没有的节当普通文字放在最后。
+默认以“对话里发生了什么”为主（这周在推进什么、做成了什么、卡在哪、用 AI 的情况、使用习惯、说了但没沉淀的）；项目状态、待办到期这些别的页面已经能看到，不在报告里再抄。
+
 ## 隐私
 
 - 对话记录只读不改；数据库里只存元信息：标题、所在文件夹、时间、第一句的摘要（最多 80 字，像密钥的串遮掉）、写文件的路径。对话正文不存、不上传。
@@ -48,7 +54,7 @@ node server/cli.ts pa-scan                                             # 第一�
 
 ## 命令
 
-`pa`、`pa-focus`、`pa-object`、`pa-progress`、`pa-outputs`、`pa-reports`、`pa-roles`、`pa-check`、`pa-usage`（读）；`pa-scan`、`pa-report-add`、`pa-mark`（写，只写工作台自己的数据库）。`node server/cli.ts --help` 里有每条的参数。
+`pa`、`pa-focus`、`pa-object`、`pa-progress`、`pa-outputs`、`pa-reports`、`pa-roles`、`pa-check`、`pa-usage`、`pa-week`、`pa-report-template`（读）；`pa-report-template-init`、`pa-scan`、`pa-report-add`、`pa-mark`（写，只写工作台自己的数据库）。`node server/cli.ts --help` 里有每条的参数。
 
 ## 状态怎么算
 
