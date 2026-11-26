@@ -22,7 +22,7 @@ import { closeSync, cpSync, existsSync, mkdirSync, openSync, readFileSync, readd
 import { dirname, join, relative, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { isMain } from './is-main.mjs'
-import { catalog, findPack, ModuleError } from './module.mjs'
+import { catalog, findNewestPack, findPack, ModuleError } from './module.mjs'
 import { findMacAgents, makeContext } from './autostart.mjs'
 
 const SRC = resolve(dirname(fileURLToPath(import.meta.url)), '..')
@@ -100,10 +100,11 @@ export function plan(app, o = {}) {
     if (lock.modules[x.id]) continue
     let pack = null
     // 找模块包：--modules 指的；没指就按 module.mjs 的找法（老板放的、本机装的），再找新版 Skill 自带的 modules/
-    const froms = o.modules ? [o.modules] : [undefined, ...(o.catalog ? [] : [OWN_MODULES])]
-    for (const from of froms) {
-      if (pack) break
-      try { pack = findPack(x.id, from, app) } catch (err) { if (!(err instanceof ModuleError)) throw err }
+    // 2026-11-27：几处都有的挑版本最新的（知识库旁边留着旧版时，以新版 Skill 自带的为准）
+    if (o.modules) { try { pack = findPack(x.id, o.modules, app) } catch (err) { if (!(err instanceof ModuleError)) throw err } }
+    else {
+      const own = o.catalog ? [] : [join(OWN_MODULES, x.id)].filter((d) => existsSync(join(d, 'module.json')))
+      try { pack = findNewestPack(x.id, app, own) } catch (err) { if (!(err instanceof ModuleError)) throw err }
     }
     need.push({ id: x.id, name: x.name, rows: x.rows, get: x.get ?? '', pack, skip: without.has(x.id) })
   }

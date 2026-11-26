@@ -113,6 +113,34 @@ function packIn(dir, id) {
   return null
 }
 
+/** 一个文件夹里所有这个编号的模块包（它自己、<编号>/、下一层的子文件夹） */
+function packsIn(dir, id) {
+  const has = (d) => existsSync(join(d, 'module.json')) && readJson(join(d, 'module.json'), {}).id === id
+  const out = [dir, join(dir, id)].filter(has)
+  for (const sub of existsSync(dir) && statSync(dir).isDirectory() ? readdirSync(dir) : []) {
+    const d = join(dir, sub)
+    if (sub.startsWith('.') || !statSync(d).isDirectory()) continue
+    out.push(...[d, join(d, id)].filter(has))
+  }
+  return out
+}
+const verOf = (d) => String(readJson(join(d, 'module.json'), {}).version ?? '0.0.0')
+const newer = (a, b) => { const x = a.split('.').map(Number); const y = b.split('.').map(Number); for (let i = 0; i < 3; i++) if ((x[i] || 0) !== (y[i] || 0)) return (x[i] || 0) - (y[i] || 0); return 0 }
+
+/**
+ * 换新版时用的模块包（2026-11-27）：不指定 --from 时，所有能找到的地方都看（装的时候那份、老板放模块包的文件夹、本机装的 Skill、
+ * 跑这个脚本的 Skill 自带的 modules/），挑版本最新的。以前按顺序拿第一份，知识库旁边留着旧版时会拿到旧的。extra：另外要比的包
+ */
+export function findNewestPack(id, app = APP, extra = []) {
+  const drop = dropDir(app)
+  if (existsSync(drop)) for (const f of readdirSync(drop)) if (/\.zip$/i.test(f)) { try { unzip(join(drop, f)) } catch { /* 解不开的跳过 */ } }
+  const own = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..', MOD_DIR)
+  const bases = [...packDirs(app), ...(existsSync(own) ? [own] : [])]
+  const all = [...new Set([...extra.filter((d) => d && existsSync(join(d, 'module.json')) && readJson(join(d, 'module.json'), {}).id === id), ...bases.flatMap((b) => packsIn(b, id))].map((d) => resolve(d)))]
+  if (!all.length) return findPack(id, undefined, app)
+  return all.reduce((best, d) => (newer(verOf(d), verOf(best)) > 0 ? d : best))
+}
+
 export function findPack(id, from, app = APP) {
   if (from) {
     let d = resolve(from)
@@ -421,7 +449,7 @@ export async function updateModule(id, o = {}) {
   const lock = lockOf(app)
   const old = lock.modules[id]
   if (!old) fail(`还没装“${id}”。要装用 add ${id}`)
-  const pack = findPack(id, o.from ?? (existsSync(old.from ?? '') ? old.from : undefined), app)
+  const pack = o.from ? findPack(id, o.from, app) : findNewestPack(id, app, [...(o.extra ?? []), ...(existsSync(old.from ?? '') ? [old.from] : [])])
   const m = readManifest(pack, await coreIds(app))
   const files = packFiles(pack, m)
   const changed = Object.keys(old.files).filter((f) => existsSync(join(app, f)) && sha(join(app, f)) !== old.files[f])

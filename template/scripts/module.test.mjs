@@ -272,3 +272,22 @@ test('模块包是 .zip：--from 指压缩包，或把压缩包放进 工作台/
   cpSync(zip, join(M.dropDir(app2), 'memo-pack.zip'))
   assert.equal((await M.addModule('memo', { app: app2, noBuild: true })).module.id, 'memo')
 })
+
+test('换新版（2026-11-27）：没用 --from 时在所有地方找，挑版本最新的；装的时候那份旧包还在、老板放的文件夹里有旧版，也不会拿旧的', async () => {
+  const app = makeApp('app-newest')
+  const old = makePack('memo')
+  await M.addModule('memo', { app, from: old, noBuild: true })
+  const newer = makePack('memo', { version: '0.3.0' })
+  const mid = makePack('memo', { version: '0.2.0' })
+  const was = process.env.BOSS_WORKBENCH_MODULES
+  try {
+    // 老板放模块包的地方只放这一份新的（别的测试的包都在临时文件夹的上一层，不混进来）
+    const shelf = join(tmp, 'shelf-newest'); mkdirSync(shelf, { recursive: true }); cpSync(newer, join(shelf, 'memo'), { recursive: true })
+    process.env.BOSS_WORKBENCH_MODULES = shelf
+    assert.equal(M.findNewestPack('memo', app, [old, mid]), join(shelf, 'memo'), '同时有 0.1.0、0.2.0、0.3.0：挑 0.3.0')
+    const r = await M.updateModule('memo', { app, noBuild: true, extra: [mid] })
+    assert.equal(r.module.version, '0.3.0')
+    assert.equal(JSON.parse(read(join(app, 'modules.lock.json'))).modules.memo.version, '0.3.0')
+    assert.match(read(join(app, 'server/modules.gen.ts')), /id: "memo"/, '换完清单重新生成过')
+  } finally { if (was === undefined) delete process.env.BOSS_WORKBENCH_MODULES; else process.env.BOSS_WORKBENCH_MODULES = was }
+})
