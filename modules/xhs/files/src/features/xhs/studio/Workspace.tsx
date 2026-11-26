@@ -84,6 +84,8 @@ export function Workspace({ id }: { id: string }) {
   if (!data || !draft) return <div className="grid gap-4 p-7"><Skeleton className="h-12 w-80" /><div className="grid h-[70vh] grid-cols-[2fr_3fr] gap-4"><Skeleton /><Skeleton /></div></div>
   const p = data.piece
   const published = p.status === '已发布'
+  // 谁做的：选题是谁存的，加上每一版的作者（网页上手动改的、老板自己的不重复列）
+  const writers = [...new Set([p.created_by, ...data.versions.map((v) => v.author ?? '')].filter((x) => x && !/^(网页|本机 Codex|Codex|Codex 定时任务|导入|复盘)$/.test(x)))]
   const locked = data.running || published
   return (
     <>
@@ -95,7 +97,15 @@ export function Workspace({ id }: { id: string }) {
           {['灵感池', '已选', '写稿中'].includes(p.status) && <Button size="sm" disabled={!data.has_draft || locked} onClick={async () => { await ensureSaved(); setDlg('final') }}><CheckCheck />定稿 · 排期</Button>}
           {p.status === '待发布' && <Button size="sm" onClick={async () => { await ensureSaved(); setDlg('publish') }}><Send />标记已发布</Button>}
           {p.status === '已发布' && <Button size="sm" variant="outline" asChild><Link to={`/content/data?piece=${p.id}`}><LineChart />看数据</Link></Button>}
-        </>} />
+        </>}>
+        {/* 属于哪个账号、谁写的（约定 11.14）：选题是谁存的，加上每一版的作者 */}
+        {(p.account || writers.length > 0) && (
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            {p.account && <span className="inline-flex items-center gap-1 rounded-md border bg-card px-1.5 py-0.5 text-xs text-muted-foreground"><span className="text-foreground/70">账号</span>{p.account}</span>}
+            {writers.length > 0 && <span className="inline-flex items-center gap-1 rounded-md border bg-card px-1.5 py-0.5 text-xs text-muted-foreground" title="选题是谁存的、每一版是谁写的"><span className="text-foreground/70">写稿</span>{writers.join('、')}</span>}
+          </div>
+        )}
+      </PageHeader>
       <div className="px-4 pb-3 md:px-7 lg:hidden">
         <ViewTabs label="手机上看哪一块" value={pane} onChange={(v) => { setPane(v); if (v !== 'chat') setTab(v === 'preview' ? 'preview' : 'draft') }} items={[
           { value: 'chat', label: '对话', count: data.messages.length || undefined }, { value: 'draft', label: '稿件', icon: FileText }, { value: 'preview', label: '预览', icon: Eye },

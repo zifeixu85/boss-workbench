@@ -3,7 +3,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { spawnSync } from 'node:child_process'
-import { cpSync, existsSync, mkdirSync, mkdtempSync, symlinkSync, writeFileSync } from 'node:fs'
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, symlinkSync, writeFileSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import os from 'node:os'
@@ -44,11 +44,18 @@ test('存选题 → 存稿 → 改稿 → 放图 → 找到；都记着是阿柚
   assert.equal(i0.where, '封面'); assert.equal(i0.version, 3)
   const i2 = json('xhs-image-add', '--id', t.id, '--file', png, '--page', '2', '--by', '阿柚')
   assert.equal(i2.where, '第 2 张内页'); assert.equal(i2.version, 4)
+  // Codex 生图存在 $CODEX_HOME/generated_images/<对话>/ 下：--from-codex 取最新那张
+  const ch = join(tmp, 'codex-home'); mkdirSync(join(ch, 'generated_images', 't1'), { recursive: true })
+  writeFileSync(join(ch, 'generated_images', 't1', 'exec-1.png'), readFileSync(png))
+  const fc = spawnSync(process.execPath, ['server/cli.ts', 'xhs-image-add', '--id', t.id, '--from-codex', '--page', '1', '--by', '阿柚', '--json'], { cwd: APP, env: { ...env, CODEX_HOME: ch }, encoding: 'utf8' })
+  assert.equal(fc.status, 0, fc.stderr)
+  assert.match(JSON.parse(fc.stdout).file, /generated_images\/t1\/exec-1\.png$/)
+  assert.equal(JSON.parse(fc.stdout).where, '第 1 张内页')
   assert.notEqual(sh('server/cli.ts', 'xhs-image-add', '--id', t.id, '--file', png, '--page', '9').code, 0, '没有第 9 张内页：不收')
   assert.notEqual(sh('server/cli.ts', 'xhs-image-add', '--id', t.id, '--file', join(tmp, '没有.png')).code, 0)
 
   const found = json('xhs-pieces', '--by', '阿柚')
-  assert.deepEqual(found.map((p) => [p.id, p.stage, p.version]), [[t.id, '草稿', 4]])
+  assert.deepEqual(found.map((p) => [p.id, p.stage, p.version]), [[t.id, '草稿', 5]])
   assert.deepEqual(json('xhs-pieces', '--q', '礼盒').map((p) => p.id), [t.id])
   assert.deepEqual(json('xhs-pieces', '--status', '定稿'), [])
 

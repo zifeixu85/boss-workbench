@@ -44,6 +44,8 @@ type PieceDb = {
   warn: string | null; status: Status; topic_date: string | null; job_id: string | null; created_by: string; scheduled_date: string | null; scheduled_time: string | null
   published_at: string | null; publish_url: string | null; note_id: string | null; memo: string | null; start: string | null; sort: number
   created_at: string; updated_at: string
+  /** 挂在哪个小红书账号下（约定 11.14） */
+  account?: string | null
 }
 type VersionDb = { id: string; piece_id: string; version: number; data: string; origin: string; author: string | null; note: string | null; message_id: string | null; created_at: string; msg_origin?: string | null }
 

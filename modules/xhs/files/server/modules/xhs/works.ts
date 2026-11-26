@@ -10,6 +10,7 @@ import { BadRequest, type Actor } from '../../services/common.ts'
 import { backupKbFile, canReadKbPath, readKbTextFile, writeKb } from '../../services/kb.ts'
 import { normalizeDraft, type Draft } from './draft.ts'
 import { createPiece, latestDraft, pieceRow, saveVersion } from './pieces.ts'
+import { resolveAccount } from './accounts.ts'
 
 const DEFAULT_FOLDER = '13-作品'
 const SUMMARY_MAX = 80
@@ -63,7 +64,7 @@ export function workText(d: Draft, o: { id: string; summary: string; day: string
  * sources（这篇用到的知识库文件路径，比如 11-产品/白茶饼.md；事实和数字都要能在这里找到出处）。
  * id：改哪一篇（不给就新建一篇，放在“写稿中”）。by：谁写的（比如“内容助理 小红”）。
  */
-export function saveWork(input: unknown, opts: { id?: string; by?: string; actor?: Actor } = {}): SavedWork {
+export function saveWork(input: unknown, opts: { id?: string; by?: string; actor?: Actor; account?: string } = {}): SavedWork {
   const raw = { ...(input && typeof input === 'object' ? input : {}) } as Record<string, unknown>
   const by = (opts.by ?? '').trim().slice(0, 30) || '内容助理'
   // 助理存稿没给封面图、这一篇也还没有稿子：封面用占位（约定 11.13：没有实拍图就空着，不拿插画充数）
@@ -74,8 +75,14 @@ export function saveWork(input: unknown, opts: { id?: string; by?: string; actor
   if (!draft.body.trim()) throw new BadRequest('稿件要有正文（body）')
   const sources = (Array.isArray(raw.sources) ? raw.sources : []).map((x) => String(x).trim().replace(/^\[\[|\]\]$/g, '').replace(/\.md$/, '')).filter((x) => x && !x.includes('..')).slice(0, 12)
   const summary = String(raw.summary ?? '').trim().replace(/\s+/g, ' ').slice(0, SUMMARY_MAX) || draft.title
-  const id = opts.id ? pieceRow(opts.id).id : createPiece({ title: draft.title, source: '自己想的', status: '写稿中', reason: summary }, opts.actor ?? 'Codex', { created_by: by }).id
+  // 挂在哪个账号下（约定 11.14），先认好再建：写了 --account 就要是登记过的；新的一篇没写时只有一个账号就挂它、几个账号就要写；
+  // 改以前那篇、它还没挂账号的，认得出就挂上，认不出不拦
+  const piece0 = opts.id ? pieceRow(opts.id) : null
+  const soft = () => { try { return resolveAccount(undefined) } catch { return null } }
+  const acc = opts.account !== undefined ? resolveAccount(opts.account) : piece0 ? (piece0.account ? null : soft()) : resolveAccount(undefined)
+  const id = piece0 ? piece0.id : createPiece({ title: draft.title, source: '自己想的', status: '写稿中', reason: summary }, opts.actor ?? 'Codex', { created_by: by }).id
   const { version, draft: saved } = saveVersion(id, draft, { origin: 'AI 写稿', author: by, note: summary })
+  if (acc) run('UPDATE xhs_pieces SET account = :acc WHERE id = :id', { id, acc })
   // 用到的知识库文件记进这一篇的“依据”（还没写依据的才写），内容页、创作页都看得到来源
   if (sources.length) run('UPDATE xhs_pieces SET ref = :ref WHERE id = :id AND (ref IS NULL OR ref = \'\')', { id, ref: sources.map((x) => `${x}.md`).join('、').slice(0, 400) })
   const folder = worksFolder()

@@ -17,6 +17,8 @@ export type Piece = {
   source: string; reason: string | null; ref: string | null; warn: string | null; status: PieceStatus; topic_date: string | null; job_id: string | null; created_by: string
   scheduled_date: string | null; scheduled_time: string | null; published_at: string | null; publish_url: string | null; note_id: string | null
   memo: string | null; start: { kind?: string; ref?: string; label?: string; text?: string } | null; sort: number; created_at: string; updated_at: string
+  /** 挂在哪个小红书账号下（约定 11.14；账号在知识库里） */
+  account?: string | null
   version: number | null; version_at: string | null; version_origin: string | null; ai: boolean
   draft: { title: string; cover_text: string; cover: Cover; pages: PageLite[]; tags: string[]; body_len: number } | null
   check: { blocks: number; warns: number } | null
