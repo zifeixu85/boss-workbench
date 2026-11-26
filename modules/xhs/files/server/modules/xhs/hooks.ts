@@ -4,6 +4,7 @@ import type { ModuleHooks } from '../../module-types.ts'
 import { todayPlan } from './service.ts'
 import { notesTarget } from './notes-import.ts'
 import { xhsSeed } from './seed/content.ts'
+import { findPieces } from './finder.ts'
 
 export const xhsHooks: ModuleHooks = {
   home: { xhs: (day) => todayPlan(day) },
@@ -20,5 +21,7 @@ export const xhsHooks: ModuleHooks = {
     }
   },
   importTargets: [notesTarget],
+  // 助理页的“产出”（约定 11.13）：选题和稿子，谁存的、每一版是谁写的
+  works: () => findPieces({ limit: 200 }).filter((p) => p.status !== '已放弃').map((p) => ({ id: `xhs:${p.id}`, kind: '小红书', title: p.title, status: p.stage, by: [p.by, ...p.authors], at: p.updated_at, to: p.path })),
   seed: xhsSeed,
 }

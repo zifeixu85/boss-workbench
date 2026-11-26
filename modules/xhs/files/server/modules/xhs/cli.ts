@@ -3,6 +3,10 @@
 //   node server/cli.ts xhs-topics-add --file <json> [--date 日期] [--by "Codex 定时任务"]
 //   node server/cli.ts xhs-notes-import --yes
 //   node server/cli.ts xhs-draft-save --draft <json> | --file <json 文件> [--id <内容编号>] [--by "内容助理 小红"]
+//   node server/cli.ts xhs-topic-add --title 标题 [--angle 角度] [--reason 一句说明] [--by 助理名字]
+//   node server/cli.ts xhs-image-add --id <内容编号> --file <图片> [--page 0] [--by 助理名字]
+//   node server/cli.ts xhs-pieces [--q 关键词] [--status 选题|草稿|定稿|已发布] [--by 助理名字] [--json]
+// 小红书助理怎么用这几条：Skill 的 references/助理用内容工作台.md（约定 11.13）
 // 归属：小红书内容模块。
 import { parseArgs } from 'node:util'
 import { readFileSync } from 'node:fs'
@@ -11,6 +15,8 @@ import * as content from './service.ts'
 import { addTopics } from './topics.ts'
 import { reimportNotes } from './notes-import.ts'
 import { saveWork } from './works.ts'
+import { addImage } from './chat-image.ts'
+import { findPieces } from './finder.ts'
 
 const HELP = `  xhs                                小红书：今天发什么、今天的选题、近两周排期
   xhs-topics-add --file <json> [--date 日期] [--by "Codex 定时任务"]
@@ -20,7 +26,13 @@ const HELP = `  xhs                                小红书：今天发什么�
                                      内容助理写完一篇：存成内容页里的草稿（写稿中），知识库里存一份作品（状态：草稿）。
                                      json 写 title、summary（一句说明）、cover_text、pages（每张图上的字，第一张是封面）、body、tags、
                                      sources（用到的知识库文件，如 11-产品/白茶饼.md）。
-                                     改稿带 --id：同一篇存新版本。只回标题、一句说明、位置和打开方式（xhs-piece），正文不回`
+                                     改稿带 --id：同一篇存新版本（也能写到 xhs-topic-add 存的选题下面）。只回标题、一句说明、位置和打开方式（xhs-piece），正文不回
+  xhs-topic-add --title 标题 [--angle 角度] [--reason 一句说明] [--by 助理名字]
+                                     存一个选题（进内容页的灵感池；同名的不重复存，回已有那篇的编号）。回编号和打开方式
+  xhs-image-add --id <内容编号> --file <图片路径> [--page 0] [--by 助理名字]
+                                     把一张图放进某一篇：--page 0 是封面（默认），1、2…… 是第几张内页。图复制进工作台素材，原图不动；存成新的一版
+  xhs-pieces [--q 关键词] [--status 选题|草稿|定稿|已发布] [--by 助理名字] [--json]
+                                     列出、找到某一篇（最近动过的在前，最多 30 条）：编号、标题、阶段、第几版、谁做的、网页地址`
 
 type R = Record<string, unknown>
 const line = (xs: R[], f: (x: R) => string) => (xs.length ? xs.map((x) => `- ${f(x)}`).join('\n') : '- （无）')
@@ -28,7 +40,7 @@ const line = (xs: R[], f: (x: R) => string) => (xs.length ? xs.map((x) => `- ${f
 function run(argv: string[]): number {
   const { values: o, positionals } = parseArgs({
     args: argv, allowPositionals: true,
-    options: { json: { type: 'boolean' }, yes: { type: 'boolean' }, file: { type: 'string' }, date: { type: 'string' }, by: { type: 'string' }, draft: { type: 'string' }, id: { type: 'string' }, help: { type: 'boolean', short: 'h' } },
+    options: { json: { type: 'boolean' }, yes: { type: 'boolean' }, file: { type: 'string' }, date: { type: 'string' }, by: { type: 'string' }, draft: { type: 'string' }, id: { type: 'string' }, title: { type: 'string' }, angle: { type: 'string' }, reason: { type: 'string' }, page: { type: 'string' }, q: { type: 'string' }, status: { type: 'string' }, help: { type: 'boolean', short: 'h' } },
   })
   const print = (data: unknown, text: string) => console.log(o.json ? JSON.stringify(data, null, 2) : text)
   if (o.help) { console.log(HELP); return 0 }
@@ -65,7 +77,30 @@ function run(argv: string[]): number {
       let input: unknown
       try { input = JSON.parse(raw) } catch { throw new Error('稿件不是合法的 JSON：title、summary、cover_text、pages、body、tags') }
       const r = saveWork(input, { id: o.id, by: o.by, actor: 'Codex' })
-      print(r, `存好了：《${r.title}》（草稿，第 ${r.version} 版）\n${r.summary}\n在：${r.where}\n打开预览：workbench_open，kind 写 xhs-piece，id 写 ${r.id}`)
+      print({ ...r, path: `/content/studio/${r.id}` }, `存好了：《${r.title}》（草稿，第 ${r.version} 版）\n${r.summary}\n在：${r.where}\n打开预览：workbench_open，kind 写 xhs-piece，id 写 ${r.id}（网页地址 /content/studio/${r.id}）`)
+      return 0
+    }
+    case 'xhs-topic-add': {
+      // 助理存一个选题（约定 11.13）：同名的不重复存，回已有那篇
+      const title = (o.title ?? '').trim()
+      if (!title) throw new Error('要用 --title 写选题')
+      const by = (o.by ?? '').trim() || 'Codex'
+      const r = addTopics([{ title, angle: o.angle, reason: o.reason, source: '自己想的' }], { by, actor: 'Codex' })
+      const hit = r.added[0] ?? findPieces({ q: title, limit: 5 }).find((p) => p.title === title)
+      if (!hit) throw new Error(`没存上：${r.skipped.join('；')}`)
+      const data = { id: hit.id, title: hit.title, existed: !r.added.length, by, open: { kind: 'xhs-piece', id: hit.id }, path: `/content/studio/${hit.id}` }
+      print(data, `${data.existed ? '这个选题已经有了' : '存好了选题'}：《${hit.title}》（编号 ${hit.id}）\n写稿：xhs-draft-save --id ${hit.id} --draft …\n打开：workbench_open，kind 写 xhs-piece，id 写 ${hit.id}（网页地址 /content/studio/${hit.id}）`)
+      return 0
+    }
+    case 'xhs-image-add': {
+      if (!o.id || !o.file) throw new Error('要用 --id 指定哪一篇、--file 指定图片')
+      const r = addImage(o.id, o.file, { page: o.page === undefined ? 0 : Number(o.page), by: (o.by ?? '').trim() || 'Codex', what: '助理放进来的图' })
+      print(r, `放好了：《${r.title}》的${r.where}换成了这张图（存成第 ${r.version} 版，旧版留着）\n打开：workbench_open，kind 写 xhs-piece，id 写 ${r.id}（网页地址 ${r.path}）`)
+      return 0
+    }
+    case 'xhs-pieces': {
+      const list = findPieces({ q: o.q, status: o.status, by: o.by })
+      print(list, list.length ? list.map((p) => `- ${p.id}｜${p.title}｜${p.stage}${p.version ? `（第 ${p.version} 版）` : ''}｜${[...new Set([p.by, ...p.authors])].join('、')}｜${p.updated_at.slice(0, 10)}｜${p.path}`).join('\n') : '没找到（换个关键词，或去掉 --status / --by 再找）')
       return 0
     }
     default:

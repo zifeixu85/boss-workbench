@@ -109,7 +109,12 @@ export type ModuleHooks = {
   assistantHost?: (opts: { bin: string; cwd: string; instructions: string }) => Promise<AssistantHost>
   /** 对话栏里能“叫”的助理（个人助理这类模块给）：选了，句首加“叫<名字>，”，并记在这个对话上。要快（读几个小文件） */
   assistantPersonas?: () => AssistantPersona[]
+  /** 这个模块里存下的产出（小红书的选题和稿子，以后报价、方案草稿也一样）：助理页按“谁做的”挂到各位助理下面。要快 */
+  works?: () => WorkItem[]
 }
+
+/** 一份产出。by：谁做的（选题是谁存的、每一版的作者……），助理页按名字认；to：网页上打开它的地址 */
+export type WorkItem = { id: string; kind: string; title: string; status: string; by: string[]; at: string; to: string }
 
 /** 对话栏里能叫的一位助理。page：它自己那一页的地址（在那页上打开对话栏时默认选它） */
 export type AssistantPersona = { key: string; name: string; avatar: string; duty: string; call: string; page?: string }
