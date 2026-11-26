@@ -9,7 +9,7 @@ import { Failed } from '@/components/chart-kit'
 import { Skeleton } from '@/components/ui/skeleton'
 
 type CheckPage = { id: string; label: string; status: '能用' | '要升级检查' | '还没建助理'; does: string; where?: string; need?: string; classes?: { name: string; folder: string; ok: boolean; why?: string; custom?: boolean }[] }
-type Check = { root: string; exists: boolean; profile: { path: string | null; kind: string | null }; pages: CheckPage[]; ready: boolean; kbReady: boolean; says: { say: string; for: '知识库' | '助理' }[]; next: string }
+type Check = { root: string; exists: boolean; profile: { path: string | null; kind: string | null }; pages: CheckPage[]; building?: string | null; ready: boolean; kbReady: boolean; says: { say: string; for: '知识库' | '助理' }[]; next: string }
 
 const LINK: Record<string, string> = { progress: '/progress', outputs: '/outputs', roles: '/roles', reports: '/reports', confirm: '/' }
 
@@ -59,11 +59,12 @@ export default function KbCheckPage() {
         <Panel title="下一步" className="lg:col-span-2">
           {d.ready ? <p className="text-sm">结构对得上，不用做什么。</p> : (
             <div className="grid gap-2 text-sm">
+              {d.building && <p className="text-warn">建库还没做完（{d.building}）：资料还在整理，整理完客户、项目这些才齐。</p>}
               <p>可以先用能用的部分。</p>
               {d.says.map((x) => (
-                <p key={x.say}>{x.for === '知识库' ? '想把知识库这一半也用起来' : '想用助理'}，在 Codex 里对 AI 说：
+                <p key={x.say}>{x.say === '继续建库' ? '先把建库做完' : x.for === '知识库' ? '想把知识库这一半也用起来' : '想用助理'}，在 Codex 里对 AI 说：
                   <span className="mx-1 rounded-md bg-accent px-2 py-0.5 font-medium text-accent-foreground">{x.say}</span>
-                  {x.for === '知识库' ? '知识库工具会读你的结构、列出差异，你确认了才改。' : '会问你几件事，建好第一个总助。'}</p>
+                  {x.say === '继续建库' ? '知识库工具接着上次整理资料。' : x.for === '知识库' ? '知识库工具会读你的结构、列出差异，你确认了才改。' : '会问你几件事，建好第一个总助。'}</p>
               ))}
               <p className="text-muted-foreground">做完回到这里，刷新就能看到变化。</p>
             </div>

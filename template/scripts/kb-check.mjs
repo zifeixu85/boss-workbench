@@ -16,12 +16,16 @@ export const NEXT_SAY = '检查一下我的知识库'
 export const ASSISTANT_SAY = '认识一下我的总助'
 
 /** 档案按顺序找：根目录 知识库档案.md；老板知识库工具建的 01-AI协作/建库档案.md（约定 9.1） */
-const PROFILES = [{ path: '知识库档案.md', kind: '个人助理版' }, { path: '01-AI协作/建库档案.md', kind: '老板知识库' }]
+// 叫法中性（2026-11-26）：知识库工具新建的库也用 知识库档案.md，不是个人助理才有
+const PROFILES = [{ path: '知识库档案.md', kind: '知识库档案' }, { path: '01-AI协作/建库档案.md', kind: '旧结构的建库档案' }]
+/** 建库还没做完：知识库档案开头“建库方式”的这几个值（知识库工具 b577aec） */
+export const BUILDING = /^(梳理进行中|快速版进行中|完整版进行中)$/
+export const CONTINUE_SAY = '继续建库'
 const LOG_KEY = '往来记录（写不进原文件时放这）'
 /** “位置”小节的七个名字和没填时的默认位置（约定 9.2） */
 export const DEFAULT_POSITIONS = { 关于我: '01-关于我', 你是谁这一页: '01-关于我/USER.md', 助理: '01-关于我/助理', 报告: '90-日志与报告', 原件: '99-原始材料', 收件箱: '00-收件箱', [LOG_KEY]: '90-日志与报告/往来记录' }
 /** 类型库里出页面的几类（和个人助理模块的 type-library.ts、知识库工具的 mapping.mjs 一致；那边改了这里跟着改） */
-const PAGE_TYPES = ['项目', '客户', '产品', '案例', '作品']
+const PAGE_TYPES = ['项目', '客户', '产品', '案例', '作品', '渠道', '门店', '伙伴', '主题']
 const ALL_TYPES = [...PAGE_TYPES, '渠道', '门店', '伙伴', '主题']
 /** 用户自己的“类型”值（英文的）当成哪一类 */
 const TYPE_ALIAS = { project: '项目', client: '客户', customer: '客户', product: '产品', case: '案例' }
@@ -160,7 +164,7 @@ export function checkKb(rootIn) {
     return { name, folder: f, ok: !why, ...(custom ? { custom: true } : {}), ...(why ? { why } : { count: objectFiles(root, f, iPat >= 0 ? splitPatterns(row[iPat]) : [], name).length }) }
   })
   // 老结构没有“我关注的”表：按目录对应推出客户、项目（推出来的标待确认）；推不出来的说清是没有还是认不出文件
-  const derived = found?.kind === '老板知识库' && !focusTable
+  const derived = found?.kind === '旧结构的建库档案' && !focusTable
     ? deriveClasses(text, (f, pats, type) => (!isDir(at(f)) ? 'missing' : objectFiles(root, f, pats, type).length ? 'ok' : 'empty')) : []
   for (const d of derived.filter((x) => x.state === 'ok')) classes.push({ name: d.name, folder: d.folder, ok: true, derived: true, count: objectFiles(root, d.folder, d.patterns, d.name).length })
   const okClasses = classes.filter((c) => c.ok)
@@ -188,8 +192,11 @@ export function checkKb(rootIn) {
   ]
   const kbReady = pages.every((p) => p.status !== '要升级检查') && classes.every((c) => c.ok && !c.derived)
   const assistantMissing = pages.some((p) => p.status === '还没建助理')
-  const says = [...(kbReady ? [] : [{ say: NEXT_SAY, for: '知识库' }]), ...(assistantMissing ? [{ say: ASSISTANT_SAY, for: '助理' }] : [])]
-  return { root, exists: true, profile: { path: found?.path ?? null, kind: found?.kind ?? null }, positions, pages, ready: kbReady && !assistantMissing, kbReady, says, next: says[0]?.say ?? NEXT_SAY }
+  // 建库还没做完（梳理、采访做到一半）：先说“继续建库”做完，再谈升级检查和助理
+  const way = (text.replace(/^\uFEFF/, '').match(/^---\r?\n([\s\S]*?)\r?\n---/)?.[1].match(/^建库方式\s*[:：]\s*(.+?)\s*$/m)?.[1] ?? '').trim()
+  const building = BUILDING.test(way) ? way : null
+  const says = [...(building ? [{ say: CONTINUE_SAY, for: '知识库' }] : []), ...(kbReady || building ? [] : [{ say: NEXT_SAY, for: '知识库' }]), ...(assistantMissing ? [{ say: ASSISTANT_SAY, for: '助理' }] : [])]
+  return { root, exists: true, profile: { path: found?.path ?? null, kind: found?.kind ?? null }, positions, pages, building, ready: kbReady && !assistantMissing && !building, kbReady, says, next: says[0]?.say ?? NEXT_SAY }
 }
 
 /** 一屏说清：现在就能用的、要先做升级检查才能用的（各缺什么）、还没建的助理、下一步说哪一句 */
@@ -201,13 +208,15 @@ export function checkText(r) {
   const helper = r.pages.filter((p) => p.status === '还没建助理')
   const focus = r.pages.find((p) => p.id === 'focus')
   const bad = (focus?.classes ?? []).filter((c) => !c.ok)
-  const sayLine = (s) => (s.for === '知识库'
+  const sayLine = (s) => (s.say === CONTINUE_SAY ? `先对 AI 说“${s.say}”，把建库做完。`
+    : s.for === '知识库'
     ? `想把知识库这一半也用起来，对 AI 说“${s.say}”（知识库工具会读你的结构、列出差异，你确认了才改）。`
     : `想用助理，对 AI 说“${s.say}”（会问你几件事，建好第一个总助）。`)
   return [
     `知识库：${r.root}`,
-    `档案：${r.profile.path ? `${r.profile.path}（${r.profile.kind}）` : '还没有'}${r.kbReady ? '；知识库对得上' : ''}`,
+    `档案：${r.profile.path ? `${r.profile.path}${r.profile.kind && r.profile.kind !== '知识库档案' ? `（${r.profile.kind}）` : ''}` : '还没有'}${r.kbReady ? '；知识库对得上' : ''}`,
     '',
+    ...(r.building ? [`建库还没做完（${r.building}）：资料还在整理，整理完客户、项目这些才齐。`, ''] : []),
     `现在就能用：${ok.map((p) => p.label).join('、') || '（没有）'}；待办、日程、收件箱这些不靠知识库，也都能用。`,
     ...(need.length ? ['', '要先做升级检查才能用：', ...need.map((p) => `- ${p.label}：${p.need}`)] : []),
     ...(bad.length && !need.some((p) => p.id === 'focus') ? ['', '我关注的里有几类对不上：', ...bad.map((c) => `- ${c.name}：${c.why}`)] : []),

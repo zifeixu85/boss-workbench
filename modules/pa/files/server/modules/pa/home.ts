@@ -65,7 +65,7 @@ export const paHooks: ModuleHooks = {
     if (needsUpgrade(c)) {
       const ok = c.pages.filter((p) => p.status === '能用').map((p) => p.label)
       const need = c.pages.filter((p) => p.status === '要升级检查')
-      return { title: '你的知识库还差几步', lines: [`现在就能用：${ok.join('、')}`, ...need.map((p) => `${p.label}：${p.need}`)].slice(0, 5), foot: `想都用起来，对 AI 说${c.says.map((x) => `“${x.say}”`).join('，再说')}`, to: '/kb-check' }
+      return { title: c.building ? '你的知识库还在建' : '你的知识库还差几步', lines: [...(c.building ? [`建库还没做完（${c.building}）：资料还在整理，整理完客户、项目这些才齐`] : []), `现在就能用：${ok.join('、')}`, ...need.map((p) => `${p.label}：${p.need}`)].slice(0, 5), foot: `想都用起来，对 AI 说${c.says.map((x) => `“${x.say}”`).join('，再说')}`, to: '/kb-check' }
     }
     const d = latestNote()
     if (!d || !d.lines.length) return null

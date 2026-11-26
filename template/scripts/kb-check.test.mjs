@@ -48,7 +48,7 @@ test('没有档案的已有知识库（比如自己一直在用的 Obsidian）�
 test('老板知识库工具建的旧结构（01-AI协作/建库档案.md）：没有“我关注的”表，按标准层推出客户、项目，标待确认', () => {
   const r = checkKb(kb({ '01-AI协作/建库档案.md': '---\n格式: 老板知识库/2\n---\n', '02-关于我/基本情况.md': 'x', '04-客户/README.md': 'x', '04-客户/云杉.md': 'x', '06-项目/春节茶礼.md': 'x', '00-收件箱/': '' }))
   assert.equal(r.profile.path, '01-AI协作/建库档案.md')
-  assert.equal(r.profile.kind, '老板知识库')
+  assert.equal(r.profile.kind, '旧结构的建库档案')
   const f = page(r, 'focus')
   assert.equal(f.status, '能用')
   assert.deepEqual(f.classes.map((c) => [c.name, c.folder, c.ok, c.derived]), [['客户', '04-客户', true, true], ['项目', '06-项目', true, true]])
@@ -180,4 +180,20 @@ test('自定义的一类（约定 11.8）：类型库里没有的也算对得上
   const root = kb({ '11-学员/张同学.md': '---\n类型: 学员\n状态: 在读\n---\n', '知识库档案.md': '## 我关注的\n\n| 类型 | 文件夹 | 确认 | 状态对照 |\n|---|---|---|---|\n| 学员 | 11-学员 | 已确认 | 在读=进行中 |\n' })
   const c = page(checkKb(root), 'focus').classes[0]
   assert.deepEqual([c.name, c.ok, c.count, c.custom], ['学员', true, 1, true])
+})
+
+test('建库还没做完（知识库档案开头的“建库方式”是 梳理进行中 / 快速版进行中 / 完整版进行中）：说一句资料还在整理，下一步先说“继续建库”；档案的叫法不写“个人助理版”', () => {
+  const root = kb({ '知识库档案.md': `---\n类型: 知识库档案\n建库方式: 梳理进行中\n---\n\n${PROFILE}`, '02-项目/a.md': 'x', '10-客户/b.md': 'x', '01-关于我/助理/': '', '90-日志与报告/': '', '00-收件箱/': '' })
+  const r = checkKb(root)
+  assert.equal(r.profile.kind, '知识库档案')
+  assert.equal(r.building, '梳理进行中')
+  assert.equal(r.says[0].say, '继续建库')
+  assert.equal(r.ready, false)
+  const t = checkText(r)
+  assert.match(t, /资料还在整理/)
+  assert.match(t, /继续建库/)
+  assert.doesNotMatch(t, /个人助理版/)
+  const done = checkKb(kb({ '知识库档案.md': `---\n建库方式: 梳理完成\n---\n\n${PROFILE}`, '02-项目/a.md': 'x', '10-客户/b.md': 'x', '01-关于我/助理/': '', '90-日志与报告/': '', '00-收件箱/': '' }))
+  assert.equal(done.building, null)
+  assert.notEqual(done.says[0]?.say, '继续建库')
 })

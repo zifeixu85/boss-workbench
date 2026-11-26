@@ -8,7 +8,9 @@ export type KbCheckClass = { custom?: boolean; name: string; folder: string; ok:
 export type KbCheckStatus = '能用' | '要升级检查' | '还没建助理'
 export type KbCheckPage = { id: 'progress' | 'outputs' | 'focus' | 'roles' | 'reports' | 'confirm'; label: string; status: KbCheckStatus; does: string; where?: string; need?: string; classes?: KbCheckClass[]; note?: string; kb?: boolean }
 export type KbCheckSay = { say: string; for: '知识库' | '助理' }
-export type KbCheck = { root: string; exists: boolean; profile: { path: string | null; kind: string | null }; positions: Record<string, string>; pages: KbCheckPage[]; ready: boolean; kbReady: boolean; says: KbCheckSay[]; next: string }
+export type KbCheck = { root: string; exists: boolean; profile: { path: string | null; kind: string | null }; positions: Record<string, string>; pages: KbCheckPage[]; building?: string | null; ready: boolean; kbReady: boolean; says: KbCheckSay[]; next: string }
+export const BUILDING: RegExp
+export const CONTINUE_SAY: string
 export function checkKb(root: string): KbCheck
 export function checkText(r: KbCheck): string
 export type DerivedClass = { name: string; layer: string; folder: string; patterns: string[]; state: 'ok' | 'empty' | 'missing' }

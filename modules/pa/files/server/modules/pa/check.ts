@@ -9,4 +9,5 @@ export const kbCheckText = (r: KbCheck = kbCheck()): string => checkText(r)
 /** 要不要在驾驶舱提一句：知识库这一半（我关注的、报告）有一页撑不起来才提。只差收件箱、只是某一类对不上、还没建助理，
  *  都不占“总助的话”的位置（还没建助理不是知识库的问题，2026-11-26 A梦 定知识库和助理分开），检测页里照样看得到 */
 const BIG = ['focus', 'reports']
-export const needsUpgrade = (r: KbCheck): boolean => r.exists && r.pages.some((p) => BIG.includes(p.id) && p.status === '要升级检查')
+/** 驾驶舱要不要先提一句：知识库撑不起几个大页面，或者建库还没做完（梳理、采访做到一半） */
+export const needsUpgrade = (r: KbCheck): boolean => r.exists && (!!r.building || r.pages.some((p) => BIG.includes(p.id) && p.status === '要升级检查'))

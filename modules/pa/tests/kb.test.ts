@@ -9,9 +9,9 @@ import { parseReport, periodOf, reportSummary } from '../files/server/modules/pa
 import { front, unlink } from '../files/server/modules/pa/text.ts'
 import { cardLines, memoryStats, CARD_MAX_LINES, MEMORY_MAX_LINES } from '../files/server/modules/pa/role-parse.ts'
 
-test('类型库：九种类型，前五种出页面（作品 2026-11-25 加，内容助理写的每篇存成一个作品）；每种有状态、列表字段、常关联', () => {
+test('类型库：九种类型都出页面（渠道、门店、伙伴、主题 2026-11-26 起用通用的列表和详情）；每种有状态、列表字段、常关联', () => {
   assert.deepEqual(TYPE_LIBRARY.map((t) => t.name), ['项目', '客户', '产品', '案例', '作品', '渠道', '门店', '伙伴', '主题'])
-  assert.deepEqual(PAGE_TYPES, ['项目', '客户', '产品', '案例', '作品'])
+  assert.deepEqual(PAGE_TYPES, ['项目', '客户', '产品', '案例', '作品', '渠道', '门店', '伙伴', '主题'])
   const kh = TYPE_LIBRARY.find((t) => t.name === '客户')!
   assert.deepEqual([kh.statuses, kh.fields, kh.links], [['在谈', '合作中', '沉默'], ['上次联系', '下次跟进'], ['项目', '产品', '案例']])
 })
@@ -50,12 +50,12 @@ const PROFILE = `# 知识库档案
 
 test('“我关注的”：类型库里的照类型库；还没做页面的说清楚；库里没有的（学员）是自定义的一类（约定 11.8），没写状态对照要说；叫法换过来', () => {
   const r = parseProfile(PROFILE)
-  assert.deepEqual(r.classes.map((c) => [c.name, c.folder, c.confirmed, !!c.custom]), [['项目', '02-项目', true, false], ['客户', '10-客户', true, false], ['产品', '11-产品', false, false], ['学员', '13-学员', true, true]])
+  assert.deepEqual(r.classes.map((c) => [c.name, c.folder, c.confirmed, !!c.custom]), [['项目', '02-项目', true, false], ['客户', '10-客户', true, false], ['产品', '11-产品', false, false], ['渠道', '12-渠道', true, false], ['学员', '13-学员', true, true]])
   const kh = r.classes[1]
   assert.deepEqual(kh.statuses, ['跟进中', '合作中', '沉默', '未开始', '进行中', '已结束'], '“在谈”换成本人的叫法；阶段名本身也收')
   assert.deepEqual(kh.rename, { 在谈: '跟进中' })
   assert.deepEqual(kh.fields, ['上次联系', '下次跟进'])
-  assert.ok(r.problems.some((p) => /渠道.*还没做/.test(p)))
+  assert.ok(r.classes.some((c) => c.name === '渠道'), '渠道也出页面了')
   assert.ok(r.problems.some((p) => /学员.*自定义.*状态对照/.test(p)))
   assert.deepEqual(r.candidates, [{ what: '学员', count: 6, at: '2026-11-24' }])
   assert.deepEqual(r.reports, { 日报: false, 周报: true, 月报: true })
@@ -202,11 +202,16 @@ test('三个阶段：类型库每类原来的状态是默认叫法，各归一�
   const { STAGES } = await import('../files/server/modules/pa/stages.ts')
   assert.deepEqual([...STAGES], ['未开始', '进行中', '已结束'])
   const stagesOf = (n: string) => TYPE_LIBRARY.find((t) => t.name === n)?.stages
-  assert.deepEqual(stagesOf('项目'), { 进行中: '进行中', 搁着: '已结束', 已结束: '已结束' })
+  assert.deepEqual(stagesOf('项目'), { 还没开始: '未开始', 进行中: '进行中', 搁着: '已结束', 已结束: '已结束' })
   assert.deepEqual(stagesOf('客户'), { 在谈: '未开始', 合作中: '进行中', 沉默: '进行中' })
   assert.deepEqual(stagesOf('产品'), { 筹备: '未开始', 在卖: '进行中', 下架: '已结束' })
   assert.deepEqual(stagesOf('作品'), { 草稿: '未开始', 已发: '已结束', 下线: '已结束' })
   assert.equal(stagesOf('案例'), undefined)
+  // 和知识库工具 scripts/mapping.mjs 的 TYPE_LIBRARY 同一份（2026-11-26 对齐）
+  assert.deepEqual(stagesOf('渠道'), { 观察: '未开始', 在做: '进行中', 停了: '已结束' })
+  assert.deepEqual(stagesOf('门店'), { 筹备: '未开始', 营业: '进行中', 关停: '已结束' })
+  assert.deepEqual(stagesOf('伙伴'), { 在合作: '进行中', 暂停: '已结束', 不再合作: '已结束' })
+  assert.deepEqual(stagesOf('主题'), { 想学: '未开始', 在学: '进行中', 放着: '已结束' })
 })
 
 test('“我关注的”的状态字段、状态对照（右边写三个阶段之一）；“叫法”里换的叫法跟着原来那个归阶段；对照写错的说出来、不采用', () => {
@@ -225,8 +230,8 @@ test('“我关注的”的状态字段、状态对照（右边写三个阶段�
   const r = parseProfile(md)
   const [xm, kh, al] = r.classes
   assert.equal(xm.statusField, 'status')
-  assert.deepEqual(xm.stageOf, { 进行中: '进行中', 搁着: '已结束', 已结束: '已结束', 未开始: '未开始', active: '进行中', waiting: '已结束', completed: '已结束' })
-  assert.deepEqual(xm.statuses, ['进行中', '搁着', '已结束', '未开始', 'active', 'waiting', 'completed'])
+  assert.deepEqual(xm.stageOf, { 还没开始: '未开始', 进行中: '进行中', 搁着: '已结束', 已结束: '已结束', 未开始: '未开始', active: '进行中', waiting: '已结束', completed: '已结束' })
+  assert.deepEqual(xm.statuses, ['还没开始', '进行中', '搁着', '已结束', '未开始', 'active', 'waiting', 'completed'])
   assert.equal(kh.statusField, '阶段')
   assert.equal(kh.stageOf['跟进中'], '未开始', '换了叫法的跟着原来的“在谈”归未开始')
   assert.equal(kh.stageOf['意向'], '未开始')
