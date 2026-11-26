@@ -15,6 +15,8 @@ import { assistantProps, matchAssistant, parseColleagues, parseDispatch, skillNa
 
 /** 花名册（约定 11.12；11.11 时叫同事清单）：先找新名字，没有再找旧的 */
 const ROSTER = ['花名册.md', '同事清单.md']
+/** 和花名册核对的几项（短的，要一字不差） */
+const SHORT = ['头像', '职责', '怎么叫']
 const DISPATCH = '派单记录.md'
 /** 档案页签的顺序：三份在前，总助的三份规则文件跟着，别的按名字 */
 // 约定 11.12：每轮必读的两份、干活时读的三份、记忆，再是别的（总助的三份规则、查证时读的画像和岗位调研）
@@ -54,7 +56,8 @@ function loadAssistants(): { list: (Assistant & { folder: string; thread: string
     const fill = <K extends 'avatar' | 'duty' | 'owns' | 'notOwns' | 'call'>(k: K, label: string, from: string | undefined) => {
       if (!from) return a[k]
       if (!a[k] || (a.legacy && a.missing.includes(label))) return from
-      if (a[k] !== from) mismatch.push(`${label}：IDENTITY 写“${a[k]}”，花名册写“${from}”`)
+      // 管什么、不管什么在花名册里常写成缩短的一句，不算对不上；头像、职责、怎么叫要一样
+      if (a[k] !== from && SHORT.includes(label)) mismatch.push(`${label}：IDENTITY 写“${a[k]}”，花名册写“${from}”`)
       return a[k]
     }
     const merged = { ...a, avatar: fill('avatar', '头像', row?.avatar), duty: fill('duty', '职责', row?.duty), owns: fill('owns', '管什么', row?.owns), notOwns: fill('notOwns', '不管什么', row?.notOwns), call: fill('call', '怎么叫', row?.call) }
