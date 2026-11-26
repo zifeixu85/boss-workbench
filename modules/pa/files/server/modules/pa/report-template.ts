@@ -34,7 +34,7 @@ export type Template = { kinds: Record<ReportKind, TemplateSection[]>; problems:
 
 export const TEMPLATE_FILE = '报告模板.md'
 
-/** 默认的一套（老板没写模板文件时用；pa-report-template --init 也写这一份进知识库让他改） */
+/** 默认的一套（老板没写模板文件时用；pa-report-template-init 也写这一份进知识库让他改） */
 export const DEFAULT_TEMPLATE = `---
 类型: 报告模板
 更新: 2026-11-26

@@ -24,8 +24,10 @@ let db: DatabaseSync | null = null
 export function open(): DatabaseSync {
   if (db) return db
   mkdirSync(dirname(DB_PATH), { recursive: true })
-  db = new DatabaseSync(DB_PATH)
-  db.exec('PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON; PRAGMA busy_timeout = 3000;')
+  // 先设好等多久（busy_timeout），再切 WAL：好几条命令同时开（总助连着跑 pa 命令、定时任务和老板同时在用）时，
+  // 切 WAL 这一句也要等别人放手，不然直接报 database is locked（2026-11-26 引导工具实测）
+  db = new DatabaseSync(DB_PATH, { timeout: 10000 })
+  db.exec('PRAGMA busy_timeout = 10000; PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON;')
   migrate(db)
   // 演示日期：环境变量 DEMO_TODAY 没写时，用 settings 里的 demo_today（见 clock.ts）
   const demo = db.prepare("SELECT value FROM settings WHERE key = 'demo_today'").get() as { value: string } | undefined

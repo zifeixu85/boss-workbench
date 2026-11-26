@@ -111,7 +111,7 @@ async function runCli(argv: string[]): Promise<number> {
       const init = cmd === 'pa-report-template-init'
       const t = init ? initReportTemplate('Codex') : reportTemplate()
       const kinds = (o.kind ? [o.kind] : REPORT_KINDS) as Kind[]
-      const head = init ? (('created' in t && t.created) ? `写好了：${t.path}（默认的一套），以后改这份` : `已经有了：${t.path}，没有覆盖`) : t.exists ? `模板：${t.path}` : `还没有模板文件（${t.path}），用的是默认的一套；pa-report-template --init 写进知识库就能改`
+      const head = init ? (('created' in t && t.created) ? `写好了：${t.path}（默认的一套），以后改这份` : `已经有了：${t.path}，没有覆盖`) : t.exists ? `模板：${t.path}` : `还没有模板文件（${t.path}），用的是默认的一套；pa-report-template-init 写进知识库就能改`
       return print({ ...t, help: templateHelp() }, [head, ...kinds.map((k) => `${k}：${t.kinds[k].map((x) => `${x.title}（${x.blocks.join('、')} · ${x.source}${x.data.length ? ` · ${x.data.join('、')}` : ''}${x.who === '分身' ? ' · 分身写' : ''}）`).join('；')}`),
         ...t.problems.map((p) => `要改：${p}`)].join('\n'))
     }
