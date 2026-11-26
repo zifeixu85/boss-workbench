@@ -66,11 +66,15 @@ function dispatchOf(list: { chief: boolean; folder: string }[]): Dispatch[] {
 }
 
 /** 工作台对话栏开的对话：Codex 对话编号 → 对话栏里的标题（Codex 那边的标题是第一句前面带的页面说明，不好看） */
-function dockThreads(): Map<string, string> {
-  try { return new Map(all<{ c: string; t: string }>('SELECT codex_thread_id AS c, title AS t FROM assistant_threads WHERE codex_thread_id IS NOT NULL').map((x) => [`codex:${x.c}`, x.t])) } catch { return new Map() }
+function dockThreads(): Map<string, { title: string; persona: string | null }> {
+  const read = (sql: string) => all<{ c: string; t: string; p: string | null }>(sql).map((x) => [`codex:${x.c}`, { title: x.t, persona: x.p ?? null }] as const)
+  // 老版本的工作台还没有 persona 这一列
+  try { return new Map(read('SELECT codex_thread_id AS c, title AS t, persona AS p FROM assistant_threads WHERE codex_thread_id IS NOT NULL')) } catch {
+    try { return new Map(read('SELECT codex_thread_id AS c, title AS t, NULL AS p FROM assistant_threads WHERE codex_thread_id IS NOT NULL')) } catch { return new Map() }
+  }
 }
 /** 给人看的标题：对话栏开的用对话栏里的标题 */
-const shown = (s: SessionView, dock: Map<string, string>) => (dock.get(s.id) ? `对话栏：${dock.get(s.id)}` : s.title)
+const shown = (s: SessionView, dock: ReturnType<typeof dockThreads>) => (dock.get(s.id) ? `对话栏：${dock.get(s.id)!.title}` : s.title)
 
 /** 每个对话归哪个助理（进展、产出的“按助理”也用这个） */
 export function sessionAssistants(sessions: SessionView[], loaded = loadAssistants()): Map<string, SessionLink> {
@@ -79,11 +83,16 @@ export function sessionAssistants(sessions: SessionView[], loaded = loadAssistan
   const dock = dockThreads()
   const out = new Map<string, SessionLink>()
   for (const s of sessions) {
-    const m = matchAssistant({ title: s.title, first: s.first, dock: dock.has(s.id) }, keys, dispatched)
+    const m = matchAssistant({ title: s.title, first: s.first, dock: dock.has(s.id), persona: dock.get(s.id)?.persona }, keys, dispatched)
     const a = m && loaded.list.find((x) => x.key === m.key)
     if (m && a) out.set(s.id, { key: a.key, name: a.name, avatar: a.avatar, by: m.by })
   }
   return out
+}
+
+/** 对话栏里能叫的助理（接入点 assistantPersonas）：总协调在前；page 是它自己那一页 */
+export function personaList() {
+  return loadAssistants().list.map((a) => ({ key: a.key, name: a.name, avatar: a.avatar, duty: a.duty, call: a.call, page: `/roles/${a.key}` }))
 }
 
 /** 这些对话的 token 用量：今日、近 7 日、近 30 日 */

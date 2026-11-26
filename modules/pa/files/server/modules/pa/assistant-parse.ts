@@ -3,7 +3,7 @@
 // - 同事清单、派单记录是表格，按表头认列。
 // - 一个对话归哪个助理，按下面的顺序认，前面的优先；认不出的不硬归（页面上放“没归到助理的”）：
 //   常驻对话（标题和同事清单里登记的一样）→ 标题以“<头像> <名字>”开头（新格式带“｜职责”，旧的没有；没头像的认“<名字>｜”）
-//   → 第一句是“叫<名字>” → 总助派单记录里交出去的那个对话 → 在工作台对话栏里开的（没说叫谁，默认总协调）。
+//   → 第一句是“叫<名字>” → 工作台对话栏里选了叫哪位的 → 总助派单记录里交出去的那个对话 → 在工作台对话栏里开的（没说叫谁，默认总协调）。
 import { front, sections, str } from './text.ts'
 
 export type Assistant = {
@@ -112,12 +112,13 @@ export function parseDispatch(md: string): Dispatch[] {
 const esc = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 
 /** 一个对话归哪个助理。dispatched：总助派单记录里“交给谁”那一栏的对话标题 */
-export function matchAssistant(s: { title: string; first: string; dock: boolean }, list: AssistantKey[], dispatched: string[]): { key: string; by: MatchBy } | null {
+export function matchAssistant(s: { title: string; first: string; dock: boolean; persona?: string | null }, list: AssistantKey[], dispatched: string[]): { key: string; by: MatchBy } | null {
   const title = s.title.trim()
   const hit = (by: MatchBy, f: (a: AssistantKey) => boolean) => { const a = list.find(f); return a ? { key: a.key, by } : null }
   return hit('常驻对话', (a) => !!a.thread && title === a.thread)
     ?? hit('标题', (a) => (!!a.avatar && new RegExp(`^${esc(a.avatar)}\\s*${esc(a.name)}(?:\\s|[｜|]|$)`, 'u').test(title)) || new RegExp(`^${esc(a.name)}\\s*[｜|]`, 'u').test(title))
     ?? hit('第一句', (a) => new RegExp(`^\\s*叫\\s*${esc(a.name)}(?:[\\s，,。.:：!！]|$)`, 'u').test(s.first))
+    ?? (s.dock && s.persona ? hit('工作台对话栏', (a) => a.key === s.persona) : null)
     ?? (dispatched.includes(title) ? hit('派单记录', (a) => a.chief) : null)
     ?? (s.dock ? hit('工作台对话栏', (a) => a.chief) : null)
 }

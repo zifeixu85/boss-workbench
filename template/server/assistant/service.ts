@@ -7,7 +7,7 @@ import { BadRequest, NotFound } from '../services/common.ts'
 import { getSettings } from '../services/today.ts'
 import { today } from '../services/common.ts'
 import { buildPrompt, codexInfo, runAssistant, type PageContext, type Progress, type RunHandle } from './runner.ts'
-import type { AssistantApproval as Approval, AssistantHost } from '../module-types.ts'
+import type { AssistantApproval as Approval, AssistantHost, AssistantPersona } from '../module-types.ts'
 import { moduleHooks } from '../module-hooks.ts'
 import { APP_DIR, DB_PATH, ROOT } from '../db.ts'
 import { describePage, openObject } from './page-context.ts'
@@ -17,7 +17,7 @@ import { existsSync } from 'node:fs'
 import { extname } from 'node:path'
 
 type Row = { id: string; thread_id: string | null; role: 'user' | 'assistant'; text: string; status: string; error: string | null; steps_json: string | null; page_title: string | null; page_path: string | null; page_selection: string | null; created_at: string; finished_at: string | null; change_from: number | null; change_to: number | null; attachments_json: string | null }
-type ThreadRow = { id: string; title: string; codex_thread_id: string | null; archived: number; created_at: string; updated_at: string }
+type ThreadRow = { id: string; title: string; codex_thread_id: string | null; archived: number; created_at: string; updated_at: string; persona: string | null }
 const shape = (r: Row) => {
   const steps = (r.steps_json ? JSON.parse(r.steps_json) : []) as { image?: string }[]
   return {
@@ -62,7 +62,7 @@ export function threads(o: { archived?: boolean } = {}) {
   const rows = all<ThreadRow>('SELECT * FROM assistant_threads WHERE archived = :a ORDER BY updated_at DESC LIMIT 200', { a: o.archived ? 1 : 0 })
   return rows.map((t) => {
     const last = get<{ text: string }>("SELECT text FROM assistant_messages WHERE thread_id = :id AND text <> '' ORDER BY created_at DESC, rowid DESC LIMIT 1", { id: t.id })
-    return { id: t.id, title: t.title, archived: !!t.archived, created_at: t.created_at, updated_at: t.updated_at, last: (last?.text ?? '').replace(/\s+/g, ' ').slice(0, 80), running: current?.thread === t.id, codex: !!t.codex_thread_id }
+    return { id: t.id, title: t.title, archived: !!t.archived, created_at: t.created_at, updated_at: t.updated_at, last: (last?.text ?? '').replace(/\s+/g, ' ').slice(0, 80), running: current?.thread === t.id, codex: !!t.codex_thread_id, persona: t.persona }
   })
 }
 
@@ -107,15 +107,38 @@ export function clear() {
   return { cleared: true }
 }
 
+// ───────────────────────────── 叫哪位助理（约定 11.11）
+
+/** 对话栏里能叫的助理：装了的模块给（个人助理模块给知识库里的助理）；没有就是空的，对话栏不出这个选择 */
+export function personas(): AssistantPersona[] {
+  const out: AssistantPersona[] = []
+  for (const h of moduleHooks()) {
+    try { for (const p of h.hooks.assistantPersonas?.() ?? []) if (p?.key && p.name && !out.some((x) => x.key === p.key)) out.push(p) } catch { /* 这个模块读不出来就当没有 */ }
+  }
+  return out
+}
+
+/** 选了某位助理：句首加“叫<名字>，”（他自己已经这么写了就不重复） */
+export function callLead(p: AssistantPersona | null, text: string): string {
+  if (!p) return ''
+  const call = (p.call || `叫${p.name}`).replace(/[，,。\s]+$/, '')
+  return text.startsWith(call) ? '' : `${call}，`
+}
+
 // ───────────────────────────── 说一句
 
-export async function ask(input: { text?: unknown; page?: PageContext; thread?: unknown; attachments?: unknown }) {
-  const text = String(input.text ?? '').trim()
-  if (!text) throw new BadRequest('要写想让 AI 做什么')
-  if (text.length > 4000) throw new BadRequest('一次说得太长了，拆成几次说')
+export async function ask(input: { text?: unknown; page?: PageContext; thread?: unknown; attachments?: unknown; persona?: unknown }) {
+  const typed = String(input.text ?? '').trim()
+  if (!typed) throw new BadRequest('要写想让 AI 做什么')
+  if (typed.length > 4000) throw new BadRequest('一次说得太长了，拆成几次说')
   if (current || starting) throw new BadRequest('上一个问题还在答，等它答完或者先点“停止”')
   const asked = input.thread ? String(input.thread) : null
   if (asked && !threadRow(asked)) throw new NotFound('这个对话不在了，开一个新对话再说')
+  // 叫哪位助理：只认模块给的编号；空串 = 不指定（默认总协调的那位）
+  const personaKey = input.persona === undefined ? undefined : String(input.persona ?? '')
+  const persona = personaKey ? personas().find((p) => p.key === personaKey) ?? null : null
+  if (personaKey && !persona) throw new BadRequest('没有这位助理（可能刚改了名），重新选一下')
+  const text = `${callLead(persona, typed)}${typed}`
   const attempt = { cancelled: false }
   starting = attempt
   try {
@@ -123,7 +146,7 @@ export async function ask(input: { text?: unknown; page?: PageContext; thread?: 
   if (attempt.cancelled) throw new BadRequest('这一轮已停止')
   if (!st.on) throw new BadRequest('AI 助手关着：到“设置 → AI 助手”打开')
   if (!st.ready) throw new BadRequest(`${st.detail}。${st.fix ?? ''}`)
-  const thread = asked ?? createThread(text)
+  const thread = asked ?? createThread(typed)
   const history = all<{ role: 'user' | 'assistant'; text: string }>("SELECT role, text FROM assistant_messages WHERE thread_id = :t AND status = 'done' ORDER BY created_at DESC, rowid DESC LIMIT 10", { t: thread }).reverse()
   const at = nowIso()
   const pg = input.page as (PageContext & { selection?: unknown }) | undefined
@@ -137,6 +160,7 @@ export async function ask(input: { text?: unknown; page?: PageContext; thread?: 
   // 这一轮开始时改动记录到哪了：答完以后，这之后 AI 写的就是这一轮的结果
   run('INSERT INTO assistant_messages (id, thread_id, role, text, status, change_from, created_at) VALUES (:id, :t, \'assistant\', \'\', \'running\', :cf, :at)', { id: uidBot, t: thread, cf: lastChangeId(), at: nowIso() })
   run('UPDATE assistant_threads SET updated_at = :at, archived = 0 WHERE id = :id', { id: thread, at })
+  if (personaKey !== undefined) run('UPDATE assistant_threads SET persona = :p WHERE id = :id', { id: thread, p: persona?.key ?? null })
   const s = getSettings()
   const said = att.note ? `${text}\n\n${att.note}` : text
   const prompt = buildPrompt({ text: said, page, history, today: today(), owner: s.owner, business: s.business, modules: s.modules })
@@ -163,6 +187,12 @@ export async function ask(input: { text?: unknown; page?: PageContext; thread?: 
   } finally { if (starting === attempt) starting = null }
 }
 
+/** 发给常驻对话的一句：页面说明在前；句首是“叫<名字>，”的，把它提到最前面（Codex 那边认人、个人助理模块认对话都看第一句开头） */
+export function hostText(text: string, page: (PageContext & { selection?: string }) | undefined) {
+  const lead = text.match(/^叫[^，,\s]{1,12}[，,]/)?.[0]
+  return lead ? `${lead}${describePage(page)}\n\n${text.slice(lead.length)}` : `${describePage(page)}\n\n${text}`
+}
+
 /** 常驻对话开一轮：每句前面带上他在看的页面（哪一页、打开的对象、选中的文字），对话记在他自己的 Codex 历史里（一个工作台对话对应一个 Codex 对话） */
 async function startOnHost(thread: string, uidBot: string, text: string, page: (PageContext & { selection?: string }) | undefined, save: (p: Progress) => void, images: string[] = []) {
   const { info } = await codexInfo()
@@ -172,7 +202,7 @@ async function startOnHost(thread: string, uidBot: string, text: string, page: (
   if (!host) host = await make({ bin: info.bin, cwd: ROOT, instructions: instructions() })
   const h = host
   let steps: Progress['steps'] = []
-  const turn = await h.startTurn(threadRow(thread)?.codex_thread_id ?? null, `${describePage(page)}\n\n${text}`, (p) => {
+  const turn = await h.startTurn(threadRow(thread)?.codex_thread_id ?? null, hostText(text, page), (p) => {
     if (p.approvals) waiting = p.approvals
     if (p.steps) steps = p.steps
     save({ ...(p.text !== undefined ? { text: p.text } : {}), ...(p.steps ? { steps } : {}), ...(p.status ? { status: p.status } : {}), ...(p.error !== undefined ? { error: p.error } : {}) })

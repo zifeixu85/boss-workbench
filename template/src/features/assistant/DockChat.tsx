@@ -194,10 +194,12 @@ function pageNow(path: string) {
   return { title, path, text: `${sheet ? `${sheet}\n` : ''}${main?.innerText ?? ''}`.slice(0, 6000) }
 }
 
-export function Composer({ running, usable, statusText, statusTone, onSend, onStop, sendRef }: {
+export function Composer({ running, usable, statusText, statusTone, onSend, onStop, sendRef, picker }: {
   running: boolean; usable: boolean; statusText: string; statusTone: 'ok' | 'warn' | 'danger'
   onSend: (text: string, page: { title: string; path: string; text: string; selection: string } | null, attachments: Attached[]) => Promise<boolean>
   onStop: () => void; sendRef?: React.MutableRefObject<((t: string) => void) | null>
+  /** 输入框下面左边多放的东西（叫哪位助理） */
+  picker?: React.ReactNode
 }) {
   const loc = useLocation()
   const [text, setText] = useState('')
@@ -249,6 +251,7 @@ export function Composer({ running, usable, statusText, statusTone, onSend, onSt
           <div className="flex min-w-0 flex-1 items-center overflow-hidden">
             <input ref={tray.input} type="file" multiple hidden accept="image/*,.pdf,.txt,.md,.csv,.docx,.xlsx,.pptx" onChange={(e) => { if (e.target.files?.length) void tray.add(e.target.files); e.target.value = '' }} />
             <Tip label="加图片或文件（也能粘贴截图、拖进来）"><button type="button" onClick={() => tray.input.current?.click()} disabled={!usable} aria-label="加附件" className="grid size-7 shrink-0 place-items-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-50"><Paperclip className="size-4" /></button></Tip>
+            {picker}
             {page?.title && (
               <span className={cn(CHIP, 'ml-1 pr-0.5')} title={`发这句时带上本页：${page.title}`}>
                 <FileText className="size-3 shrink-0" /><span className="shrink-0">本页</span><span className="truncate">{page.title}</span>

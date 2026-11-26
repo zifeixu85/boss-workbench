@@ -11,6 +11,7 @@ import { now } from './store.ts'
 import { kbCheck, needsUpgrade } from './check.ts'
 import { places } from './places.ts'
 import { usageStat } from './usage.ts'
+import { personaList } from './assistants.ts'
 
 /** 离上次扫超过 5 分钟：后台悄悄扫一遍（不等它，今日页先用现有的数） */
 function refreshSoon() {
@@ -55,6 +56,8 @@ export function homeStats() {
 const TAKES_OVER: Record<string, string> = { 项目: 'projects', 客户: 'clients' }
 
 export const paHooks: ModuleHooks = {
+  // 对话栏里能叫的助理（约定 11.11）
+  assistantPersonas: () => personaList(),
   stats: () => homeStats(),
   home: { 'pa-done': () => homeCards()['pa-done'], 'pa-waiting': () => homeCards()['pa-waiting'], 'pa-confirm': () => homeCards()['pa-confirm'] },
   nav: () => focusClasses().classes.map((c) => ({ key: `focus-${c.name}`, to: `/focus/${encodeURIComponent(c.name)}`, label: c.name, icon: c.icon, section: '我关注的', ...(TAKES_OVER[c.name] ? { replaces: TAKES_OVER[c.name] } : {}) })),

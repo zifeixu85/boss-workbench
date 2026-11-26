@@ -79,7 +79,7 @@ const KEYS: AssistantKey[] = [
 ]
 
 test('对话归到哪个助理：常驻对话、新旧两种标题、第一句、派单记录、对话栏；认不出的不归', () => {
-  const m = (title: string, first = '', extra: { dispatched?: string[]; dock?: boolean } = {}) => matchAssistant({ title, first, dock: !!extra.dock }, KEYS, extra.dispatched ?? [])
+  const m = (title: string, first = '', extra: { dispatched?: string[]; dock?: boolean; persona?: string } = {}) => matchAssistant({ title, first, dock: !!extra.dock, persona: extra.persona }, KEYS, extra.dispatched ?? [])
   assert.deepEqual(m('🧑‍💼 阿栀｜总助'), { key: '总助-阿栀', by: '常驻对话' })
   assert.deepEqual(m('✍️ 小叶｜小红书助理'), { key: '小红书助理-小叶', by: '标题' })
   assert.deepEqual(m('✍️ 小叶 写年货清单'), { key: '小红书助理-小叶', by: '标题' }, '旧格式没有竖线也认')
@@ -90,6 +90,8 @@ test('对话归到哪个助理：常驻对话、新旧两种标题、第一句�
   assert.deepEqual(m('💼 圣诞礼盒报价', '', { dispatched: ['💼 圣诞礼盒报价'] }), { key: '总助-阿栀', by: '派单记录' })
   assert.deepEqual(m('问个事', '', { dock: true }), { key: '总助-阿栀', by: '工作台对话栏' }, '对话栏里没说叫谁：默认总协调')
   assert.deepEqual(m('问个事', '叫小叶，看看这篇', { dock: true }), { key: '小红书助理-小叶', by: '第一句' })
+  assert.deepEqual(m('对话栏：问个事', '【工作台】他正在看…', { dock: true, persona: '小红书助理-小叶' }), { key: '小红书助理-小叶', by: '工作台对话栏' }, '对话栏里选了叫小叶：记在对话上，按它认')
+  assert.deepEqual(m('问个事', '', { dock: false, persona: '小红书助理-小叶' }), null, '不是对话栏开的不看这一项')
   assert.equal(m('随便聊聊'), null)
   assert.equal(titleKey('🧑‍💼 阿栀｜总助（我的知识库，置顶）'), '🧑‍💼 阿栀｜总助')
 })

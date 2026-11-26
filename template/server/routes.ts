@@ -39,9 +39,10 @@ routes.get('/instance', (c) => c.json(ok({ app: APP_DIR, db: DB_PATH })))
 routes.get('/assistant/status', async (c) => c.json(ok(await assistant.status(c.req.query('refresh') === '1'))))
 routes.get('/assistant/messages', (c) => { const t = c.req.query('thread'); return c.json(ok(assistant.messages(t === undefined ? undefined : t || null))) })
 // 对话（历史）：列、改名、归档 / 找回（2026-11-26 照 A梦 自用工作台的对话框）
+routes.get('/assistant/personas', (c) => c.json(ok(assistant.personas())))
 routes.get('/assistant/threads', (c) => c.json(ok(assistant.threads({ archived: c.req.query('archived') === '1' }))))
 routes.patch('/assistant/threads/:id', async (c) => c.json(ok(assistant.updateThread(c.req.param('id'), await body(c) as { title?: unknown; archived?: unknown }))))
-routes.post('/assistant/ask', async (c) => c.json(ok(await assistant.ask(await body(c) as { text?: unknown; thread?: unknown; attachments?: unknown }))))
+routes.post('/assistant/ask', async (c) => c.json(ok(await assistant.ask(await body(c) as { text?: unknown; thread?: unknown; attachments?: unknown; persona?: unknown }))))
 routes.post('/assistant/stop', (c) => c.json(ok(assistant.stop())))
 // 回答里生成的图：按消息编号和第几步取（只给这条回答里记下的图，不认网页传来的路径）
 routes.get('/assistant/images/:msg/:step', (c) => {

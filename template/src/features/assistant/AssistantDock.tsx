@@ -16,6 +16,7 @@ import { DOCK_WIDTH, canPin, clampDockWidth, dockLayout, dragDockWidth, hotkeyAc
 import { useDockMark, useDockPrefs, useViewportWidth } from './use-dock'
 import { DockFrameContext, DockHeader, Tip, type DockFrame } from './DockFrame'
 import { HistoryView, type Thread } from './DockHistory'
+import { PersonaPicker, usePersona } from './DockPersona'
 import { Composer, MessageList, approve, type Msg, type Attached } from './DockChat'
 import './dock.css'
 
@@ -118,6 +119,7 @@ function DockBody() {
   const { data: status, refetch: recheck } = useApi<Status>('/assistant/status')
   const threads = useQuery<Thread[]>({ queryKey: ['assistant-threads', false], queryFn: () => api.get<Thread[]>('/assistant/threads') })
   const current = threads.data?.find((t) => t.id === thread)
+  const who = usePersona(thread, current?.persona)
   // 记着的对话不在了（归档了、换了数据库）：当新对话
   useEffect(() => { if (thread && threads.data && !threads.isFetching && !current && !fresh.current.has(thread)) setThread(null) }, [thread, threads.data, threads.isFetching, current]) // eslint-disable-line react-hooks/exhaustive-deps
   const { data: msgs } = useQuery<Msg[]>({
@@ -138,7 +140,7 @@ function DockBody() {
   const send = async (text: string, page: { title: string; path: string; text: string; selection: string } | null, attachments: Attached[] = []) => {
     setError(null)
     try {
-      const r = await api.post<{ id: string; thread: string }>('/assistant/ask', { text, page, ...(attachments.length ? { attachments: attachments.map((a) => ({ id: a.id, name: a.name })) } : {}), ...(thread ? { thread } : {}) })
+      const r = await api.post<{ id: string; thread: string }>('/assistant/ask', { text, page, ...(who.list.length ? { persona: who.persona?.key ?? '' } : {}), ...(attachments.length ? { attachments: attachments.map((a) => ({ id: a.id, name: a.name })) } : {}), ...(thread ? { thread } : {}) })
       if (r.thread !== thread) { fresh.current.add(r.thread); setThread(r.thread) }
       await qc.invalidateQueries({ queryKey: ['assistant-messages', r.thread] })
       void qc.invalidateQueries({ queryKey: ['assistant-threads'] })
@@ -170,7 +172,8 @@ function DockBody() {
         actions={<Tip label="新对话"><Button variant="ghost" size="icon-sm" onClick={() => setThread(null)} aria-label="新对话" disabled={!thread}><SquarePen /></Button></Tip>} />
       <MessageList msgs={msgs ?? []} empty={empty} onApprove={(k, c) => void onApprove(k, c)} />
       {error && <p className="mx-3 mb-1 text-[13px] text-danger" role="alert">没发出去：{error}</p>}
-      <Composer running={running} usable={usable} sendRef={sendRef} onSend={send} onStop={() => void stop()}
+      <Composer running={running} usable={usable} sendRef={sendRef} onSend={send}
+        picker={<PersonaPicker list={who.list} persona={who.persona} onPick={who.set} disabled={!usable} />} onStop={() => void stop()}
         statusText={!status ? '检查中' : !usable ? '用不了' : codex ? `你的 Codex${status.version ? ` · ${status.version.replace(/^codex-cli\s*/, '')}` : ''}` : '一问一答'}
         statusTone={!status || usable ? 'ok' : 'warn'} />
     </div>

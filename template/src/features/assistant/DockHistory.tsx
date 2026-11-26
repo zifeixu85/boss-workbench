@@ -12,7 +12,7 @@ import { Input } from '@/components/ui/input'
 import { DockHeader, Tip } from './DockFrame'
 import { groupByDay } from './dock-layout'
 
-export type Thread = { id: string; title: string; archived: boolean; created_at: string; updated_at: string; last: string; running: boolean; codex: boolean }
+export type Thread = { id: string; title: string; archived: boolean; created_at: string; updated_at: string; last: string; running: boolean; codex: boolean; persona?: string | null }
 
 export function HistoryView({ onPick, onBack }: { onPick: (t: Thread) => void; onBack: () => void }) {
   const [archived, setArchived] = useState(false)
