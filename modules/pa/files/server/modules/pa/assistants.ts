@@ -65,10 +65,12 @@ function dispatchOf(list: { chief: boolean; folder: string }[]): Dispatch[] {
   return chief ? parseDispatch(read(`${chief.folder}/${DISPATCH}`)) : []
 }
 
-/** 工作台对话栏开的对话（常驻对话的 Codex 对话编号） */
-function dockThreads(): Set<string> {
-  try { return new Set(all<{ c: string }>('SELECT codex_thread_id AS c FROM assistant_threads WHERE codex_thread_id IS NOT NULL').map((x) => `codex:${x.c}`)) } catch { return new Set() }
+/** 工作台对话栏开的对话：Codex 对话编号 → 对话栏里的标题（Codex 那边的标题是第一句前面带的页面说明，不好看） */
+function dockThreads(): Map<string, string> {
+  try { return new Map(all<{ c: string; t: string }>('SELECT codex_thread_id AS c, title AS t FROM assistant_threads WHERE codex_thread_id IS NOT NULL').map((x) => [`codex:${x.c}`, x.t])) } catch { return new Map() }
 }
+/** 给人看的标题：对话栏开的用对话栏里的标题 */
+const shown = (s: SessionView, dock: Map<string, string>) => (dock.get(s.id) ? `对话栏：${dock.get(s.id)}` : s.title)
 
 /** 每个对话归哪个助理（进展、产出的“按助理”也用这个） */
 export function sessionAssistants(sessions: SessionView[], loaded = loadAssistants()): Map<string, SessionLink> {
@@ -102,10 +104,11 @@ export function assistantList() {
   const loaded = loadAssistants()
   const sessions = listSessions({ days: 30 })
   const links = sessionAssistants(sessions, loaded)
+  const dock = dockThreads()
   const cards: AssistantCard[] = loaded.list.map(({ role, ...a }) => {
     const mine = sessions.filter((s) => links.get(s.id)?.key === a.key)
     const r = mine[0]
-    return { ...a, recent: r ? { id: r.id, title: r.title, status: r.status, last_at: r.last_at } : null, sessions: mine.length, usage: usageOf(mine.map((s) => s.id)), file_problems: fileProblems(role) }
+    return { ...a, recent: r ? { id: r.id, title: shown(r, dock), status: r.status, last_at: r.last_at } : null, sessions: mine.length, usage: usageOf(mine.map((s) => s.id)), file_problems: fileProblems(role) }
   })
   const unmatched = sessions.filter((s) => !links.has(s.id)).length
   const chiefs = cards.filter((c) => c.chief).length
@@ -127,7 +130,8 @@ export function assistantDetail(key: string) {
   if (!a) throw new NotFound(`没有“${key}”这个助理`)
   const sessions = listSessions({ days: 30 })
   const links = sessionAssistants(sessions, loaded)
-  const mine = sessions.filter((s) => links.get(s.id)?.key === key).map((s) => ({ id: s.id, title: s.title, status: s.status, why: s.why, last_at: s.last_at, started_at: s.started_at, link: s.link, by: links.get(s.id)!.by, outputs: s.outputs, object: s.object }))
+  const dock = dockThreads()
+  const mine = sessions.filter((s) => links.get(s.id)?.key === key).map((s) => ({ id: s.id, title: shown(s, dock), status: s.status, why: s.why, last_at: s.last_at, started_at: s.started_at, link: s.link, by: links.get(s.id)!.by, outputs: s.outputs, object: s.object }))
   const names = readable(a.folder) ? readdirSync(join(ROOT, a.folder)).filter((f) => f.endsWith('.md') && !f.startsWith('.')).map((f) => f.slice(0, -3)) : []
   const rank = (n: string) => { const i = FILE_ORDER.indexOf(n); return i < 0 ? 99 : i }
   const files = names.sort((x, y) => rank(x) - rank(y) || x.localeCompare(y, 'zh')).map((n) => {
