@@ -55,7 +55,7 @@ test('写一篇：内容页多一篇草稿，知识库多一份作品；改稿�
   const piece = b.json('xhs').plan // 命令能读
   assert.ok(piece)
   const kbText = readFileSync(join(b.KB, r.kb), 'utf8')
-  assert.match(kbText, /^---\n类型: 作品\n名称: 第一次买茶，最容易踩的三个坑\n状态: 草稿\n平台: 小红书\n日期: \d{4}-\d{2}-\d{2}\n/)
+  assert.match(kbText, /^---\n类型: 作品\n名称: "第一次买茶，最容易踩的三个坑"\n状态: 草稿\n平台: 小红书\n日期: \d{4}-\d{2}-\d{2}\n/, '名称按 YAML 加引号（约定 11.9：标题里有冒号、# 也不坏）')
   assert.match(kbText, new RegExp(`工作台: xhs-piece:${r.id}`))
   assert.match(kbText, /确认: 待确认/)
   assert.match(kbText, /## 现在\n写给第一次买茶送人的上班族/)
@@ -77,7 +77,7 @@ test('知识库档案里没登记作品：放进默认的 13-作品；缺标题�
   const { sources: _s, ...noSources } = DRAFT
   const r = b.json('xhs-draft-save', '--draft', JSON.stringify(noSources))
   assert.match(r.kb, /^13-作品\//)
-  assert.match(readFileSync(join(b.KB, r.kb), 'utf8'), /^来源: 和内容助理的对话$/m, '没给来源也写一句')
+  assert.match(readFileSync(join(b.KB, r.kb), 'utf8'), /^来源:\n  - 和内容助理的对话$/m, '没给来源也写一句，照样是列表（同一个属性名在库里类型一致，约定 11.9）')
   assert.ok(!('body' in r) && !('pages' in r), '只回标题、一句说明和位置')
   const bad = b.cli('xhs-draft-save', '--draft', JSON.stringify({ body: 'x' }), '--json')
   assert.notEqual(bad.code, 0)
@@ -85,9 +85,14 @@ test('知识库档案里没登记作品：放进默认的 13-作品；缺标题�
   const empty = b.cli('xhs-draft-save', '--draft', JSON.stringify({ title: '只有标题' }), '--json')
   assert.notEqual(empty.code, 0)
   assert.match(empty.out, /正文/)
+  // 标题里有半角冒号、#、引号：开头照样是合法 YAML，读得回原标题（约定 11.9）
+  const tricky = b.json('xhs-draft-save', '--draft', JSON.stringify({ ...DRAFT, title: '春茶: 别再"踩坑" #新手' }))
+  const head = readFileSync(join(b.KB, tricky.kb), 'utf8').split('\n---\n')[0]
+  assert.equal(JSON.parse(head.match(/^名称: (.*)$/m)[1]), '春茶: 别再"踩坑" #新手')
   const text = b.cli('xhs-draft-save', '--draft', JSON.stringify(DRAFT))
   assert.match(text.out, /存好了/)
   assert.doesNotMatch(text.out, /坑二：只问价格/)
   // Codex 能看到这条写入命令
   assert.ok(b.json('capabilities').write.some((w) => w.command === 'xhs-draft-save'))
 })
+

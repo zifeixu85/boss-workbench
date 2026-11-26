@@ -40,12 +40,16 @@ function findWorkFile(folder: string, id: string): string | null {
 }
 
 /** 作品文件：开头属性 + 现在、正文（几张图的顺序、正文、话题）、往来记录、来源 */
+/** YAML 的双引号字符串（JSON 的写法 YAML 也认） */
+const yamlString = (s: string) => JSON.stringify(s.replace(/\s+/g, ' ').trim())
+
 export function workText(d: Draft, o: { id: string; summary: string; day: string; by: string; created: string; sources: string[] }): string {
   const pages = d.pages.map((p, i) => `${i + 1}. ${p.text.replace(/\n/g, ' ')}${p.role === '封面' ? '（封面）' : ''}`)
   const tags = d.tags.map((t) => `#${t}`).join(' ')
   return [
-    '---', '类型: 作品', `名称: ${d.title}`, '状态: 草稿', '平台: 小红书', `日期: ${o.created}`, `更新: ${o.day}`, '确认: 待确认', '隐私: 内部',
-    ...(o.sources.length ? ['来源:', ...o.sources.map((x) => `  - "[[${x}]]"`)] : [`来源: 和${o.by}的对话`]),
+    // Obsidian 认的写法（约定 11.9）：名称按 YAML 加引号（标题里有冒号、#、引号也不坏）；来源永远是列表（同一个属性名在库里类型一致）
+    '---', '类型: 作品', `名称: ${yamlString(d.title)}`, '状态: 草稿', '平台: 小红书', `日期: ${o.created}`, `更新: ${o.day}`, '确认: 待确认', '隐私: 内部',
+    '来源:', ...(o.sources.length ? o.sources.map((x) => `  - "[[${x}]]"`) : [`  - 和${o.by}的对话`]),
     `写的人: ${o.by}`, `工作台: xhs-piece:${o.id}`, '---', '',
     '## 现在', o.summary, '',
     '## 正文', `标题：${d.title}`, '', '图片顺序：', ...pages, '', d.body.trim(), '', ...(tags ? [tags, ''] : []),

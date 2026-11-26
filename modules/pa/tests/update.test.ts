@@ -63,7 +63,19 @@ test('没有这一节就新建：现在放在开头后面，下一步跟在现�
   assert.equal(r.text, '---\n类型: 客户\n名称: 云杉物流\n状态: 在谈\n更新: 2026-11-24\n---\n\n## 现在\n在等报价\n\n## 下一步\n- [ ] 出报价\n\n## 往来记录\n- 2026-11-24｜电话｜要报价；来源：和 AI 的对话（AI 记录，待确认）\n\n## 来源\n- a\n')
 })
 
-test('什么都没改、文件开头不对：不收', () => {
+test('什么都没改：不收；开头没有属性块的照样能改（约定 11.9，见下一条）', () => {
   assert.throws(() => planObjectUpdate(FILE, {}, T, []), /没有要改的/)
-  assert.throws(() => planObjectUpdate('没有开头', { now: 'x' }, T, []), /开头/)
+  assert.equal(planObjectUpdate('# 半亩书店\n\n没有开头', { now: 'x' }, T, []).text, '# 半亩书店\n\n## 现在\nx\n\n没有开头')
+})
+
+test('开头没有属性块的文件（老板自己的写法，约定 11.9）：改状态时在最前面补一个属性块，只放状态；只改正文的不碰开头；不加“更新”', () => {
+  const plain = '# 半亩书店\n\n合作两年，每季度一单。\n'
+  const st = planObjectUpdate(plain, { status: '进行中' }, '2026-11-26', ['进行中', '已结束'])
+  assert.equal(st.text, '---\n状态: 进行中\n---\n\n# 半亩书店\n\n合作两年，每季度一单。\n')
+  assert.deepEqual(st.changes.map((c) => c.what), ['状态'])
+  const log = planObjectUpdate(plain, { log: { channel: '微信', text: '要了春节礼盒报价' } }, '2026-11-26', [])
+  assert.ok(log.text.startsWith('# 半亩书店'), '只改正文：开头不加属性块')
+  assert.match(log.text, /## 往来记录\n- 2026-11-26｜微信｜要了春节礼盒报价/)
+  assert.deepEqual(log.changes.map((c) => c.what), ['往来记录'])
+  assert.throws(() => planObjectUpdate('---\n状态: 在谈\n没收尾\n', { status: '进行中' }, '2026-11-26', []), /没有用 --- 收尾/)
 })

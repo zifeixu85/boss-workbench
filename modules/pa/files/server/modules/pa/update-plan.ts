@@ -1,6 +1,7 @@
 // 在对话里更新“我关注的”对象（知识库里的一份对象文件）：只改四处，别的地方一字不动。
 //   状态（开头）、现在（整段换掉）、下一步（加一条 / 勾掉一条）、往来记录（末尾加一行，标“AI 记录，待确认”）。
 // 改了任何一处，开头的“更新”换成今天。纯计算：传进来原文，返回改好的全文和改了哪几处；写文件、备份在 object-update.ts。
+// 开头没有属性块的（老板自己的写法，约定 11.9）：改状态时才在最前面补一个属性块、只放状态；只改正文的不碰开头；不补“更新”。
 
 export type ObjectUpdate = {
   status?: string
@@ -32,7 +33,13 @@ function section(lines: string[], title: string): { head: number; end: number } 
 const afterLast = (lines: string[], s: { head: number; end: number }) => { let i = s.end - 1; while (i > s.head && !lines[i].trim()) i--; return i + 1 }
 const insert = (lines: string[], at: number, add: string[]) => [...lines.slice(0, at), ...add, ...lines.slice(at)]
 /** 属性块后面第一个位置（跳过紧跟着的空行） */
-const bodyStart = (lines: string[]) => { const e = frontEnd(lines); return lines[e + 1] === '' ? e + 2 : e + 1 }
+const bodyStart = (lines: string[]) => {
+  const e = frontEnd(lines)
+  let i = lines[e + 1] === '' ? e + 2 : e + 1
+  // 正文开头是一级标题（老板自己写法的文件常这样）：新加的节放在标题后面
+  if (/^#\s/.test(lines[i] ?? '')) { i++; while (lines[i] === '') i++ }
+  return i
+}
 
 function setField(lines: string[], key: string, value: string): { lines: string[]; old: string } {
   const e = frontEnd(lines)
@@ -54,6 +61,8 @@ const oneLine = (s: string, what: string) => {
  */
 export function planObjectUpdate(text: string, u: ObjectUpdate, today: string, statuses: string[], statusField = '状态'): { text: string; changes: Change[] } {
   let lines = text.replace(/^﻿/, '').replace(/\r\n/g, '\n').split('\n')
+  const bare = lines[0] !== '---'
+  if (bare) lines = ['---', '---', '', ...lines]
   frontEnd(lines)
   const changes: Change[] = []
 
@@ -118,6 +127,11 @@ export function planObjectUpdate(text: string, u: ObjectUpdate, today: string, s
   }
 
   if (!changes.length) throw new Error('没有要改的：状态、现在、下一步、往来记录至少写一样（或者写的和原来一样）')
+  if (bare) {
+    // 原来没有属性块：只有改了状态才留下补的那一块（只放状态），否则把补的空块去掉，开头一字不动
+    if (u.status === undefined) lines = lines.slice(3)
+    return { text: lines.join('\n'), changes }
+  }
   const r = setField(lines, '更新', today)
   lines = r.lines
   if (r.old !== today) changes.push({ what: '更新', old: r.old, new: today })
