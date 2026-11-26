@@ -72,9 +72,15 @@ test('写一篇：内容页多一篇草稿，知识库多一份作品；改稿�
   assert.equal(readdirSync(join(b.KB, '13-作品')).length, 1)
 })
 
-test('知识库档案里没登记作品：放进默认的 13-作品；缺标题、缺正文说清楚；正文和图不回给对话', { skip }, () => {
+test('知识库档案里没登记作品（2026-11-27 改）：稿子照样存进工作台，但不新建顶层文件夹、不写作品文件，回一句“还没登记作品放哪”；库里本来就有 13-作品/ 的照旧放进去', { skip }, () => {
   const b = bench()
   const { sources: _s, ...noSources } = DRAFT
+  const none = b.json('xhs-draft-save', '--draft', JSON.stringify(noSources))
+  assert.equal(none.kb, null)
+  assert.match(none.note, /还没登记作品放哪/)
+  assert.ok(!existsSync(join(b.KB, '13-作品')), '没登记时不新建顶层文件夹')
+  assert.match(none.id, /^p_/, '稿子照样存进工作台')
+  mkdirSync(join(b.KB, '13-作品'))
   const r = b.json('xhs-draft-save', '--draft', JSON.stringify(noSources))
   assert.match(r.kb, /^13-作品\//)
   assert.match(readFileSync(join(b.KB, r.kb), 'utf8'), /^来源:\n  - 和内容助理的对话$/m, '没给来源也写一句，照样是列表（同一个属性名在库里类型一致，约定 11.9）')

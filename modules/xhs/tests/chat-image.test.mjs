@@ -40,7 +40,7 @@ test('放进当前稿子：封面垫图换成对话里的图，存新版本；�
   const out = spawnSync(process.execPath, ['--input-type=module', '-e', script], { cwd: APP, env, encoding: 'utf8' })
   assert.equal(out.status, 0, out.stderr)
   const j = JSON.parse(out.stdout.trim().split('\n').pop())
-  assert.match(j.r.asset, /^a_img_[0-9a-z]{8}$/)
+  assert.match(j.r.asset, /^a_gen_[0-9a-z]{8}$/, '对话里生成的图编号是 a_gen_，页面上标 AI 生成')
   assert.equal(j.pad, j.r.asset, '封面垫图换成了这张')
   assert.equal(j.version, 2, '存成新的一版，旧版留着')
   assert.equal(dirname(j.file), j.dir)

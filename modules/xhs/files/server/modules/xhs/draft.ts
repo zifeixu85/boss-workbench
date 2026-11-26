@@ -20,8 +20,8 @@ export type Draft = {
 export const TEMPLATES = ['a_cover1', 'a_cover2', 'a_cover3', 'a_cover4'] as const
 /** a_pad0 是占位（还没有实拍图）；a_pad1—5 是 ABC茶社示例的茶具插画 */
 export const PADS = ['a_pad0', 'a_pad1', 'a_pad2', 'a_pad3', 'a_pad4', 'a_pad5'] as const
-/** 对话里放进来的图（xhs_assets 里的 a_img_xxxxxxxx） */
-export const isImagePad = (v: unknown): v is string => typeof v === 'string' && /^a_img_[0-9a-z]{8}$/.test(v)
+/** 放进来的图（xhs_assets 里的 a_img_xxxxxxxx 实拍、a_gen_xxxxxxxx 生成） */
+export const isImagePad = (v: unknown): v is string => typeof v === 'string' && /^a_(img|gen)_[0-9a-z]{8}$/.test(v)
 export const TONES = ['米白', '茶绿', '暖棕', '雾蓝'] as const
 
 const str = (v: unknown, max = 4000) => (typeof v === 'string' ? v : v == null ? '' : String(v)).slice(0, max)

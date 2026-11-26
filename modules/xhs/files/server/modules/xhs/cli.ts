@@ -33,7 +33,7 @@ const HELP = `  xhs                                小红书：今天发什么�
                                      改稿带 --id：同一篇存新版本（也能写到 xhs-topic-add 存的选题下面）。只回标题、一句说明、位置和打开方式（xhs-piece），正文不回
   xhs-topic-add --title 标题 [--angle 角度] [--reason 一句说明] [--account 账号] [--by 助理名字]
                                      存一个选题（挂在账号下：只有一个账号时不用写）（进内容页的灵感池；同名的不重复存，回已有那篇的编号）。回编号和打开方式
-  xhs-image-add --id <内容编号> (--file <图片路径> | --from-codex) [--page 0] [--by 助理名字]
+  xhs-image-add --id <内容编号> (--from-codex | --file <图片路径> --origin 生成|实拍) [--page 0] [--by 助理名字]
                                      把一张图放进某一篇：--page 0 是封面（默认），1、2…… 是第几张内页。--from-codex 用 Codex 刚生成的那张（两小时内最新的）。
                                      图复制进工作台素材，原图不动；存成新的一版
   xhs-pieces [--q 关键词] [--status 选题|草稿|定稿|已发布] [--by 助理名字] [--account 账号] [--json]
@@ -59,7 +59,7 @@ const line = (xs: R[], f: (x: R) => string) => (xs.length ? xs.map((x) => `- ${f
 function run(argv: string[]): number {
   const { values: o, positionals } = parseArgs({
     args: argv, allowPositionals: true,
-    options: { json: { type: 'boolean' }, yes: { type: 'boolean' }, file: { type: 'string' }, date: { type: 'string' }, by: { type: 'string' }, draft: { type: 'string' }, id: { type: 'string' }, title: { type: 'string' }, angle: { type: 'string' }, reason: { type: 'string' }, page: { type: 'string' }, q: { type: 'string' }, 'from-codex': { type: 'boolean' }, account: { type: 'string' }, name: { type: 'string' }, handle: { type: 'string' }, positioning: { type: 'string' }, audience: { type: 'string' }, persona: { type: 'string' }, style: { type: 'string' }, avoid: { type: 'string' }, status: { type: 'string' }, help: { type: 'boolean', short: 'h' } },
+    options: { json: { type: 'boolean' }, yes: { type: 'boolean' }, file: { type: 'string' }, date: { type: 'string' }, by: { type: 'string' }, draft: { type: 'string' }, id: { type: 'string' }, title: { type: 'string' }, angle: { type: 'string' }, reason: { type: 'string' }, page: { type: 'string' }, q: { type: 'string' }, 'from-codex': { type: 'boolean' }, origin: { type: 'string' }, account: { type: 'string' }, name: { type: 'string' }, handle: { type: 'string' }, positioning: { type: 'string' }, audience: { type: 'string' }, persona: { type: 'string' }, style: { type: 'string' }, avoid: { type: 'string' }, status: { type: 'string' }, help: { type: 'boolean', short: 'h' } },
   })
   const print = (data: unknown, text: string) => console.log(o.json ? JSON.stringify(data, null, 2) : text)
   if (o.help) { console.log(HELP); return 0 }
@@ -96,7 +96,7 @@ function run(argv: string[]): number {
       let input: unknown
       try { input = JSON.parse(raw) } catch { throw new Error('稿件不是合法的 JSON：title、summary、cover_text、pages、body、tags') }
       const r = saveWork(input, { id: o.id, by: o.by, actor: 'Codex', account: o.account })
-      print({ ...r, path: `/content/studio/${r.id}` }, `存好了：《${r.title}》（草稿，第 ${r.version} 版）\n${r.summary}\n在：${r.where}\n打开预览：workbench_open，kind 写 xhs-piece，id 写 ${r.id}（网页地址 /content/studio/${r.id}）`)
+      print({ ...r, path: `/content/studio/${r.id}` }, `存好了：《${r.title}》（草稿，第 ${r.version} 版）\n${r.summary}\n在：${r.where}\n打开预览：workbench_open，kind 写 xhs-piece，id 写 ${r.id}（网页地址 /content/studio/${r.id}）${r.note ? `\n注意：${r.note}` : ''}`)
       return 0
     }
     case 'xhs-topic-add': {
@@ -117,8 +117,11 @@ function run(argv: string[]): number {
       // --from-codex：用 Codex 刚生成的那张图（image_gen 存在 $CODEX_HOME/generated_images/ 下），助理不用知道路径
       const file = o['from-codex'] ? latestCodexImage() : o.file
       if (!o.id || !file) throw new Error('要用 --id 指定哪一篇，--file 指定图片（或 --from-codex 用 Codex 刚生成的那张）')
-      const r = addImage(o.id, file, { page: o.page === undefined ? 0 : Number(o.page), by: (o.by ?? '').trim() || 'Codex', what: '助理放进来的图' })
-      print({ ...r, file }, `放好了：《${r.title}》的${r.where}换成了这张图（${file.split('/').pop()}）（存成第 ${r.version} 版，旧版留着）\n打开：workbench_open，kind 写 xhs-piece，id 写 ${r.id}（网页地址 ${r.path}）`)
+      // 来源：--from-codex 一定是生成的；--file 要写 --origin 生成|实拍（不默认，免得生成的图被当成实拍）
+      const origin = o['from-codex'] ? '生成' : o.origin === '生成' || o.origin === '实拍' ? o.origin : null
+      if (!origin) throw new Error('用 --file 放图要写 --origin 生成 或 --origin 实拍（生成的图页面上会标“AI 生成”）')
+      const r = addImage(o.id, file, { page: o.page === undefined ? 0 : Number(o.page), by: (o.by ?? '').trim() || 'Codex', what: origin === '生成' ? 'AI 生成的图' : '实拍图', origin })
+      print({ ...r, file }, `放好了：《${r.title}》的${r.where}换成了这张${r.origin === '生成' ? ' AI 生成的' : '实拍'}图（${file.split('/').pop()}）${r.origin === '生成' ? '。交稿时提醒发布的人按平台要求标注 AI 生成' : ''}（存成第 ${r.version} 版，旧版留着）\n打开：workbench_open，kind 写 xhs-piece，id 写 ${r.id}（网页地址 ${r.path}）`)
       return 0
     }
     case 'xhs-pieces': {

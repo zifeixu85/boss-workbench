@@ -179,7 +179,12 @@ const SCENES: Record<string, (p: P) => React.JSX.Element> = { a_pad0: Blank, a_p
 export function Pad({ pad, fit = 'slice', align = 'xMid', className }: { pad?: string | null; fit?: 'slice' | 'meet'; align?: 'xMin' | 'xMid' | 'xMax'; className?: string }) {
   const k = `p${useId().replace(/[^a-zA-Z0-9]/g, '')}`
   // 对话里放进来的图：用真图
-  if (pad && /^a_img_[0-9a-z]{8}$/.test(pad)) return <img src={`/api/m/xhs/assets/${pad}/file`} alt="对话里生成的图" className={cn(className, fit === 'meet' ? 'object-contain' : 'object-cover', align === 'xMin' ? 'object-left' : align === 'xMax' ? 'object-right' : 'object-center')} />
+  if (pad && /^a_(img|gen)_[0-9a-z]{8}$/.test(pad)) {
+    const gen = pad.startsWith('a_gen_')
+    const img = <img src={`/api/m/xhs/assets/${pad}/file`} alt={gen ? 'AI 生成的图' : '放进来的图'} className={cn(gen ? 'size-full' : className, fit === 'meet' ? 'object-contain' : 'object-cover', align === 'xMin' ? 'object-left' : align === 'xMax' ? 'object-right' : 'object-center')} />
+    // 生成的图标一个小字“AI 生成”（约定 11.14：可以用，但不能当成实拍）
+    return gen ? <span className={cn('relative block overflow-hidden', className)}>{img}<span className="pointer-events-none absolute right-1 bottom-1 rounded bg-black/55 px-1 py-px text-[9px] leading-tight font-medium text-white">AI 生成</span></span> : img
+  }
   const Scene = SCENES[pad ?? ''] ?? Desk
   return (
     <svg viewBox="0 0 300 240" preserveAspectRatio={`${align}YMid ${fit}`} className={className} role="img" aria-label={PAD_NAMES[pad ?? 'a_pad1']}>

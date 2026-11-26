@@ -15,16 +15,19 @@ import { resolveAccount } from './accounts.ts'
 const DEFAULT_FOLDER = '13-作品'
 const SUMMARY_MAX = 80
 
-export type SavedWork = { id: string; title: string; summary: string; status: '草稿'; version: number; kb: string; backup?: string; where: string; open: { kind: 'xhs-piece'; id: string } }
+export type SavedWork = { id: string; title: string; summary: string; status: '草稿'; version: number; kb: string | null; backup?: string; where: string; note?: string; open: { kind: 'xhs-piece'; id: string } }
 
-/** 知识库档案“我关注的”表里作品那一行的文件夹 */
-export function worksFolder(): string {
+/** 知识库档案“我关注的”表里作品那一行的文件夹。没登记时：库里本来就有 13-作品/ 就用它，否则是 null——不替老板新建顶层文件夹（2026-11-27） */
+export function worksFolder(): string | null {
   const file = join(ROOT, '知识库档案.md')
-  if (!existsSync(file) || !canReadKbPath(file)) return DEFAULT_FOLDER
-  const row = readKbTextFile(file).split(/\r?\n/).find((l) => /^\|\s*作品\s*\|/.test(l))
+  const row = existsSync(file) && canReadKbPath(file) ? readKbTextFile(file).split(/\r?\n/).find((l) => /^\|\s*作品\s*\|/.test(l)) : undefined
   const folder = row?.split('|')[2]?.trim().replace(/^\/+|\/+$/g, '')
-  return folder && okFolder(folder) ? folder : DEFAULT_FOLDER
+  if (folder && okFolder(folder)) return folder
+  return existsSync(join(ROOT, DEFAULT_FOLDER)) ? DEFAULT_FOLDER : null
 }
+
+/** 没登记作品放哪时回给助理的一句 */
+export const NO_WORKS_FOLDER = '还没登记作品放哪：稿子存进了工作台，知识库里没存作品文件。问老板作品平时放哪个文件夹（或找到已有的成稿文件夹），在知识库档案“我关注的”表里加一行“| 作品 | <文件夹> | 已确认 |”，再存一次就会写进去'
 
 /** 作品文件夹的名字：不出知识库、不是隐藏文件夹、不是工作台自己的（程序、数据、备份） */
 const okFolder = (f: string) => f.split('/').every((s) => s && s !== '..' && !s.startsWith('.') && !['程序', '数据', '备份', '工作台', 'node_modules'].includes(s))
@@ -86,6 +89,7 @@ export function saveWork(input: unknown, opts: { id?: string; by?: string; actor
   // 用到的知识库文件记进这一篇的“依据”（还没写依据的才写），内容页、创作页都看得到来源
   if (sources.length) run('UPDATE xhs_pieces SET ref = :ref WHERE id = :id AND (ref IS NULL OR ref = \'\')', { id, ref: sources.map((x) => `${x}.md`).join('、').slice(0, 400) })
   const folder = worksFolder()
+  if (!folder) return { id, title: saved.title, summary, status: '草稿', version, kb: null, where: '工作台内容页（小红书 → 内容，状态是写稿中）；知识库里还没存（没登记作品放哪）', note: NO_WORKS_FOLDER, open: { kind: 'xhs-piece', id } }
   const d = now()
   const day = localDate(d)
   const existing = findWorkFile(folder, id)
@@ -93,7 +97,7 @@ export function saveWork(input: unknown, opts: { id?: string; by?: string; actor
   const kb = existing ?? `${folder}/${day} ${safeName(saved.title) || id}.md`
   const stamp = `${day}T${String(d.getHours()).padStart(2, '0')}${String(d.getMinutes()).padStart(2, '0')}${String(d.getSeconds()).padStart(2, '0')}`
   const backup = existing ? backupKbFile(existing, stamp) ?? undefined : undefined
-  // 工作台只往已有的顶层文件夹里写；作品文件夹是骨架里定好的，第一次写时建出来
+  // 登记过的作品文件夹（或库里本来就有的 13-作品/）：子文件夹不在就建出来
   mkdirSync(join(ROOT, folder), { recursive: true })
   writeKb(kb, workText(saved, { id, summary, day, by, created, sources }))
   return { id, title: saved.title, summary, status: '草稿', version, kb, ...(backup ? { backup } : {}), where: `工作台内容页（小红书 → 内容，状态是写稿中）；知识库 ${kb}`, open: { kind: 'xhs-piece', id } }

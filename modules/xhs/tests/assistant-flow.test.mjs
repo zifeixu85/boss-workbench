@@ -40,9 +40,12 @@ test('存选题 → 存稿 → 改稿 → 放图 → 找到；都记着是阿柚
 
   const png = join(tmp, '封面.png')
   writeFileSync(png, Buffer.from('89504e470d0a1a0a0000000d49484452000000010000000108060000001f15c4890000000d4944415478da6364f8ff1f0003030200efa3a5c70000000049454e44ae426082', 'hex'))
-  const i0 = json('xhs-image-add', '--id', t.id, '--file', png, '--by', '阿柚')
+  assert.notEqual(sh('server/cli.ts', 'xhs-image-add', '--id', t.id, '--file', png, '--by', '阿柚').code, 0, '--file 要写来源：生成还是实拍')
+  const i0 = json('xhs-image-add', '--id', t.id, '--file', png, '--origin', '实拍', '--by', '阿柚')
+  assert.match(i0.asset, /^a_img_/)
   assert.equal(i0.where, '封面'); assert.equal(i0.version, 3)
-  const i2 = json('xhs-image-add', '--id', t.id, '--file', png, '--page', '2', '--by', '阿柚')
+  const i2 = json('xhs-image-add', '--id', t.id, '--file', png, '--origin', '生成', '--page', '2', '--by', '阿柚')
+  assert.match(i2.asset, /^a_gen_/, '生成的图编号是 a_gen_，页面上标 AI 生成')
   assert.equal(i2.where, '第 2 张内页'); assert.equal(i2.version, 4)
   // Codex 生图存在 $CODEX_HOME/generated_images/<对话>/ 下：--from-codex 取最新那张
   const ch = join(tmp, 'codex-home'); mkdirSync(join(ch, 'generated_images', 't1'), { recursive: true })
@@ -50,9 +53,10 @@ test('存选题 → 存稿 → 改稿 → 放图 → 找到；都记着是阿柚
   const fc = spawnSync(process.execPath, ['server/cli.ts', 'xhs-image-add', '--id', t.id, '--from-codex', '--page', '1', '--by', '阿柚', '--json'], { cwd: APP, env: { ...env, CODEX_HOME: ch }, encoding: 'utf8' })
   assert.equal(fc.status, 0, fc.stderr)
   assert.match(JSON.parse(fc.stdout).file, /generated_images\/t1\/exec-1\.png$/)
+  assert.match(JSON.parse(fc.stdout).asset, /^a_gen_/, '--from-codex 的一定是生成的')
   assert.equal(JSON.parse(fc.stdout).where, '第 1 张内页')
-  assert.notEqual(sh('server/cli.ts', 'xhs-image-add', '--id', t.id, '--file', png, '--page', '9').code, 0, '没有第 9 张内页：不收')
-  assert.notEqual(sh('server/cli.ts', 'xhs-image-add', '--id', t.id, '--file', join(tmp, '没有.png')).code, 0)
+  assert.notEqual(sh('server/cli.ts', 'xhs-image-add', '--id', t.id, '--file', png, '--origin', '实拍', '--page', '9').code, 0, '没有第 9 张内页：不收')
+  assert.notEqual(sh('server/cli.ts', 'xhs-image-add', '--id', t.id, '--file', join(tmp, '没有.png'), '--origin', '实拍').code, 0)
 
   const found = json('xhs-pieces', '--by', '阿柚')
   assert.deepEqual(found.map((p) => [p.id, p.stage, p.version]), [[t.id, '草稿', 5]])

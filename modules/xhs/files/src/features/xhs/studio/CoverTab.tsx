@@ -44,8 +44,8 @@ export function CoverTab({ draft, onChange, readOnly }: { draft: Draft; onChange
           <div>
             <div className="mb-1.5 text-[13px] font-semibold">垫图 <span className="font-normal text-muted-foreground">（素材库里的 5 张，现在是插画，以后换实拍）</span></div>
             <div className="grid grid-cols-5 gap-2">
-              {/^a_img_/.test(draft.cover.pad) && (
-                <Opt on onClick={() => {}} label="对话里的图">
+              {/^a_(img|gen)_/.test(draft.cover.pad) && (
+                <Opt on onClick={() => {}} label={draft.cover.pad.startsWith('a_gen_') ? 'AI 生成的图' : '放进来的图'}>
                   <div className="aspect-[5/4]"><Pad pad={draft.cover.pad} className="size-full" /></div>
                 </Opt>
               )}
