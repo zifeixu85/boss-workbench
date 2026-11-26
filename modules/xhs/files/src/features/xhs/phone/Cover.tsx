@@ -37,8 +37,8 @@ function crop(seed: string): CSSProperties {
 
 /** 内页配哪张垫图：先看这页说的东西，再按页码轮着换 */
 export function padFor(text: string, coverPad: string, index: number) {
-  // 封面是占位（还没有实拍图）：内页也用占位，不按字配插画
-  if (coverPad === 'a_pad0') return 'a_pad0'
+  // 封面不是示例的茶具插画（是占位，或放进来的实拍 / 生成的图）：没给图的内页用占位，不按字配插画
+  if (!/^a_pad[1-5]$/.test(coverPad)) return 'a_pad0'
   if (/公道杯|玻璃/.test(text)) return 'a_pad2'
   if (/保温杯|焖|加班|寿眉饼|夜/.test(text)) return 'a_pad3'
   if (/开会|会议|岩茶|肉桂|水仙/.test(text)) return 'a_pad4'
