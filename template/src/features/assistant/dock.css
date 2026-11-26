@@ -1,0 +1,26 @@
+/* AI 对话栏（⌘J）钉在右侧当侧栏（2026-11-26 照 A梦 自用工作台的对话框）：
+   AssistantDock 在 <html> 上写 data-assistant-dock="pinned" 和 --assistant-dock-w，这里把页面往左挤，不盖住内容；
+   详情抽屉和右下角的提示一起让到侧栏左边；钉住时抽屉不是模态的（components/ui/sheet.tsx），两边都能点、能打字。
+   只在宽屏生效：75rem = 1200px，和 dock-layout.ts 的 DOCK_PIN_FROM 一致。不放进 @layer：要压过抽屉上 Tailwind 的 right-0。 */
+@media (min-width: 75rem) {
+  html[data-assistant-dock='pinned'] #root {
+    padding-right: var(--assistant-dock-w, 420px);
+  }
+  html[data-assistant-dock='pinned'] [data-slot='sheet-content'][data-side='right'],
+  html[data-assistant-dock='pinned'] [data-slot='sheet-overlay'] {
+    right: var(--assistant-dock-w, 420px);
+  }
+  html[data-assistant-dock='pinned'] [data-slot='sheet-content'][data-side='right'] {
+    width: calc(100vw - var(--assistant-dock-w, 420px));
+  }
+  html[data-assistant-dock='pinned'] [data-sonner-toaster][data-x-position='right'] {
+    right: calc(var(--assistant-dock-w, 420px) + 24px) !important;
+  }
+}
+/* 拖宽度时整页不选字、光标保持左右箭头 */
+html[data-assistant-resizing] { cursor: col-resize; user-select: none; }
+html[data-assistant-resizing] * { cursor: col-resize !important; }
+@media (prefers-reduced-motion: no-preference) {
+  [data-assistant-panel='float'] { animation: assistant-dock-in 160ms ease-out; }
+}
+@keyframes assistant-dock-in { from { transform: translateX(16px); opacity: 0; } to { transform: none; opacity: 1; } }

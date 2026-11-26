@@ -113,8 +113,9 @@ export function SearchButton({ onClick, wide }: { onClick: () => void; wide?: bo
   const kb = useIdentity().kb
   if (!wide) return <Button variant="ghost" size="icon" aria-label="搜索" onClick={onClick}><Search /></Button>
   return (
-    <button onClick={onClick} className="flex h-8 w-full max-w-[320px] items-center gap-2 rounded-lg border bg-card px-3 text-sm text-muted-foreground hover:border-primary/40">
-      <Search className="size-4" /><span className="flex-1 text-left">搜客户、项目、待办、{kb}…</span><Kbd>⌘K</Kbd>
+    // 对话栏钉在右边时页面变窄：字放不下就省略，不折成几行（2026-11-26）
+    <button onClick={onClick} aria-label="搜索" className="flex h-8 w-full max-w-[320px] min-w-9 items-center gap-2 overflow-hidden rounded-lg border bg-card px-3 text-sm whitespace-nowrap text-muted-foreground hover:border-primary/40">
+      <Search className="size-4 shrink-0" /><span className="min-w-0 flex-1 truncate text-left">搜客户、项目、待办、{kb}…</span><Kbd className="shrink-0">⌘K</Kbd>
     </button>
   )
 }

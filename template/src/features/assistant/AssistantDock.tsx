@@ -1,186 +1,178 @@
-// 页面里的 AI 助手（2026-10-15）：每一页右边都能打开的对话栏（⌘J 或右下角按钮）。它知道你正在看哪一页，
-// 后台调本机 Codex，用工作台工具读写（server/assistant/）；写完页面自动刷新。宽屏时和页面并排，不挡内容；窄屏时盖在上面。
-// 默认关（2026-11-12）：日常用法是在 Codex 里说、工作台开在右侧面板（Codex 插件）。关着时按钮和 ⌘J 都不出现；
-// 到“设置 → AI 助手”打开后才有。打开了但本机没有 Codex、没登录，就在这里说清怎么办，其他功能照常。
+// 页面里的 AI 助手（⌘J）。2026-11-26 照 A梦 自用工作台的对话框重做（A梦：“我们是挤压页面实现的，包括那些交互 UI 组件，你都复用一下”）：
+// - 默认钉在右侧当侧栏，把页面往左挤（dock.css），两边能同时看、同时点；可以改成浮在页面上；中等宽度一律浮着，手机全屏（dock-layout.ts）；
+// - 左边那条竖线能拖宽、拖窄（键盘左右键也行，双击回到默认），宽度、钉不钉、开没开记在这台电脑的浏览器里；
+// - ⌘J：收着就打开；开着但光标在页面上就回到输入框；光标在对话栏里就收起。浮着、全屏时 Esc 收起；
+// - 对话栏开着时详情抽屉不是模态的（components/ui/sheet.tsx）：抽屉开着也能打开、能打字，点对话栏不关抽屉；
+// - 头部：左边历史（在历史里是“返回”），中间对话名，右边新对话、钉住 / 浮着、收起；历史按今天 / 昨天 / 这 7 天 / 更早分组（DockHistory.tsx）。
+// 默认关（2026-11-12）：设置里打开才有。
 import { useEffect, useRef, useState } from 'react'
-import { useLocation } from 'react-router'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { Check, CircleAlert, Loader2, RotateCcw, Send, Sparkles, Square, X } from 'lucide-react'
+import { CircleAlert, History, SquarePen, Sparkles } from 'lucide-react'
 import { api, useApi } from '@/lib/api'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
-import { Textarea } from '@/components/ui/textarea'
-import { Kbd } from '@/components/ui/kbd'
-import { useIdentity } from '@/lib/identity'
 import type { Settings } from '@/lib/types'
+import { DOCK_WIDTH, canPin, clampDockWidth, dockLayout, dragDockWidth, hotkeyAction, nudgeDockWidth, type DockLayout } from './dock-layout'
+import { useDockMark, useDockPrefs, useViewportWidth } from './use-dock'
+import { DockFrameContext, DockHeader, Tip, type DockFrame } from './DockFrame'
+import { HistoryView, type Thread } from './DockHistory'
+import { Composer, MessageList, approve, type Msg } from './DockChat'
+import './dock.css'
 
-type Step = { tool: string; label: string; state: 'running' | 'ok' | 'failed'; detail?: string }
-type Approval = { key: string; kind: '跑命令' | '改文件' | '要权限'; text: string; reason: string }
-type Msg = { id: string; role: 'user' | 'assistant'; text: string; status: 'running' | 'done' | 'failed' | 'cancelled'; error: string | null; steps: Step[]; page_title: string | null; created_at: string; approvals?: Approval[] }
-type Status = { ready: boolean; version: string | null; detail: string; fix: string | null; on: boolean; running: string | null; engine?: 'simple' | 'codex' }
+type Status = { ready: boolean; version: string | null; detail: string; fix: string | null; on: boolean; running: string | null; running_thread: string | null; engine?: 'simple' | 'codex' }
 
-const OPEN_KEY = 'wb.assistant.open'
-const WIDE = '(min-width: 1280px)'
-const readOpen = () => { try { return localStorage.getItem(OPEN_KEY) === '1' } catch { return false } }
-
-/** 页面上最后选中的文字（对话栏外面的）：点进输入框时页面上的选区会没，所以选的时候就记下来；换页清掉 */
-let lastSelection = ''
-if (typeof document !== 'undefined') document.addEventListener('selectionchange', () => {
-  const sel = document.getSelection()
-  const t = sel?.toString().trim() ?? ''
-  if (t && !(sel?.anchorNode && (sel.anchorNode as Element).parentElement?.closest('aside[aria-label="AI 助手"]'))) lastSelection = t.slice(0, 2000)
-})
-
-/** 当前页面：标题、地址、正文（只取主区域，不含对话栏自己）、选中的文字，给 AI 当上下文 */
-function pageContext(path: string) {
-  const main = document.querySelector('main')
-  const title = main?.querySelector('h1')?.textContent?.trim() || document.title
-  // 打开着的详情抽屉也算在看的内容
-  const sheet = [...document.querySelectorAll('[role="dialog"]')].map((d) => (d as HTMLElement).innerText).join('\n')
-  return { title, path, text: `${sheet ? `${sheet}\n` : ''}${main?.innerText ?? ''}`.slice(0, 6000), selection: lastSelection }
-}
-
-const SUGGEST = ['今天我先做哪件事？', '整理一下收件箱', '这页上有什么要我注意的？']
+const THREAD_KEY = 'wb.assistant.thread'
+const readThread = () => { try { return localStorage.getItem(THREAD_KEY) } catch { return null } }
+const saveThread = (id: string | null) => { try { if (id) localStorage.setItem(THREAD_KEY, id); else localStorage.removeItem(THREAD_KEY) } catch { /* 隐私模式 */ } }
+const focusInput = (root: HTMLElement | null) => root?.querySelector<HTMLTextAreaElement>('textarea[data-assistant-input]')?.focus()
 
 export function AssistantDock() {
-  const kb = useIdentity().kb
   const enabled = useApi<Settings>('/settings').data?.assistant_on === true
-  const [wantOpen, setOpen] = useState(readOpen)
-  const open = wantOpen && enabled
-  const [text, setText] = useState('')
-  const [sending, setSending] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const loc = useLocation()
-  const qc = useQueryClient()
-  const { data: status, refetch: recheck } = useApi<Status>(open ? '/assistant/status' : null)
-  const { data: msgs } = useQuery<Msg[]>({
-    queryKey: ['assistant-messages'], queryFn: () => api.get<Msg[]>('/assistant/messages'), enabled: open,
-    refetchInterval: (q) => (q.state.data?.some((m) => m.status === 'running') ? 1500 : false),
+  return enabled ? <Dock /> : null
+}
+
+function Dock() {
+  const viewport = useViewportWidth()
+  const [prefs, set] = useDockPrefs()
+  const layout = dockLayout(viewport, prefs.pinned)
+  const width = clampDockWidth(prefs.width, viewport, layout)
+  const open = prefs.open
+  useDockMark(open, layout, width)
+  const panel = useRef<HTMLElement>(null)
+  const launcher = useRef<HTMLButtonElement>(null)
+  const giveBack = useRef(false)
+  const toggle = (next = !open) => { if (!next) giveBack.current = !!panel.current?.contains(document.activeElement); set.setOpen(next) }
+  useEffect(() => {
+    const on = (e: KeyboardEvent) => {
+      if (!(e.metaKey || e.ctrlKey) || e.key.toLowerCase() !== 'j' || e.isComposing) return
+      e.preventDefault()
+      const action = hotkeyAction(open, !!panel.current?.contains(document.activeElement))
+      if (action === 'open') toggle(true)
+      else if (action === 'close') toggle(false)
+      else focusInput(panel.current)
+    }
+    // 抓在最前面（capture）：详情抽屉开着、焦点在抽屉里时也收得到
+    window.addEventListener('keydown', on, true)
+    return () => window.removeEventListener('keydown', on, true)
   })
-  const running = msgs?.some((m) => m.status === 'running') ?? false
-  const listRef = useRef<HTMLDivElement>(null)
-  useEffect(() => { lastSelection = '' }, [loc.pathname])
-  const inputRef = useRef<HTMLTextAreaElement>(null)
-  const wasRunning = useRef(false)
-
-  // 记住开关；宽屏时把页面往左让出位置
-  useEffect(() => {
-    if (enabled) try { localStorage.setItem(OPEN_KEY, open ? '1' : '0') } catch { /* 隐私模式 */ }
-    const apply = () => { document.body.style.paddingRight = open && window.matchMedia(WIDE).matches ? '400px' : '' }
-    if (open) document.body.dataset.assistant = 'open'; else delete document.body.dataset.assistant // 右下角的提示让开对话栏（index.css）
-    apply()
-    const mq = window.matchMedia(WIDE)
-    mq.addEventListener('change', apply)
-    if (open) setTimeout(() => inputRef.current?.focus(), 50)
-    return () => { mq.removeEventListener('change', apply); document.body.style.paddingRight = ''; delete document.body.dataset.assistant }
-  }, [open, enabled])
-  // ⌘J / Ctrl+J 开关（助手关着时不占这个快捷键）
-  useEffect(() => {
-    if (!enabled) return
-    const on = (e: KeyboardEvent) => { if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'j') { e.preventDefault(); setOpen((v) => !v) } }
-    window.addEventListener('keydown', on)
-    return () => window.removeEventListener('keydown', on)
-  }, [enabled])
-  // 新消息滚到底；一轮答完刷新全部数据（AI 写的东西马上出现在页面上）
-  useEffect(() => { listRef.current?.scrollTo({ top: listRef.current.scrollHeight }) }, [msgs])
-  useEffect(() => { if (wasRunning.current && !running) qc.invalidateQueries(); wasRunning.current = running }, [running, qc])
-
-  const send = async (q = text) => {
-    const t = q.trim()
-    if (!t || running || sending) return
-    setSending(true); setError(null)
-    try {
-      await api.post('/assistant/ask', { text: t, page: pageContext(loc.pathname + loc.search) })
-      setText('')
-      await qc.invalidateQueries({ queryKey: ['assistant-messages'] })
-    } catch (e) { setError((e as Error).message) } finally { setSending(false) }
-  }
-  const answer = async (key: string, choice: 'allow' | 'allow-session' | 'deny') => { await api.post('/assistant/approve', { key, choice }).catch((e) => setError((e as Error).message)); qc.invalidateQueries({ queryKey: ['assistant-messages'] }) }
-  const stop = async () => { await api.post('/assistant/stop', {}).catch(() => {}); qc.invalidateQueries({ queryKey: ['assistant-messages'] }) }
-  const restart = async () => { await api.del('/assistant/messages').catch(() => {}); qc.invalidateQueries({ queryKey: ['assistant-messages'] }) }
-
-  if (!enabled) return null
+  useEffect(() => { if (open) setTimeout(() => focusInput(panel.current), 30); else if (giveBack.current) { giveBack.current = false; launcher.current?.focus() } }, [open])
   if (!open) {
     return (
-      <button onClick={() => setOpen(true)} className="fixed right-4 bottom-[calc(76px+env(safe-area-inset-bottom))] z-40 flex items-center gap-1.5 rounded-full border border-primary/25 bg-card px-3.5 py-2 text-sm font-medium text-primary shadow-paper hover:bg-accent md:bottom-5" aria-label="打开 AI 助手">
-        <Sparkles className="size-4" />AI 助手<Kbd className="ml-1 hidden md:inline-flex">⌘J</Kbd>
+      <button ref={launcher} onClick={() => toggle(true)} aria-label="打开 AI 对话（⌘J）" title="问 Codex（⌘J）"
+        className="fixed right-3 bottom-[calc(env(safe-area-inset-bottom)+68px)] z-40 grid size-11 place-items-center rounded-full border bg-card shadow-lg transition hover:-translate-y-0.5 hover:border-primary/50 focus-visible:ring-3 focus-visible:ring-ring/40 focus-visible:outline-none md:right-6 md:bottom-6 md:flex md:size-auto md:items-center md:gap-2 md:px-3.5 md:py-2.5 md:text-sm md:font-medium">
+        <Sparkles className="size-[18px] text-primary md:size-4" /><span className="hidden md:inline">问 Codex</span><kbd className="hidden rounded border px-1 font-mono text-xs text-muted-foreground md:inline">⌘J</kbd>
       </button>
     )
   }
-
-  const usable = status?.ready && status.on
+  const frame: DockFrame = { layout, pinned: prefs.pinned, pinnable: canPin(viewport) && layout !== 'full', togglePin: () => set.setPinned(!prefs.pinned), close: () => toggle(false) }
+  const onKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key !== 'Escape' || e.defaultPrevented || e.nativeEvent.isComposing || layout === 'pinned') return
+    if (!panel.current?.contains(e.target as Node)) return
+    e.preventDefault()
+    toggle(false)
+  }
   return (
-    <aside aria-label="AI 助手" className="fixed inset-y-0 right-0 z-50 flex w-full flex-col border-l bg-card shadow-2xl sm:w-[400px] xl:shadow-none">
-      <header className="flex items-center gap-2 border-b px-4 py-3">
-        <Sparkles className="size-4 text-primary" />
-        <div className="min-w-0 flex-1">
-          <div className="text-sm font-semibold">AI 助手</div>
-          <div className="truncate text-xs text-muted-foreground">{status ? (usable ? (status.engine === 'codex' ? '你的 Codex · 和在 Codex 里对话一样，看得到这一页' : `本机 Codex · 读写工作台、查${kb}`) : status.on ? '还用不了' : '已在设置里关掉') : '检查中…'}</div>
-        </div>
-        {!!msgs?.length && <Button size="icon-sm" variant="ghost" aria-label="新对话" title="新对话" onClick={restart}><RotateCcw /></Button>}
-        <Button size="icon-sm" variant="ghost" aria-label="收起 AI 助手" onClick={() => setOpen(false)}><X /></Button>
-      </header>
-
-      <div ref={listRef} className="flex-1 space-y-3 overflow-y-auto px-4 py-4">
-        {status && !usable && (
-          <div className="rounded-lg border border-warn/30 bg-warn-soft/40 px-3.5 py-3 text-sm">
-            <div className="flex items-center gap-1.5 font-medium"><CircleAlert className="size-4 text-warn" />{status.on ? status.detail : 'AI 助手关着'}</div>
-            <p className="mt-1 text-[13px] text-muted-foreground">{status.on ? status.fix : '到“设置 → AI 助手”打开。'}</p>
-            {status.on && <Button size="sm" variant="outline" className="mt-2" onClick={() => api.get('/assistant/status?refresh=1').then(() => recheck())}>重新检查</Button>}
-            <p className="mt-2 text-xs text-muted-foreground">不用页面里的助手也行：在 Codex 里直接说，比如“工作台加一条待办……”，它用同一套命令读写，这里会自动刷新。</p>
-          </div>
-        )}
-        {usable && !msgs?.length && (
-          <div className="grid gap-2 text-sm text-muted-foreground">
-            <p>想让我做什么，直接说。我能看到你正在看的这一页。</p>
-            <div className="flex flex-wrap gap-1.5">{SUGGEST.map((s) => <button key={s} onClick={() => send(s)} className="rounded-full border px-2.5 py-1 text-xs hover:border-primary/40 hover:text-foreground">{s}</button>)}</div>
-            <p className="text-xs">普通的事（记跟进、加日程、整理收件箱）我直接写；报价、合同、收款、答应别人的事，我先问你。</p>
-          </div>
-        )}
-        {msgs?.map((m) => m.role === 'user' ? (
-          <div key={m.id} className="ml-8 rounded-2xl rounded-br-sm bg-accent px-3.5 py-2 text-sm whitespace-pre-wrap text-accent-foreground">{m.text}{m.page_title && <div className="mt-1 text-[11px] opacity-70">在看：{m.page_title}</div>}</div>
-        ) : (
-          <div key={m.id} className="mr-4 grid gap-1.5">
-            {m.steps.length > 0 && (
-              <div className="flex flex-wrap gap-1">{m.steps.map((s, i) => (
-                <span key={i} className={cn('inline-flex items-center gap-1 rounded-md bg-muted px-1.5 py-0.5 text-[11px] text-muted-foreground', s.state === 'failed' && 'text-danger')} title={s.detail}>
-                  {s.state === 'running' ? <Loader2 className="size-3 animate-spin" /> : s.state === 'ok' ? <Check className="size-3" /> : <CircleAlert className="size-3" />}{s.label}
-                </span>
-              ))}</div>
-            )}
-            {m.text && <div className="text-sm leading-relaxed whitespace-pre-wrap">{m.text.replace(/\*\*(.+?)\*\*/g, '$1')}</div>}
-            {/* 常驻对话：他的 Codex 要问“是否允许”的，照他 Codex 自己的设置弹在这里 */}
-            {m.approvals?.map((a) => (
-              <div key={a.key} className="grid gap-2 rounded-lg border border-warn/40 bg-warn-soft/40 px-3 py-2.5 text-sm">
-                <div className="font-medium">Codex 想{a.kind}，要你点一下</div>
-                <code className="block rounded bg-muted px-2 py-1 text-[12px] break-all whitespace-pre-wrap">{a.text}</code>
-                {a.reason && <div className="text-xs text-muted-foreground">原因：{a.reason}</div>}
-                <div className="flex flex-wrap gap-1.5">
-                  <Button size="sm" onClick={() => answer(a.key, 'allow')}>允许</Button>
-                  <Button size="sm" variant="outline" onClick={() => answer(a.key, 'allow-session')}>这次对话都允许</Button>
-                  <Button size="sm" variant="ghost" onClick={() => answer(a.key, 'deny')}>不允许</Button>
-                </div>
-              </div>
-            ))}
-            {m.status === 'running' && !m.text && <div className="flex items-center gap-1.5 text-sm text-muted-foreground"><Loader2 className="size-4 animate-spin" />在想…</div>}
-            {m.status === 'failed' && <div className="text-[13px] text-danger">{m.error}</div>}
-            {m.status === 'cancelled' && <div className="text-xs text-muted-foreground">已停止</div>}
-          </div>
-        ))}
-      </div>
-
-      <form className="border-t p-3" onSubmit={(e) => { e.preventDefault(); send() }}>
-        {error && <p className="mb-2 text-[13px] text-danger">{error}</p>}
-        <div className="flex items-end gap-2">
-          <Textarea ref={inputRef} value={text} onChange={(e) => setText(e.target.value)} disabled={!usable} rows={2} className="max-h-40 min-h-11 resize-none"
-            placeholder={usable ? '比如：刚和客户聊完，下周三前要给报价' : '现在用不了'}
-            onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); send() } }} />
-          {running
-            ? <Button type="button" size="icon" variant="outline" aria-label="停止" onClick={stop}><Square /></Button>
-            : <Button type="submit" size="icon" aria-label="发送" disabled={!usable || !text.trim() || sending}>{sending ? <Loader2 className="animate-spin" /> : <Send />}</Button>}
-        </div>
-        <p className="mt-1.5 text-[11px] text-muted-foreground">Enter 发送，Shift+Enter 换行 · {status?.engine === 'codex' ? '选中页面上的字再问，它知道你指的是哪段；对话也记在你的 Codex 里' : '用的是你自己电脑上的 Codex'}</p>
-      </form>
+    <aside ref={panel} aria-label="AI 对话" data-assistant-panel={layout} onKeyDown={onKeyDown} style={layout === 'full' ? undefined : { width }}
+      className={cn('fixed flex flex-col bg-card text-card-foreground', layout === 'full' ? 'inset-0 z-[60] pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]' : 'inset-y-0 right-0 z-[60] border-l', layout === 'float' && 'shadow-2xl')}>
+      {layout !== 'full' && <ResizeHandle width={width} viewport={viewport} layout={layout} onWidth={set.setWidth} />}
+      <DockFrameContext.Provider value={frame}><DockBody /></DockFrameContext.Provider>
     </aside>
+  )
+}
+
+/** 左边那条竖线：拖着改宽度（拖的时候不存，松手才存），键盘左右键、Home / End 也行，双击回到默认宽度 */
+function ResizeHandle({ width, viewport, layout, onWidth }: { width: number; viewport: number; layout: DockLayout; onWidth: (w: number, save?: boolean) => void }) {
+  const drag = useRef<{ x: number; w: number; last: number } | null>(null)
+  const end = (e: React.PointerEvent) => {
+    if (!drag.current) return
+    const last = drag.current.last
+    drag.current = null
+    delete document.documentElement.dataset.assistantResizing
+    try { (e.currentTarget as Element).releasePointerCapture(e.pointerId) } catch { /* 已经释放了 */ }
+    onWidth(last, true)
+  }
+  return (
+    <div role="separator" aria-orientation="vertical" aria-label="拖动调宽度（键盘左右键也行，双击回到默认）" tabIndex={0}
+      aria-valuenow={width} aria-valuemin={DOCK_WIDTH.min} aria-valuemax={clampDockWidth(DOCK_WIDTH.max, viewport, layout)}
+      onPointerDown={(e) => { if (e.button !== 0) return; e.preventDefault(); drag.current = { x: e.clientX, w: width, last: width }; e.currentTarget.setPointerCapture(e.pointerId); document.documentElement.dataset.assistantResizing = '' }}
+      onPointerMove={(e) => { if (!drag.current) return; const next = dragDockWidth(drag.current.w, drag.current.x, e.clientX, viewport, layout); drag.current.last = next; onWidth(next, false) }}
+      onPointerUp={end} onPointerCancel={end}
+      onDoubleClick={() => onWidth(clampDockWidth(DOCK_WIDTH.default, viewport, layout), true)}
+      onKeyDown={(e) => { const next = nudgeDockWidth(width, e.key, viewport, layout); if (next !== null) { e.preventDefault(); onWidth(next, true) } }}
+      className="group absolute inset-y-0 -left-1.5 z-10 w-3 cursor-col-resize touch-none outline-none">
+      <span aria-hidden className="absolute inset-y-0 left-1.5 w-px bg-transparent transition-colors group-hover:bg-primary/50 group-focus-visible:bg-primary group-active:bg-primary" />
+    </div>
+  )
+}
+
+const SUGGEST = ['今天我先做哪件事？', '这页上有什么要我注意的？', '整理一下收件箱']
+
+/** 对话栏里面：历史，或一个对话 */
+function DockBody() {
+  const qc = useQueryClient()
+  const [thread, setThreadState] = useState<string | null>(readThread)
+  const [history, setHistory] = useState(false)
+  /** 这次打开里新开的对话（历史清单还没刷新到它时，不能当成“不在了”） */
+  const fresh = useRef(new Set<string>())
+  const setThread = (id: string | null) => { saveThread(id); setThreadState(id) }
+  const { data: status, refetch: recheck } = useApi<Status>('/assistant/status')
+  const threads = useQuery<Thread[]>({ queryKey: ['assistant-threads', false], queryFn: () => api.get<Thread[]>('/assistant/threads') })
+  const current = threads.data?.find((t) => t.id === thread)
+  // 记着的对话不在了（归档了、换了数据库）：当新对话
+  useEffect(() => { if (thread && threads.data && !threads.isFetching && !current && !fresh.current.has(thread)) setThread(null) }, [thread, threads.data, threads.isFetching, current]) // eslint-disable-line react-hooks/exhaustive-deps
+  const { data: msgs } = useQuery<Msg[]>({
+    queryKey: ['assistant-messages', thread], queryFn: () => (thread ? api.get<Msg[]>(`/assistant/messages?thread=${encodeURIComponent(thread)}`) : Promise.resolve([])),
+    refetchInterval: (q) => (q.state.data?.some((m) => m.status === 'running') ? 1200 : false),
+  })
+  const running = !!msgs?.some((m) => m.status === 'running')
+  const wasRunning = useRef(false)
+  // 一轮答完刷新全部数据（AI 写的东西马上出现在页面上）
+  useEffect(() => { if (wasRunning.current && !running) void qc.invalidateQueries(); wasRunning.current = running }, [running, qc])
+  const [error, setError] = useState<string | null>(null)
+  const sendRef = useRef<((t: string) => void) | null>(null)
+  const usable = !!status?.ready && !!status.on
+  const codex = status?.engine === 'codex'
+
+  if (history) return <HistoryView onBack={() => setHistory(false)} onPick={(t) => { setThread(t.id); setHistory(false) }} />
+
+  const send = async (text: string, page: { title: string; path: string; text: string; selection: string } | null) => {
+    setError(null)
+    try {
+      const r = await api.post<{ id: string; thread: string }>('/assistant/ask', { text, page, ...(thread ? { thread } : {}) })
+      if (r.thread !== thread) { fresh.current.add(r.thread); setThread(r.thread) }
+      await qc.invalidateQueries({ queryKey: ['assistant-messages', r.thread] })
+      void qc.invalidateQueries({ queryKey: ['assistant-threads'] })
+      return true
+    } catch (e) { setError((e as Error).message); return false }
+  }
+  const stop = async () => { await api.post('/assistant/stop', {}).catch(() => {}); void qc.invalidateQueries({ queryKey: ['assistant-messages'] }) }
+  const onApprove = async (key: string, choice: 'allow' | 'allow-session' | 'deny') => { await approve(key, choice).catch((e) => setError((e as Error).message)); void qc.invalidateQueries({ queryKey: ['assistant-messages'] }) }
+  const empty = (
+    <div className="grid gap-3 text-sm text-muted-foreground">
+      {status && !usable ? (
+        <div className="rounded-lg border border-warn/30 bg-warn-soft/40 px-3.5 py-3">
+          <div className="flex items-center gap-1.5 font-medium text-foreground"><CircleAlert className="size-4 text-warn" />{status.on ? status.detail : 'AI 助手关着'}</div>
+          <p className="mt-1 text-[13px]">{status.on ? status.fix : '到“设置 → AI 助手”打开。'}</p>
+          {status.on && <Button size="sm" variant="outline" className="mt-2" onClick={() => api.get('/assistant/status?refresh=1').then(() => recheck())}>重新检查</Button>}
+        </div>
+      ) : (
+        <>
+          <p>{codex ? '和在 Codex 里开一个对话一样：用你的插件、技能和规矩。我看得到你在看的这一页，选中页面上的字再问，我知道你指的是哪段。' : '想让我做什么，直接说。我看得到你在看的这一页。'}</p>
+          <div className="flex flex-wrap gap-1.5">{SUGGEST.map((s) => <button key={s} type="button" disabled={!usable} onClick={() => sendRef.current?.(s)} className="rounded-full border px-2.5 py-1 text-xs hover:border-primary/40 hover:text-foreground disabled:opacity-50">{s}</button>)}</div>
+        </>
+      )}
+    </div>
+  )
+  return (
+    <div className="flex min-h-0 flex-1 flex-col">
+      <DockHeader title={current?.title ?? '新对话'} sub={codex ? '你的 Codex · 和在 Codex 里对话一样' : '本机 Codex · 一问一答'}
+        left={<Tip label="历史对话"><Button variant="ghost" size="icon-sm" onClick={() => setHistory(true)} aria-label="历史对话"><History /></Button></Tip>}
+        actions={<Tip label="新对话"><Button variant="ghost" size="icon-sm" onClick={() => setThread(null)} aria-label="新对话" disabled={!thread}><SquarePen /></Button></Tip>} />
+      <MessageList msgs={msgs ?? []} empty={empty} onApprove={(k, c) => void onApprove(k, c)} />
+      {error && <p className="mx-3 mb-1 text-[13px] text-danger" role="alert">没发出去：{error}</p>}
+      <Composer running={running} usable={usable} sendRef={sendRef} onSend={send} onStop={() => void stop()}
+        statusText={!status ? '检查中' : !usable ? '用不了' : codex ? `你的 Codex${status.version ? ` · ${status.version.replace(/^codex-cli\s*/, '')}` : ''}` : '一问一答'}
+        statusTone={!status || usable ? 'ok' : 'warn'} />
+    </div>
   )
 }

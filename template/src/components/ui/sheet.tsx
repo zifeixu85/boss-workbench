@@ -4,9 +4,14 @@ import { Dialog as SheetPrimitive } from "radix-ui"
 
 import { Button } from "@/components/ui/button"
 import { XIcon } from "lucide-react"
+import { keepsSheetOpen } from "@/features/assistant/dock-layout"
+import { useDockPinned } from "@/features/assistant/use-dock"
 
-function Sheet({ ...props }: React.ComponentProps<typeof SheetPrimitive.Root>) {
-  return <SheetPrimitive.Root data-slot="sheet" {...props} />
+// AI 对话栏钉在右边时（2026-11-26 照 A梦 自用工作台）：抽屉不是模态的，没有遮罩、不锁焦点，
+// 点对话栏、在对话栏里打字、按 ⌘J 都不关抽屉，两边都能用；浮着、收着时照旧是模态
+function Sheet({ modal, ...props }: React.ComponentProps<typeof SheetPrimitive.Root>) {
+  const pinned = useDockPinned()
+  return <SheetPrimitive.Root data-slot="sheet" modal={modal ?? !pinned} {...props} />
 }
 
 function SheetTrigger({
@@ -48,15 +53,23 @@ function SheetContent({
   children,
   side = "right",
   showCloseButton = true,
+  onInteractOutside,
+  onFocusOutside,
   ...props
 }: React.ComponentProps<typeof SheetPrimitive.Content> & {
   side?: "top" | "right" | "bottom" | "left"
   showCloseButton?: boolean
 }) {
+  const own = React.useRef<HTMLDivElement>(null)
+  // 点在对话栏、弹出层、提示里不算“点在外面”
+  const keep = (e: { target: EventTarget | null; preventDefault: () => void }) => { if (keepsSheetOpen(e.target, own.current)) e.preventDefault() }
   return (
     <SheetPortal>
       <SheetOverlay />
       <SheetPrimitive.Content
+        ref={own}
+        onInteractOutside={(e) => { keep(e); onInteractOutside?.(e) }}
+        onFocusOutside={(e) => { keep(e); onFocusOutside?.(e) }}
         data-slot="sheet-content"
         data-side={side}
         className={cn(

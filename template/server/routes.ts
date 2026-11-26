@@ -34,8 +34,11 @@ routes.get('/settings', (c) => c.json(ok(home.getSettings())))
 routes.get('/instance', (c) => c.json(ok({ app: APP_DIR, db: DB_PATH })))
 // AI 助手（2026-10-15）：每页右边的对话栏，后台调本机 Codex（assistant/runner.ts）
 routes.get('/assistant/status', async (c) => c.json(ok(await assistant.status(c.req.query('refresh') === '1'))))
-routes.get('/assistant/messages', (c) => c.json(ok(assistant.messages())))
-routes.post('/assistant/ask', async (c) => c.json(ok(await assistant.ask(await body(c) as { text?: unknown }))))
+routes.get('/assistant/messages', (c) => { const t = c.req.query('thread'); return c.json(ok(assistant.messages(t === undefined ? undefined : t || null))) })
+// 对话（历史）：列、改名、归档 / 找回（2026-11-26 照 A梦 自用工作台的对话框）
+routes.get('/assistant/threads', (c) => c.json(ok(assistant.threads({ archived: c.req.query('archived') === '1' }))))
+routes.patch('/assistant/threads/:id', async (c) => c.json(ok(assistant.updateThread(c.req.param('id'), await body(c) as { title?: unknown; archived?: unknown }))))
+routes.post('/assistant/ask', async (c) => c.json(ok(await assistant.ask(await body(c) as { text?: unknown; thread?: unknown }))))
 routes.post('/assistant/stop', (c) => c.json(ok(assistant.stop())))
 // 常驻对话里 Codex 问“是否允许”：网页点了允许 / 这次对话都允许 / 不允许
 routes.post('/assistant/approve', async (c) => c.json(ok(assistant.approve(await body(c) as { key?: unknown; choice?: unknown }))))
