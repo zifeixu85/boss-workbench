@@ -31,6 +31,8 @@ test('存选题 → 存稿 → 改稿 → 放图 → 找到；都记着是阿柚
   const draft = { title: '圣诞礼盒怎么挑', summary: '给公司采购的三档礼盒', pages: ['圣诞礼盒怎么挑', '198 元一档', '398 元一档'], body: '三档怎么选。', tags: ['圣诞'] }
   const d1 = json('xhs-draft-save', '--id', t.id, '--draft', JSON.stringify(draft), '--by', '阿柚')
   assert.equal(d1.id, t.id, '写在选题下面，是同一篇'); assert.equal(d1.version, 1); assert.equal(d1.path, `/content/studio/${t.id}`)
+  const cover = sh('--input-type=module', '-e', `import { latestDraft } from './server/modules/xhs/pieces.ts'; console.log(latestDraft(${JSON.stringify(t.id)}).draft.cover.pad)`)
+  assert.equal(cover.out.trim().split('\n').pop(), 'a_pad0', '没给图：封面是占位，不拿茶具插画充数')
   const d2 = json('xhs-draft-save', '--id', t.id, '--draft', JSON.stringify({ ...draft, body: '改过的正文' }), '--by', '阿柚')
   assert.equal(d2.version, 2, '改稿存成新的一版')
 

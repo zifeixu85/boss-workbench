@@ -9,7 +9,7 @@ import { now } from '../../clock.ts'
 import { BadRequest, type Actor } from '../../services/common.ts'
 import { backupKbFile, canReadKbPath, readKbTextFile, writeKb } from '../../services/kb.ts'
 import { normalizeDraft, type Draft } from './draft.ts'
-import { createPiece, pieceRow, saveVersion } from './pieces.ts'
+import { createPiece, latestDraft, pieceRow, saveVersion } from './pieces.ts'
 
 const DEFAULT_FOLDER = '13-作品'
 const SUMMARY_MAX = 80
@@ -64,8 +64,11 @@ export function workText(d: Draft, o: { id: string; summary: string; day: string
  * id：改哪一篇（不给就新建一篇，放在“写稿中”）。by：谁写的（比如“内容助理 小红”）。
  */
 export function saveWork(input: unknown, opts: { id?: string; by?: string; actor?: Actor } = {}): SavedWork {
-  const raw = (input && typeof input === 'object' ? input : {}) as Record<string, unknown>
+  const raw = { ...(input && typeof input === 'object' ? input : {}) } as Record<string, unknown>
   const by = (opts.by ?? '').trim().slice(0, 30) || '内容助理'
+  // 助理存稿没给封面图、这一篇也还没有稿子：封面用占位（约定 11.13：没有实拍图就空着，不拿插画充数）
+  const hasPad = !!(raw.cover && typeof raw.cover === 'object' && (raw.cover as Record<string, unknown>).pad)
+  if (!hasPad && !(opts.id && latestDraft(opts.id))) raw.cover = { ...(raw.cover && typeof raw.cover === 'object' ? raw.cover as object : {}), pad: 'a_pad0' }
   const draft = normalizeDraft(raw)
   if (!draft.title.trim()) throw new BadRequest('稿件要有标题（title）')
   if (!draft.body.trim()) throw new BadRequest('稿件要有正文（body）')

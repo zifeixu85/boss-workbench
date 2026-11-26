@@ -4,10 +4,23 @@ import { useId } from 'react'
 import { cn } from '@/lib/utils'
 
 export const PAD_NAMES: Record<string, string> = {
+  a_pad0: '占位：实拍图位置',
   a_pad1: '工位俯拍：盖碗 + 电脑一角', a_pad2: '玻璃公道杯逆光', a_pad3: '保温杯 + 寿眉饼', a_pad4: '会议室一杯岩茶', a_pad5: '暖光小陶炉和茶壶',
 }
 
 type P = { k: string }
+
+/** 占位（2026-11-27）：还没有实拍图时就是一块标着“占位”的底，不用插画冒充图 */
+function Blank({ k }: P) {
+  return (
+    <>
+      <defs><pattern id={`${k}s`} width="12" height="12" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="12" height="12" fill="#EEEBE5" /><rect width="6" height="12" fill="#E6E2DA" /></pattern></defs>
+      <rect width="300" height="240" fill={`url(#${k}s)`} />
+      <rect x="10" y="10" width="280" height="220" rx="8" fill="none" stroke="#B9B2A6" strokeWidth="2" strokeDasharray="8 6" />
+      <text x="150" y="196" textAnchor="middle" fontSize="15" fill="#8A8377" fontFamily="system-ui, sans-serif">实拍图位置（占位）</text>
+    </>
+  )
+}
 
 function Desk({ k }: P) {
   return (
@@ -160,7 +173,7 @@ function Stove({ k }: P) {
   )
 }
 
-const SCENES: Record<string, (p: P) => React.JSX.Element> = { a_pad1: Desk, a_pad2: Pitcher, a_pad3: Thermos, a_pad4: Meeting, a_pad5: Stove }
+const SCENES: Record<string, (p: P) => React.JSX.Element> = { a_pad0: Blank, a_pad1: Desk, a_pad2: Pitcher, a_pad3: Thermos, a_pad4: Meeting, a_pad5: Stove }
 
 /** 一张垫图。slice：铺满容器（裁边）；meet：完整显示 */
 export function Pad({ pad, fit = 'slice', align = 'xMid', className }: { pad?: string | null; fit?: 'slice' | 'meet'; align?: 'xMin' | 'xMid' | 'xMax'; className?: string }) {
