@@ -1,14 +1,14 @@
 {
   "id": "pa",
   "name": "个人助理",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "summary": "使用个人助理的工作台：一半按你关心的对象看（知识库“我关注的”有几类出几页），一半按 AI 做了什么看（进展、产出、报告、助理）。只读本机 Codex、Claude Code 的对话记录，只取标题、文件夹、时间和写文件的路径",
   "needs": [],
   "nav": [
+    { "key": "pa-roles", "to": "/roles", "label": "助理", "icon": "Bot", "section": "我的助理" },
     { "key": "pa-progress", "to": "/progress", "label": "进展", "icon": "Activity", "section": "我的助理" },
     { "key": "pa-outputs", "to": "/outputs", "label": "产出", "icon": "Images", "section": "我的助理" },
-    { "key": "pa-reports", "to": "/reports", "label": "报告", "icon": "FileBarChart", "section": "我的助理" },
-    { "key": "pa-roles", "to": "/roles", "label": "助理", "icon": "Bot", "section": "我的助理" }
+    { "key": "pa-reports", "to": "/reports", "label": "报告", "icon": "FileBarChart", "section": "我的助理" }
   ],
   "pages": [
     { "path": "focus/:name", "file": "src/features/pa/FocusPage.tsx" },
@@ -16,6 +16,7 @@
     { "path": "outputs", "file": "src/features/pa/OutputsPage.tsx" },
     { "path": "reports", "file": "src/features/pa/ReportsPage.tsx" },
     { "path": "roles", "file": "src/features/pa/RolesPage.tsx" },
+    { "path": "roles/:key", "file": "src/features/pa/AssistantPage.tsx" },
     { "path": "kb-check", "file": "src/features/pa/KbCheckPage.tsx" }
   ],
   "home": [
@@ -28,7 +29,8 @@
     { "key": "pa-focus", "label": "“我关注的”里的一类（列表）", "to": "/focus/{id}", "id": "类名，如 客户（pa-focus 命令列出有哪几类）" },
     { "key": "pa-session", "label": "一次 AI 对话的详情", "to": "/progress?s={id}", "id": "对话编号，如 codex:01a2…（pa-progress 每行最后那一段）" },
     { "key": "pa-report", "label": "某一种报告（最新一期）", "to": "/reports?kind={id}", "id": "日报、周报或月报" },
-    { "key": "pa-kb-check", "label": "知识库检测结果（现在能用哪些页面、缺什么）", "to": "/kb-check", "id": "不用填，写 - 就行" }
+    { "key": "pa-kb-check", "label": "知识库检测结果（现在能用哪些页面、缺什么）", "to": "/kb-check", "id": "不用填，写 - 就行" },
+    { "key": "pa-assistant", "label": "一个助理自己的页（定位、档案、做过的事、用量）", "to": "/roles/{id}", "id": "助理文件夹名，如 总助-小茶（pa-roles 列出来的文件夹）" }
   ],
   "server": {
     "api": "server/modules/pa/routes.ts#paRoutes",
@@ -42,7 +44,7 @@
       { "command": "pa-progress", "what": "本机 AI 对话做到哪了：标题、归到哪个对象、工具、时间、状态（状态是推断的）；没有对话内容" },
       { "command": "pa-outputs", "what": "AI 生成的图片和写出来的文件（只有路径）" },
       { "command": "pa-reports", "what": "某一期的日报 / 周报 / 月报和这一期的几个数" },
-      { "command": "pa-roles", "what": "总助、内容助理、分身、合伙人的角色文件齐不齐、哪天更新的" },
+      { "command": "pa-roles", "what": "有哪几位助理，各自的文件齐不齐、哪天更新的" },
       { "command": "pa-check", "what": "知识库检测：按知识库档案看现在能用哪些页面、哪些要先做升级检查（各缺什么）、下一步对 AI 说哪一句" },
       { "command": "pa-week", "what": "这一期的数（args 可写 --kind 周报 --period 2026-W48）：对话、做完、在等你、打断、产出、token、连续天数、没挂对象和深夜占比，按天、按小时、按对象，同一件事一天开了三个以上对话的。写报告里“来源：工作台”的节时先跑它" },
       { "command": "pa-report-template", "what": "报告模板：每种报告有哪几节、每节用哪种块（一段话、要点、数字卡、柱图、线图、占比、表格、待你点头）、数据从哪来；写报告前先读它，老板要加节、去掉、改名时改报告文件夹里的 报告模板.md，改完再跑一次看有没有写错" },

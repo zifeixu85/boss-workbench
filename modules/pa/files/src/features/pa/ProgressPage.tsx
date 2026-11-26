@@ -24,6 +24,7 @@ export default function ProgressPage() {
   const status = sp.get('status') ?? 'all'
   const object = sp.get('object')
   const tool = sp.get('tool')
+  const who = sp.get('assistant')
   const all = sp.get('all') === '1'
   const { data, error, refetch } = useApi<Progress>(`/m/pa/progress?days=30${all ? '&all=1' : ''}`)
   const { data: pulse } = useApi<Pulse>('/m/pa/pulse?days=14')
@@ -37,14 +38,18 @@ export default function ProgressPage() {
   if (error && !data) return <>{head}<PageBody><Failed message={error.message} onRetry={() => refetch()} /></PageBody></>
   if (!data) return <>{head}<PageBody className="grid gap-3"><Skeleton className="h-9 w-96" /><Skeleton className="h-96" /></PageBody></>
 
-  const pool = data.sessions.filter((s) => (!tool || s.tool === tool) && (!object || (object === '-' ? !s.object : s.object?.path === object)))
+  const pool = data.sessions.filter((s) => (!tool || s.tool === tool) && (!object || (object === '-' ? !s.object : s.object?.path === object)) && (!who || (who === '-' ? !s.assistant : s.assistant?.key === who)))
   const counts = Object.fromEntries(SESSION_STATUSES.map((k) => [k, pool.filter((s) => s.status === k).length]))
   const list = status === 'all' ? pool : pool.filter((s) => s.status === status)
   const used = [...new Map(data.sessions.filter((s) => s.object).map((s) => [s.object!.path, s.object!])).values()]
   const missing = data.sources.filter((s) => !s.found)
-  const active = [object, tool, all ? '1' : null].filter(Boolean).length
+  // 按助理（约定 11.11）：对话按标题、第一句、常驻对话认是哪个助理的
+  const helpers = [...new Map(data.sessions.filter((s) => s.assistant).map((s) => [s.assistant!.key, s.assistant!])).values()]
+  const active = [who, object, tool, all ? '1' : null].filter(Boolean).length
   const filters = (
     <>
+      <Choice className="w-full xl:w-32" value={who} onChange={(v) => set('assistant', v)} allowEmpty emptyLabel="全部助理" placeholder="按助理"
+        options={[...helpers.map((a) => ({ value: a.key, label: `${a.avatar ? `${a.avatar} ` : ''}${a.name}` })), { value: '-', label: '没归到助理的' }]} />
       <Choice className="w-full xl:w-36" value={object} onChange={(v) => set('object', v)} allowEmpty emptyLabel="全部对象" placeholder="按对象"
         options={[...used.map((o) => ({ value: o.path, label: `${o.type} · ${o.name}` })), { value: '-', label: '未归类' }]} />
       <Choice className="w-full xl:w-32" value={tool} onChange={(v) => set('tool', v)} allowEmpty emptyLabel="全部工具" placeholder="按工具" options={data.sources.map((s) => ({ value: s.tool, label: s.name }))} />
@@ -93,7 +98,7 @@ function Row({ s, onOpen }: { s: Session; onOpen: () => void }) {
     <button onClick={onOpen} className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left hover:bg-muted/60">
       <span className="min-w-0 flex-1">
         <span className="block truncate text-[14.5px] font-medium">{s.title}</span>
-        <span className="mt-0.5 block truncate text-xs text-muted-foreground"><span className={s.object ? 'font-medium text-primary' : ''}>{s.object?.name ?? '未归类'}</span> · {s.tool_name}{s.kind !== '对话' ? ` · ${s.kind}` : ''} · {when(s.last_at)} · {s.folder}{s.outputs ? ` · 产出 ${s.outputs} 个` : ''}</span>
+        <span className="mt-0.5 block truncate text-xs text-muted-foreground">{s.assistant && <>{s.assistant.avatar ? `${s.assistant.avatar} ` : ''}{s.assistant.name} · </>}<span className={s.object ? 'font-medium text-primary' : ''}>{s.object?.name ?? '未归类'}</span> · {s.tool_name}{s.kind !== '对话' ? ` · ${s.kind}` : ''} · {when(s.last_at)} · {s.folder}{s.outputs ? ` · 产出 ${s.outputs} 个` : ''}</span>
       </span>
       <SessionBadge s={s} />
     </button>

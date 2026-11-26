@@ -24,13 +24,13 @@ export const OUTPUT_KINDS = ['图片', '文档', '表格', '网页', '代码', '
 
 /** 最近 days 天的产出。默认只算新写出来的（新建、生成），改已有文件的不算；kind / object / tool 是筛选 */
 /** 已经不在原处的文件（多是临时文件夹里的）默认不列，只数个数（gone）；带 gone 才列 */
-export function listOutputs(opts: { days?: number; kind?: string; object?: string; tool?: string; session?: string; edits?: boolean; gone?: boolean; limit?: number; offset?: number } = {}) {
+export function listOutputs(opts: { days?: number; kind?: string; object?: string; tool?: string; session?: string; sessionIn?: Set<string>; edits?: boolean; gone?: boolean; limit?: number; offset?: number } = {}) {
   const since = new Date(now() - (opts.days ?? 30) * 864e5).toISOString()
   const sessions = new Map<string, SessionView>(listSessions({ days: 3650, all: true }).map((s) => [s.id, s]))
   const rows = all<Row>(`SELECT * FROM pa_outputs WHERE at >= :since ${opts.edits ? '' : "AND action <> '修改'"} ORDER BY at DESC LIMIT 5000`, { since })
   const every = rows.map((r) => toView(r, sessions))
   const views = opts.gone ? every : every.filter((v) => v.exists)
-  const match = (v: OutputView, skip?: string) => (skip === 'kind' || !opts.kind || v.kind === opts.kind) && (!opts.tool || v.tool === opts.tool) && (!opts.session || v.session?.id === opts.session)
+  const match = (v: OutputView, skip?: string) => (skip === 'kind' || !opts.kind || v.kind === opts.kind) && (!opts.tool || v.tool === opts.tool) && (!opts.session || v.session?.id === opts.session) && (!opts.sessionIn || (!!v.session && opts.sessionIn.has(v.session.id)))
     && (!opts.object || (opts.object === '-' ? !v.object : v.object?.path === opts.object))
   const hit = views.filter((v) => match(v))
   const counts: Record<string, number> = Object.fromEntries(OUTPUT_KINDS.map((k) => [k, 0]))

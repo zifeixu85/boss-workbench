@@ -15,6 +15,8 @@ export type Session = {
   started_at: string; last_at: string; turns: number; status: SessionStatus; why: string; inferred: boolean; manual: boolean
   object: { path: string; name: string; type: string; by: string } | null
   link: string | null; resume: string | null; outputs: number
+  /** 归到哪个助理（约定 11.11；只有进展接口给） */
+  assistant?: AssistantLink | null
 }
 export type Progress = {
   sessions: Session[]; counts: Record<string, number>; scanned_at: string | null; left: number; errors: string[]; scanning?: boolean
@@ -30,7 +32,7 @@ export type Output = {
   exists: boolean
   width?: number | null; height?: number | null
 }
-export type Outputs = { items: Output[]; total: number; counts: Record<string, number>; gone: number; objects: { path: string; name: string; type: string }[]; tools: { tool: string; name: string }[] }
+export type Outputs = { items: Output[]; total: number; counts: Record<string, number>; gone: number; objects: { path: string; name: string; type: string }[]; tools: { tool: string; name: string }[]; assistants: { key: string; name: string; avatar: string }[] }
 
 export type ObjectDetail = {
   class: FocusClass
@@ -98,5 +100,23 @@ export type Usage = {
   top: { name: string; cwd: string; all: number }[]
   claude: Tokens | null
   limits: { used_percent: number; text: string; at: string } | null
+  note: string
+}
+
+// ── 助理（约定 11.11：都叫助理，不分种类）
+export type AssistantLink = { key: string; name: string; avatar: string; by: string }
+export type AssistantBase = {
+  key: string; name: string; avatar: string; duty: string; owns: string; notOwns: string; call: string; can: string[]; chief: boolean
+  legacy: boolean; missing: string[]; folder: string; thread: string; mismatch: string[]
+}
+export type AssistantUsage = { today: number; d7: number; d30: number }
+export type AssistantCard = AssistantBase & { recent: { id: string; title: string; status: SessionStatus; last_at: string } | null; sessions: number; usage: AssistantUsage; file_problems: number }
+export type AssistantList = { base: string; exists: boolean; assistants: AssistantCard[]; unmatched: number; colleagues: boolean; problems: string[]; note: string }
+export type Dispatch = { day: string; what: string; to: string; done: string; stage: string; note: string; open: boolean }
+export type AssistantDetail = AssistantBase & {
+  files: { name: string; path: string; call: string; problems: string[] }[]; folder_problems: string[]
+  sessions: { id: string; title: string; status: SessionStatus; why: string; last_at: string; started_at: string; link: string | null; by: string; outputs: number; object: Session['object'] }[]
+  dispatch: Dispatch[]; usage: AssistantUsage
+  resident: { id: string; title: string; link: string | null } | null
   note: string
 }

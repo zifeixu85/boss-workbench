@@ -30,7 +30,7 @@ export default function OutputsPage() {
   const kind = sp.get('kind') ?? '图片'
   const days = sp.get('days') ?? '30'
   const q = new URLSearchParams({ kind, days, limit: String(limit) })
-  for (const k of ['object', 'tool', 'session', 'gone']) if (sp.get(k)) q.set(k, sp.get(k)!)
+  for (const k of ['assistant', 'object', 'tool', 'session', 'gone']) if (sp.get(k)) q.set(k, sp.get(k)!)
   const { data, error, refetch } = useApi<Outputs>(`/m/pa/outputs?${q}`)
   const set = (k: string, v: string | null) => { setLimit(60); setSp((p) => { const n = new URLSearchParams(p); if (v === null) n.delete(k); else n.set(k, v); return n }, { replace: k !== 'f' }) }
   const { data: pulse } = useApi<Pulse>('/m/pa/pulse?days=14')
@@ -51,6 +51,8 @@ export default function OutputsPage() {
           <ViewTabs label="按类型看" value={kind} onChange={(v) => set('kind', v)} items={KINDS.map((k) => ({ value: k, label: k, count: data.counts[k] ?? 0 }))} />
           <div className="grid w-full grid-cols-2 gap-2 sm:ml-auto sm:flex sm:w-auto sm:flex-wrap">
             <Choice className="w-full sm:w-32" value={days} onChange={(v) => set('days', v)} options={RANGES} />
+            {data.assistants.length > 0 && <Choice className="w-full sm:w-32" value={sp.get('assistant')} onChange={(v) => set('assistant', v)} allowEmpty emptyLabel="全部助理" placeholder="按助理"
+              options={data.assistants.map((a) => ({ value: a.key, label: `${a.avatar ? `${a.avatar} ` : ''}${a.name}` }))} />}
             <Choice className="w-full sm:w-40" value={sp.get('object')} onChange={(v) => set('object', v)} allowEmpty emptyLabel="全部对象" placeholder="按对象"
               options={[...data.objects.map((o) => ({ value: o.path, label: `${o.type} · ${o.name}` })), { value: '-', label: '未归类' }]} />
             <Choice className="w-full sm:w-36" value={sp.get('tool')} onChange={(v) => set('tool', v)} allowEmpty emptyLabel="全部工具" placeholder="按工具" options={data.tools.map((t) => ({ value: t.tool, label: t.name }))} />

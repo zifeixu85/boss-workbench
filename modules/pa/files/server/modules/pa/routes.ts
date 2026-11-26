@@ -15,6 +15,7 @@ import { DONE_HOURS, RUNNING_MIN, STALE_DAYS } from './status.ts'
 import type { ReportKind } from './report-parse.ts'
 import { kbCheck, kbCheckText } from './check.ts'
 import { usage } from './usage.ts'
+import { assistantDetail, assistantList, sessionAssistants } from './assistants.ts'
 import type { UsageRange } from './usage-calc.ts'
 
 export const paRoutes = moduleApp()
@@ -29,8 +30,10 @@ paRoutes.get('/progress', async (c) => {
   // 不等扫描，先给现有的；在后台扫的话告诉页面，过一会儿再取一次
   const scanning = scanSoon()
   const list = listSessions({ days: Number(c.req.query('days')) || 30, all: c.req.query('all') === '1' })
+  // 每个对话归哪个助理（进展页的“按助理”筛选）
+  const links = sessionAssistants(list)
   return c.json(ok({
-    sessions: list, counts: statusCounts(list), scanned_at: scannedAt(), scanning, left: 0, errors: [], sources: sources(),
+    sessions: list.map((s) => ({ ...s, assistant: links.get(s.id) ?? null })), counts: statusCounts(list), scanned_at: scannedAt(), scanning, left: 0, errors: [], sources: sources(),
     rules: { running_min: RUNNING_MIN, stale_days: STALE_DAYS, done_hours: DONE_HOURS, scan_days: SCAN_DAYS },
     objects: allObjects().map((x) => ({ path: x.object.path, name: x.object.name, type: x.cls.name })),
   }))
@@ -44,7 +47,12 @@ paRoutes.post('/sessions/:id/object', async (c) => c.json(ok(setObject(c.req.par
 paRoutes.get('/outputs', async (c) => {
   scanSoon()
   const q = (k: string) => c.req.query(k) || undefined
-  return c.json(ok(listOutputs({ days: Number(q('days')) || 30, kind: q('kind'), object: q('object'), tool: q('tool'), session: q('session'), edits: q('edits') === '1', gone: q('gone') === '1', limit: Math.min(Number(q('limit')) || 60, 200), offset: Number(q('offset')) || 0 })))
+  // 按助理：这个助理的对话里出的文件
+  const who = q('assistant')
+  const links = sessionAssistants(listSessions({ days: 365, all: true }))
+  const assistants = [...new Map([...links.values()].map((a) => [a.key, { key: a.key, name: a.name, avatar: a.avatar }])).values()]
+  const sessionIn = who ? new Set([...links].filter(([, a]) => a.key === who).map(([id]) => id)) : undefined
+  return c.json(ok({ assistants, ...listOutputs({ sessionIn, days: Number(q('days')) || 30, kind: q('kind'), object: q('object'), tool: q('tool'), session: q('session'), edits: q('edits') === '1', gone: q('gone') === '1', limit: Math.min(Number(q('limit')) || 60, 200), offset: Number(q('offset')) || 0 }) }))
 })
 paRoutes.get('/outputs/:id', (c) => c.json(ok(getOutput(c.req.param('id')))))
 // 在本机打开 / 在访达里显示（只认清单里的编号）
@@ -71,3 +79,6 @@ paRoutes.get('/usage', async (c) => {
 
 paRoutes.get('/reports', async (c) => { scanSoon(); return c.json(ok(reportView((c.req.query('kind') || undefined) as ReportKind | undefined, c.req.query('period') || undefined))) })
 paRoutes.get('/roles', (c) => c.json(ok(roles())))
+// 助理页（约定 11.11）：一张助理清单；一个助理自己的页
+paRoutes.get('/assistants', (c) => { scanSoon(); return c.json(ok(assistantList())) })
+paRoutes.get('/assistants/:key', (c) => c.json(ok(assistantDetail(decodeURIComponent(c.req.param('key'))))))

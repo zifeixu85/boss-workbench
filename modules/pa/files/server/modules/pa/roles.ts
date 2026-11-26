@@ -11,8 +11,9 @@ import { front, sections, str, type MetaValue } from './text.ts'
 import { places } from './places.ts'
 import { CARD_MAX_LINES, MEMORY_MAX_LINES, SOUL_MAX_LINES, cardLines, memoryStats } from './role-parse.ts'
 
+// 约定 11.11 起都叫助理、不分种类：文件夹名“职责-名字”（小红书助理-小叶），旧的四种前缀照样认；kind 是文件夹名前半段
 export const ROLE_KINDS = ['总助', '内容', '分身', '合伙人'] as const
-export type RoleKind = (typeof ROLE_KINDS)[number]
+export type RoleKind = string
 export type RoleFileName = 'IDENTITY' | 'SOUL' | 'MEMORY' | '底稿' | '角色' | '规矩' | '记忆'
 /** lines：正文里不空的行（SOUL、旧的角色.md）。记忆另有条数、没带日期的条数、最早和最近一条的日期。optional：不算在“三份”里（底稿） */
 export type RoleFile = { name: RoleFileName; path: string; exists: boolean; optional?: boolean; updated: string; confirm: string; lines?: number; entries?: number; undated?: number; first?: string; last?: string; problems: string[] }
@@ -31,7 +32,7 @@ const USER_SECTIONS = ['我是谁，做什么生意', '现在最看重的两三�
 const OLD_CARD = ['我是谁', '我管什么，不管什么', '我怎么想', '我怎么说话', '我会说的，和我绝不说的', '什么时候我会反对你']
 const OLD_RULES = ['每次开始先读什么', '我能自己做的', '要先问你的', '我不做的', '定期要做的']
 /** 开头“角色”这一项的写法：内容助理写“内容助理”“内容”都认 */
-const KIND_WORDS: Record<RoleKind, string[]> = { 总助: ['总助'], 内容: ['内容', '内容助理'], 分身: ['分身'], 合伙人: ['合伙人'] }
+const KIND_WORDS: Record<string, string[]> = { 总助: ['总助'], 内容: ['内容', '内容助理'], 分身: ['分身'], 合伙人: ['合伙人'] }
 
 const readable = (rel: string) => { const abs = join(ROOT, rel); return existsSync(abs) && canReadKbPath(abs) }
 const readRel = (rel: string) => readKbTextFile(join(ROOT, rel))
@@ -46,7 +47,7 @@ function checkFile(kind: RoleKind, name: RoleFileName, body: string, meta: Recor
   if (name === 'IDENTITY' || name === '角色') {
     if (str(meta['类型']) !== '角色') problems.push('开头的“类型”要写“角色”')
     const said = str(meta['角色'])
-    if (said && !KIND_WORDS[kind].includes(said)) problems.push(`开头的“角色”写的是“${said}”，文件夹是${kind === '内容' ? '内容助理' : kind}`)
+    if (said && KIND_WORDS[kind] && !KIND_WORDS[kind].includes(said)) problems.push(`开头的“角色”写的是“${said}”，文件夹是${kind === '内容' ? '内容助理' : kind}`)
   }
   if (name === 'IDENTITY') { lacking(IDENTITY_SECTIONS); return { problems } }
   if (name === 'SOUL' || name === '角色') {
@@ -77,11 +78,12 @@ const NEW_FILES = ['IDENTITY', 'SOUL', 'MEMORY'] as const
 const OLD_FILES = ['角色', '规矩', '记忆'] as const
 
 function roleAt(dir: string, BASE = base()): Role | null {
-  const m = dir.match(/^(总助|内容|分身|合伙人)(?:[-－—·\s]+(.+))?$/)
-  if (!m) return null
-  const kind = m[1] as RoleKind
   const folder = `${BASE}/${dir}`
   const has = (n: string) => readable(`${folder}/${n}.md`)
+  // 旧的四种前缀不带文件也认（好说清缺什么）；别的文件夹要有助理文件才算
+  const m = dir.match(/^(总助|内容|分身|合伙人)(?:[-－—·\s]+(.+))?$/) ?? ([...NEW_FILES, ...OLD_FILES, '身份', '性格'].some(has) ? dir.match(/^(.+?)(?:[-－—·](.+))?$/) : null)
+  if (!m) return null
+  const kind = m[1] as RoleKind
   const hasNew = NEW_FILES.some(has)
   const v01 = !hasNew && (has('身份') || has('性格'))
   const chinese = !hasNew && !v01 && OLD_FILES.some(has)
@@ -89,7 +91,7 @@ function roleAt(dir: string, BASE = base()): Role | null {
     ? OLD_FILES.map((n) => roleFile(kind, folder, n))
     : [...NEW_FILES.map((n) => roleFile(kind, folder, n)), ...(kind === '分身' && has('底稿') ? [roleFile(kind, folder, '底稿', true)] : [])]
   const problems = [
-    ...(!m[2] ? [`文件夹名要写成“${kind}-名字”`] : []),
+    ...(!m[2] && ROLE_KINDS.includes(kind as never) && kind !== '总助' ? [`文件夹名要写成“${kind}-名字”`] : []),
     ...(chinese ? ['还是旧格式（角色.md、规矩.md、记忆.md）：要改成 IDENTITY.md、SOUL.md、MEMORY.md（角色.md 的前两节进 IDENTITY，后四节加整份规矩.md 进 SOUL，记忆.md 改名 MEMORY.md）'] : []),
     ...(v01 ? ['还是最早的“身份.md + 性格.md”：要改成 IDENTITY.md、SOUL.md、MEMORY.md'] : []),
   ]
@@ -100,9 +102,11 @@ function roleAt(dir: string, BASE = base()): Role | null {
     kind, name: m[2]?.trim() || kind, display, folder, files,
     complete: required.every((f) => f.exists),
     updated: files.map((f) => f.updated).filter(Boolean).sort().pop() ?? '',
-    legacy: !m[2] || chinese || v01, problems,
+    legacy: chinese || v01, problems,
   }
 }
+
+const kindRank = (k: string) => { const i = ROLE_KINDS.indexOf(k as never); return i < 0 ? 1.5 : i }
 
 function userFile(): UserFile {
   const USER_PATH = userPath()
@@ -121,10 +125,10 @@ export function roles(): Roles {
   if (!exists) return { base: BASE, exists, roles: [], problems: [], user }
   const dirs = readdirSync(dir, { withFileTypes: true }).filter((e) => e.isDirectory() && !e.name.startsWith('.')).map((e) => e.name)
   const list = dirs.map((d) => roleAt(d, BASE)).filter((r): r is Role => !!r)
-    .sort((a, b) => ROLE_KINDS.indexOf(a.kind) - ROLE_KINDS.indexOf(b.kind) || Number(a.legacy) - Number(b.legacy) || a.name.localeCompare(b.name, 'zh'))
+    .sort((a, b) => kindRank(a.kind) - kindRank(b.kind) || Number(a.legacy) - Number(b.legacy) || a.name.localeCompare(b.name, 'zh'))
   const chiefs = list.filter((r) => r.kind === '总助')
   const problems = [
-    ...dirs.filter((d) => !roleAt(d, BASE)).map((d) => `“${d}”认不出是哪种助理（文件夹名要以 总助-、内容-、分身-、合伙人- 开头）`),
+    ...dirs.filter((d) => !roleAt(d, BASE)).map((d) => `“${d}”里没有助理的文件（IDENTITY.md、SOUL.md、MEMORY.md）`),
     ...(chiefs.length > 1 ? [`总助只能有一个，现在有 ${chiefs.length} 个：${chiefs.map((r) => r.folder.split('/').pop()).join('、')}`] : []),
   ]
   return { base: BASE, exists, roles: list, problems, user }
