@@ -58,7 +58,7 @@ export const paHooks: ModuleHooks = {
   stats: () => homeStats(),
   home: { 'pa-done': () => homeCards()['pa-done'], 'pa-waiting': () => homeCards()['pa-waiting'], 'pa-confirm': () => homeCards()['pa-confirm'] },
   nav: () => focusClasses().classes.map((c) => ({ key: `focus-${c.name}`, to: `/focus/${encodeURIComponent(c.name)}`, label: c.name, icon: c.icon, section: '我关注的', ...(TAKES_OVER[c.name] ? { replaces: TAKES_OVER[c.name] } : {}) })),
-  badges: () => { const list = recent(); return { 'pa-progress': list.filter((s) => s.status === '做完未读' || s.status === '在等我').length } },
+  // “我的助理”导航上不放数字（2026-11-26 A梦：“大概率的操作，他不是在这里操作的”）；页面里的页签、驾驶舱的卡照旧有数
   note: () => {
     // 知识库撑不起我关注的、助理、报告里的某一页：先在驾驶舱说清（约定 v0.6 第 9.6 节），点了去看一屏的检测结果
     const c = kbCheck()

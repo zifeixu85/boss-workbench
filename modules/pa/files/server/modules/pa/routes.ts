@@ -9,7 +9,7 @@ import { getOutput, imageFile, listOutputs, openOnMac, recentOutputs, thumbFile 
 import { buildPulse } from './pulse-calc.ts'
 import { now } from './store.ts'
 import { reportView } from './reports.ts'
-import { scan, scanIfStale, scannedAt, sources, SCAN_DAYS } from './scan.ts'
+import { scan, scanSoon, scannedAt, sources, SCAN_DAYS } from './scan.ts'
 import { allObjects } from './kb.ts'
 import { DONE_HOURS, RUNNING_MIN, STALE_DAYS } from './status.ts'
 import type { ReportKind } from './report-parse.ts'
@@ -26,10 +26,11 @@ paRoutes.get('/pending', (c) => c.json(ok(pendingItems())))
 paRoutes.get('/check', (c) => { const r = kbCheck(); return c.json(ok({ ...r, text: kbCheckText(r) })) })
 
 paRoutes.get('/progress', async (c) => {
-  const scanned = await scanIfStale()
+  // 不等扫描，先给现有的；在后台扫的话告诉页面，过一会儿再取一次
+  const scanning = scanSoon()
   const list = listSessions({ days: Number(c.req.query('days')) || 30, all: c.req.query('all') === '1' })
   return c.json(ok({
-    sessions: list, counts: statusCounts(list), scanned_at: scannedAt(), left: scanned?.left ?? 0, errors: scanned?.errors ?? [], sources: sources(),
+    sessions: list, counts: statusCounts(list), scanned_at: scannedAt(), scanning, left: 0, errors: [], sources: sources(),
     rules: { running_min: RUNNING_MIN, stale_days: STALE_DAYS, done_hours: DONE_HOURS, scan_days: SCAN_DAYS },
     objects: allObjects().map((x) => ({ path: x.object.path, name: x.object.name, type: x.cls.name })),
   }))
@@ -41,7 +42,7 @@ paRoutes.post('/sessions/:id/status', async (c) => c.json(ok(setStatus(c.req.par
 paRoutes.post('/sessions/:id/object', async (c) => c.json(ok(setObject(c.req.param('id'), ((await body(c)) as { path?: string | null }).path ?? null, '网页'))))
 
 paRoutes.get('/outputs', async (c) => {
-  await scanIfStale()
+  scanSoon()
   const q = (k: string) => c.req.query(k) || undefined
   return c.json(ok(listOutputs({ days: Number(q('days')) || 30, kind: q('kind'), object: q('object'), tool: q('tool'), session: q('session'), edits: q('edits') === '1', gone: q('gone') === '1', limit: Math.min(Number(q('limit')) || 60, 200), offset: Number(q('offset')) || 0 })))
 })
@@ -56,17 +57,17 @@ paRoutes.get('/outputs/:id/file', async (c) => {
 })
 // 进展的数字和图：近 days 天每天做完几件、出了几张图几个文件，本周对比上周，连续几天在用，本周花在哪
 paRoutes.get('/pulse', async (c) => {
-  await scanIfStale()
+  scanSoon()
   const days = Math.min(Math.max(Number(c.req.query('days')) || 14, 7), 60)
   return c.json(ok(buildPulse(listSessions({ days: days + 14 }), recentOutputs(days + 14), now(), days)))
 })
 
 // AI 用量：今日 / 近 7 日 / 近 30 日（只有数字）
 paRoutes.get('/usage', async (c) => {
-  await scanIfStale()
+  scanSoon()
   const range = c.req.query('range')
   return c.json(ok(usage((range === 'today' || range === '30d' ? range : '7d') as UsageRange)))
 })
 
-paRoutes.get('/reports', async (c) => { await scanIfStale(); return c.json(ok(reportView((c.req.query('kind') || undefined) as ReportKind | undefined, c.req.query('period') || undefined))) })
+paRoutes.get('/reports', async (c) => { scanSoon(); return c.json(ok(reportView((c.req.query('kind') || undefined) as ReportKind | undefined, c.req.query('period') || undefined))) })
 paRoutes.get('/roles', (c) => c.json(ok(roles())))

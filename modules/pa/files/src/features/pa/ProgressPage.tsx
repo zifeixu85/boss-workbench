@@ -1,13 +1,15 @@
 // 进展：本机所有 AI 对话做到哪了。只读本机的对话记录；状态是推断的（页面上写明），可以手动改，改动只记在工作台里。
 // 状态页签写进地址栏（?status=）；点一行在右侧抽屉看这次对话（?s=<编号>）。
+import { useEffect } from 'react'
 import { useSearchParams } from 'react-router'
-import { RefreshCw } from 'lucide-react'
+import { RefreshCw, SlidersHorizontal } from 'lucide-react'
 import { api, useApi, useWrite } from '@/lib/api'
 import { PageHeader, PageBody, Panel } from '@/components/page'
 import { ViewTabs } from '@/components/view-tabs'
 import { Choice } from '@/components/form'
 import { EmptyNote, Failed } from '@/components/chart-kit'
 import { Button } from '@/components/ui/button'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Skeleton } from '@/components/ui/skeleton'
 import { SessionSheet } from './SessionSheet'
 import { SESSION_STATUSES, SessionBadge, when } from './parts'
@@ -25,6 +27,8 @@ export default function ProgressPage() {
   const all = sp.get('all') === '1'
   const { data, error, refetch } = useApi<Progress>(`/m/pa/progress?days=30${all ? '&all=1' : ''}`)
   const { data: pulse } = useApi<Pulse>('/m/pa/pulse?days=14')
+  // 后台在扫本机对话记录：先给现有的，过 2 秒再取一次，扫完就停
+  useEffect(() => { if (!data?.scanning) return; const t = setTimeout(() => { void refetch() }, 2000); return () => clearTimeout(t) }, [data, refetch])
   const rescan = useWrite(() => api.post<Scan>('/m/pa/scan', {}), (r) => (r.left ? `读了 ${r.read} 个记录文件，还剩 ${r.left} 个，再点一次接着读` : `扫完了，现在有 ${r.sessions} 个对话`))
   const set = (k: string, v: string | null) => setSp((p) => { const n = new URLSearchParams(p); if (v === null) n.delete(k); else n.set(k, v); return n }, { replace: k !== 's' })
 
@@ -38,21 +42,32 @@ export default function ProgressPage() {
   const list = status === 'all' ? pool : pool.filter((s) => s.status === status)
   const used = [...new Map(data.sessions.filter((s) => s.object).map((s) => [s.object!.path, s.object!])).values()]
   const missing = data.sources.filter((s) => !s.found)
+  const active = [object, tool, all ? '1' : null].filter(Boolean).length
+  const filters = (
+    <>
+      <Choice className="w-full xl:w-36" value={object} onChange={(v) => set('object', v)} allowEmpty emptyLabel="全部对象" placeholder="按对象"
+        options={[...used.map((o) => ({ value: o.path, label: `${o.type} · ${o.name}` })), { value: '-', label: '未归类' }]} />
+      <Choice className="w-full xl:w-32" value={tool} onChange={(v) => set('tool', v)} allowEmpty emptyLabel="全部工具" placeholder="按工具" options={data.sources.map((s) => ({ value: s.tool, label: s.name }))} />
+      <Choice className="w-full xl:w-36" value={all ? '1' : '0'} onChange={(v) => set('all', v === '1' ? '1' : null)} options={[{ value: '0', label: '只看我开的对话' }, { value: '1', label: '连子任务、脚本' }]} />
+    </>
+  )
   return (
     <>
       {head}
       <PageBody className="grid grid-cols-[minmax(0,1fr)] gap-4">
         {pulse ? <><ProgressStats p={pulse} waiting={data.sessions.filter((s) => s.status === '在等我').length} /><ProgressCharts p={pulse} /></> : <Skeleton className="h-28" />}
         <UsagePanel focus={sp.get('view') === 'usage'} />
-        <div className="flex flex-wrap items-center gap-2">
-          <ViewTabs label="按状态看" value={status} onChange={(v) => set('status', v === 'all' ? null : v)}
+        {/* 页签和筛选一行放下（2026-11-26 A梦：“容易换行”）：宽屏三个下拉跟在页签右边；窄了（含 Codex 右边面板）收成一个“筛选”按钮，不半行悬着 */}
+        <div className="flex min-w-0 items-center gap-2">
+          <ViewTabs className="min-w-0 flex-1" label="按状态看" value={status} onChange={(v) => set('status', v === 'all' ? null : v)}
             items={[{ value: 'all', label: '全部', count: pool.length }, ...SESSION_STATUSES.map((k) => ({ value: k, label: k, count: counts[k] }))]} />
-          <div className="grid w-full grid-cols-2 gap-2 sm:ml-auto sm:flex sm:w-auto sm:flex-wrap">
-            <Choice className="w-full sm:w-40" value={object} onChange={(v) => set('object', v)} allowEmpty emptyLabel="全部对象" placeholder="按对象"
-              options={[...used.map((o) => ({ value: o.path, label: `${o.type} · ${o.name}` })), { value: '-', label: '未归类' }]} />
-            <Choice className="w-full sm:w-36" value={tool} onChange={(v) => set('tool', v)} allowEmpty emptyLabel="全部工具" placeholder="按工具" options={data.sources.map((s) => ({ value: s.tool, label: s.name }))} />
-            <Choice className="w-full sm:w-40" value={all ? '1' : '0'} onChange={(v) => set('all', v === '1' ? '1' : null)} options={[{ value: '0', label: '只看我开的对话' }, { value: '1', label: '连子任务、脚本' }]} />
-          </div>
+          <div className="hidden shrink-0 items-center gap-2 xl:flex">{filters}</div>
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="outline" size="sm" className="shrink-0 xl:hidden"><SlidersHorizontal />筛选{active ? <span className="num rounded-full bg-primary px-1.5 text-[11px] leading-4 text-primary-foreground">{active}</span> : null}</Button>
+            </PopoverTrigger>
+            <PopoverContent align="end" className="grid w-60 gap-2">{filters}</PopoverContent>
+          </Popover>
         </div>
 
         <Panel bodyClass="p-2">

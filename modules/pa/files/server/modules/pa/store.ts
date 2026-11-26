@@ -29,8 +29,7 @@ export type SessionView = {
 export const TOOL_NAMES: Record<string, string> = { codex: 'Codex', claude: 'Claude Code' }
 export const now = () => (process.env.PA_NOW ? Date.parse(process.env.PA_NOW) : Date.now())
 
-function view(r: Row, outputs: number): SessionView {
-  const objects = allObjects()
+function view(r: Row, outputs: number, objects = allObjects()): SessionView {
   const st = inferStatus({ lastAt: r.last_at, turnOpen: !!r.turn_open, lastRole: r.last_role, asks: !!r.asks, aborted: !!r.aborted, seen: r.seen === null ? null : !!r.seen, archived: !!r.archived, ...(r.app_waiting === null ? {} : { appWaiting: !!r.app_waiting }) }, now(), { readAt: r.read_at, status: r.m_status, statusAt: r.status_at })
   const title = r.title || r.first || '（没有标题）'
   let object: SessionView['object'] = null
@@ -55,11 +54,23 @@ function view(r: Row, outputs: number): SessionView {
 const SELECT = `SELECT s.*, m.read_at, m.status AS m_status, m.status_at, m.object AS m_object FROM pa_sessions s LEFT JOIN pa_marks m ON m.session_id = s.id`
 
 /** 最近 days 天有动静的对话。默认只列人开的对话；all = 连 AI 自己派的子任务、脚本一次性调用也列 */
+/** 对话清单的短缓存（2026-11-26 A梦：“页面打开这么慢”）：驾驶舱一次要五六回、报告页四回，几百个对话每回都现算要一两百毫秒。
+ *  3 秒内同样的参数直接给上一份；扫描、标记一改就清掉（clearSessionCache） */
+let memo = new Map<string, { at: number; list: SessionView[] }>()
+export const clearSessionCache = () => { memo = new Map() }
+
 export function listSessions(opts: { days?: number; all?: boolean } = {}): SessionView[] {
+  const key = `${opts.days ?? 30}|${opts.all ? 1 : 0}`
+  const hit = memo.get(key)
+  if (hit && Date.now() - hit.at < 3000) return hit.list
   const since = new Date(now() - (opts.days ?? 30) * 864e5).toISOString()
   const rows = all<Row>(`${SELECT} WHERE s.last_at >= :since ${opts.all ? '' : "AND s.kind = '对话'"} ORDER BY s.last_at DESC LIMIT 500`, { since })
   const counts = new Map(all<{ session_id: string; n: number }>("SELECT session_id, COUNT(*) AS n FROM pa_outputs WHERE session_id IS NOT NULL AND action <> '修改' AND kind <> '代码' GROUP BY session_id").map((r) => [r.session_id, r.n]))
-  return rows.map((r) => view(r, counts.get(r.id) ?? 0))
+  // 对象清单取一次（它每次都要核对一遍知识库文件的修改时间，原来每个对话取一次）
+  const objects = allObjects()
+  const list = rows.map((r) => view(r, counts.get(r.id) ?? 0, objects))
+  memo.set(key, { at: Date.now(), list })
+  return list
 }
 
 export function getSession(id: string): SessionView {
@@ -76,6 +87,7 @@ export function statusCounts(list: SessionView[]) {
 }
 
 function upsertMark(id: string, patch: { read_at?: string | null; status?: string | null; status_at?: string | null; object?: string | null }) {
+  clearSessionCache()
   const old = get<{ read_at: string | null; status: string | null; status_at: string | null; object: string | null }>('SELECT read_at, status, status_at, object FROM pa_marks WHERE session_id = :id', { id }) ?? { read_at: null, status: null, status_at: null, object: null }
   const next = { ...old, ...patch }
   run(`INSERT INTO pa_marks (session_id, read_at, status, status_at, object, updated_at) VALUES (:id, :read_at, :status, :status_at, :object, :at)

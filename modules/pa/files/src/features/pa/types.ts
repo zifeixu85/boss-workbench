@@ -17,7 +17,7 @@ export type Session = {
   link: string | null; resume: string | null; outputs: number
 }
 export type Progress = {
-  sessions: Session[]; counts: Record<string, number>; scanned_at: string | null; left: number; errors: string[]
+  sessions: Session[]; counts: Record<string, number>; scanned_at: string | null; left: number; errors: string[]; scanning?: boolean
   sources: { tool: string; name: string; dir: string; found: boolean }[]
   rules: { running_min: number; stale_days: number; done_hours: number; scan_days: number }
   objects: { path: string; name: string; type: string }[]

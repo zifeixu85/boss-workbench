@@ -14,6 +14,7 @@ import { claudeParser } from './claude.ts'
 import { fileKind } from './text.ts'
 import type { SessionMeta, Tool } from './types.ts'
 import type { CodexLimits } from './usage-calc.ts'
+import { clearSessionCache } from './store.ts'
 
 export const codexHome = () => process.env.PA_CODEX_HOME || process.env.CODEX_HOME || join(homedir(), '.codex')
 export const claudeHome = () => process.env.PA_CLAUDE_HOME || join(homedir(), '.claude')
@@ -313,12 +314,22 @@ export async function scan(opts: { budgetMs?: number; force?: boolean } = {}): P
     try { scanImages() } catch (err) { errors.push(`图片目录：${(err as Error).message}`) }
     const now = new Date().toISOString()
     run("INSERT INTO pa_state (key, value) VALUES ('scanned_at', :v) ON CONFLICT(key) DO UPDATE SET value = :v", { v: now })
+    clearSessionCache()
     return { files: files + archived.length, read, left: todo.length + archived.length - read, sessions: get<{ n: number }>('SELECT COUNT(*) AS n FROM pa_sessions')?.n ?? 0, ms: Date.now() - t0, errors }
   })()
   try { return await running } finally { running = null }
 }
 
 export const scannedAt = () => get<{ value: string }>("SELECT value FROM pa_state WHERE key = 'scanned_at'")?.value ?? null
+
+/** 页面打开时不等扫描（2026-11-26：先出页面）：离上次扫超过 1 分钟就在后台扫一遍，返回“正在扫”，页面过一会儿再取一次 */
+export function scanSoon(maxAgeMs = 60_000): boolean {
+  if (running) return true
+  const at = scannedAt()
+  if (at && Date.now() - Date.parse(at) < maxAgeMs) return false
+  setImmediate(() => { void scan({ budgetMs: 3000 }).catch(() => {}) })
+  return true
+}
 
 /** 页面打开时：离上次扫超过 1 分钟就再扫一遍（最多花 3 秒，剩下的下次接着） */
 export async function scanIfStale(maxAgeMs = 60_000): Promise<ScanResult | null> {
