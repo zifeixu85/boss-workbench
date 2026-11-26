@@ -1,4 +1,4 @@
-// 小红书内容中心：接口返回的数据形状（对应 server/modules/xhs/*）。归属：小红书内容模块。
+// 小红书内容中心：接口返回的数据形状（对应 server/modules/xhs/*）。归属：小红书内容模块。 创作页只读展示字段。
 import type { CheckRule, CheckSource, CheckResult } from '@shared/xhs-check'
 
 export type PieceStatus = '灵感池' | '已选' | '写稿中' | '待发布' | '已发布' | '已放弃'
@@ -70,7 +70,7 @@ export type DataPage = {
 export type DailyRow = { day: number; date: string; organic_reads: number | null; paid_reads: number | null; organic_saves: number | null; likes: number; saves: number; reads: number; comments: number; new_followers: number; spend: number }
 export type NoteDaily = { series: DailyRow[]; milestones: { day: number; date: string; state: 'ready' | 'waiting' | 'missing'; row: DailyRow | null }[]; through: string | null; age: number; takeaway: string | null }
 
-export type FeedItem = { id: string; piece_id: string | null; title: string; cover_text: string | null; cover: Cover | null; pages: PageLite[]; likes: number | null; own: boolean; account: string }
+export type FeedItem = { image?: string | null; generated?: boolean; id: string; piece_id: string | null; title: string; cover_text: string | null; cover: Cover | null; pages: PageLite[]; likes: number | null; own: boolean; account: string }
 export type Feed = { own: FeedItem[]; bench: FeedItem[] }
 
 export type Learning = { rule: string; evidence: string; scope?: string; prior?: string | null; prior_path?: string | null; status: '待定' | '已存进知识库' | '不要'; saved_at?: string | null; kb_path?: string | null; number?: number | null }
@@ -90,7 +90,7 @@ export type ReviewDetail = { metrics: WeekMetrics; prev: Omit<WeekMetrics, 'note
 
 export type Kit = { skill: string | null; groups: { label: string; note: string; files: string[] }[]; data_note: string; last_review: string | null }
 export type Starts = {
-  recent: (Piece & { last_at: string })[]; topics: Piece[]
+  recent: (Piece & { last_at: string; writer: string })[]; topics: Piece[]
   notes: { id: string; piece_id: string | null; title: string; date: string; pillar_name: string | null; saves: number; reads: number; cover_text: string | null; cover: Cover | null; pages?: PageLite[] }[]
   teas: { name: string; kind: string; spec: string; price: string; status: string; note: string; secret: boolean }[]
   benchmarks: { id: string; account: string; title: string; cover_text: string | null; pad: string | null; likes: number | null; saves: number | null; comments: number | null; structure: string | null; borrow: string | null; saved_at: string }[]

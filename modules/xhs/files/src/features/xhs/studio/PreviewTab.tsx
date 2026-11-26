@@ -1,9 +1,10 @@
-// 预览页签：手机（发现页 / 笔记页）跟着稿件实时变（包括还没保存的修改），旁边是发布前检查。归属：小红书内容模块。
+// 预览页签：手机（发现页 / 笔记页）跟着稿件实时变（包括还没保存的修改），旁边是发布前检查。归属：小红书内容模块。 手机与检查随容器宽度排列。
 import { useState } from 'react'
 import { cn } from '@/lib/utils'
 import { useChecks } from '../lib'
 import { PhonePreview, type PhoneView } from '../phone/PhonePreview'
 import { ChecksPanel } from '../ChecksPanel'
+import './studio.css'
 import type { AiCheck, Draft, Piece } from '../types'
 
 const NOTE: Record<PhoneView, string> = {
@@ -15,16 +16,17 @@ export function PreviewTab({ draft, piece, ai, dirty }: { draft: Draft; piece: P
   const [view, setView] = useState<PhoneView>('发现页')
   const checks = useChecks(draft, piece.scheduled_date)
   return (
-    <div className="grid gap-6 px-5 py-5 xl:grid-cols-[340px_minmax(0,1fr)]">
+    <div className="xhs-preview">
       <div className="flex flex-col items-center gap-3">
-        <div className="inline-flex rounded-lg border p-0.5 text-sm" role="group" aria-label="手机画面">
-          {(['发现页', '笔记页'] as PhoneView[]).map((v) => <button key={v} type="button" onClick={() => setView(v)} className={cn('rounded-md px-3 py-1', view === v ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground')}>{v}</button>)}
-        </div>
-        <PhonePreview draft={draft} view={view} selfNote={piece.note_id} />
+        <PhonePreview account={piece.account} draft={draft} view={view} selfNote={piece.note_id} />
       </div>
       <div className="min-w-0">
+        <div className="xhs-preview-controls" role="group" aria-label="手机画面">
+          {(['发现页', '笔记页'] as PhoneView[]).map((v) => <button key={v} type="button" onClick={() => setView(v)} className={cn('rounded-md px-3 py-1', view === v ? 'xhs-solid' : 'text-muted-foreground hover:text-foreground')}>{v}</button>)}
+        </div>
+
         <p className="mb-4 rounded-lg bg-muted/60 px-3.5 py-2.5 text-[13px] leading-relaxed text-muted-foreground">{NOTE[view]}</p>
-        <ChecksPanel checks={checks} ai={ai} dirty={dirty} />
+        <ChecksPanel checklist checks={checks} ai={ai} dirty={dirty} />
       </div>
     </div>
   )

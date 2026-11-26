@@ -1,3 +1,4 @@
+// 开始页列出全部在写的，并带最近作者。
 import { readKbTextFile as readFileSync, canReadKbPath } from '../../services/kb.ts'
 // 内容中心的“今天”页和创作页要的汇总：今天发哪篇、本周排期、今日选题、数据提醒、开写的起点、AI 手上有什么。归属：小红书内容模块。
 import { existsSync, readdirSync } from 'node:fs'
@@ -63,13 +64,13 @@ function todayTopics(pieces: ReturnType<typeof listPieces>, t: string) {
 export function starts() {
   const t = today()
   const pieces = listPieces()
-  const recent = all<{ piece_id: string; at: string }>(`SELECT piece_id, MAX(at) AS at FROM (
-      SELECT piece_id, created_at AS at FROM xhs_versions UNION ALL SELECT piece_id, created_at AS at FROM xhs_messages) GROUP BY piece_id ORDER BY at DESC LIMIT 20`)
+  const recent = all<{ piece_id: string; author: string | null }>(`SELECT piece_id, author FROM xhs_versions v
+    WHERE version = (SELECT MAX(version) FROM xhs_versions WHERE piece_id = v.piece_id)`)
   const notes = noteRows().filter((n) => n.organic).sort((a, b) => b.organic!.saves - a.organic!.saves).slice(0, 12)
   const teas = productList()
   const bench = all('SELECT * FROM xhs_benchmarks ORDER BY saved_at DESC')
   return {
-    recent: recent.map((r) => ({ ...pieces.find((p) => p.id === r.piece_id)!, last_at: r.at })).filter((p) => p.id && ['写稿中', '待发布'].includes(p.status)),
+    recent: pieces.filter(p => ['写稿中', '待发布'].includes(p.status)).map(p => ({ ...p, last_at: p.updated_at, writer: recent.find(v => v.piece_id === p.id)?.author || p.created_by })).sort((a, b) => b.last_at.localeCompare(a.last_at)),
     topics: pieces.filter((p) => p.status === '灵感池' && p.topic_date && p.topic_date >= addDays(t, -2)).sort((a, b) => (b.topic_date ?? '').localeCompare(a.topic_date ?? '') || a.sort - b.sort).slice(0, 12),
     notes: notes.map((n) => ({ id: n.id, piece_id: n.piece_id, title: n.title, date: n.date, pillar_name: n.pillar_name, saves: n.organic!.saves, reads: n.organic!.reads, cover_text: n.cover_text, cover: n.cover, pages: n.pages })),
     teas, benchmarks: bench,

@@ -1,4 +1,4 @@
-// 稿件页签：形式、标题和备选、封面大字、图片页、正文、话题、Codex 自己核过的、发布前检查。直接能改，⌘+回车存一版。归属：小红书内容模块。
+// 稿件页签：形式、标题和备选、封面大字、图片页、正文、话题、Codex 自己核过的、发布前检查。直接能改，⌘+回车存一版。归属：小红书内容模块。 窄稿件栏的内页编辑器不挤压输入框。
 import { useState, type ReactNode } from 'react'
 import { ArrowLeftRight, Plus, Trash2, X } from 'lucide-react'
 import { charCount } from '@shared/xhs-check'
@@ -12,12 +12,12 @@ import { ChecksPanel } from '../ChecksPanel'
 import { PAD_NAMES } from '../phone/pads'
 import type { AiCheck, Draft } from '../types'
 
-function Field({ label, count, max, hint, children }: { label: string; count?: number; max?: number; hint?: ReactNode; children: ReactNode }) {
+function Field({ label, count, max, hint, summary, children }: { label: string; count?: number; max?: number; hint?: ReactNode; summary?: ReactNode; children: ReactNode }) {
   return (
     <div className="grid gap-1.5">
       <div className="flex items-baseline justify-between gap-2">
-        <label className="text-[13px] font-semibold">{label}</label>
-        {count != null && <span className={cn('num text-xs', max && count > max ? 'font-medium text-danger' : 'text-muted-foreground')}>{count}/{max}</span>}
+        <label className="xhs-field-label">{label}</label>
+        {summary ?? (count != null && <span className={cn('num text-xs', max && count > max ? 'font-medium text-danger' : 'text-muted-foreground')}>{count}/{max}</span>)}
       </div>
       {children}
       {hint && <p className="text-xs text-muted-foreground">{hint}</p>}
@@ -41,17 +41,16 @@ export function DraftEditor({ draft, onChange, readOnly, hasDraft, publishOn, ai
   const setPage = (i: number, patch: Partial<Draft['pages'][number]>) => onChange({ pages: draft.pages.map((p, k) => (k === i ? { ...p, ...patch } : p)) })
   const addTag = () => { const t = tag.trim().replace(/^#/, ''); if (t && !draft.tags.includes(t)) onChange({ tags: [...draft.tags, t] }); setTag('') }
   return (
-    <fieldset disabled={readOnly} className="grid min-w-0 grid-cols-1 gap-6 px-5 py-5 disabled:opacity-70">
+    <fieldset disabled={readOnly} className="xhs-editor grid min-w-0 grid-cols-1 disabled:opacity-70">
       <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
         形式
         <div className="inline-flex rounded-lg border p-0.5">
           {(['图文', '视频'] as const).map((f) => <button key={f} type="button" onClick={() => onChange({ format: f })} className={cn('rounded-md px-2.5 py-0.5', draft.format === f ? 'bg-primary text-primary-foreground' : 'hover:text-foreground')}>{f}</button>)}
         </div>
-        <span>{draft.pages.length} 张图 · 正文 {charCount(draft.body)} 字 · {draft.tags.length} 个话题</span>
       </div>
 
       <Field label="标题" count={charCount(draft.title)} max={20} hint="先点麻烦再给结果（账号规律）；点一下备选可以换上去">
-        <Input value={draft.title} onChange={(e) => onChange({ title: e.target.value })} className="h-11 font-heading text-[18px] font-semibold" />
+        <Input aria-label="标题" value={draft.title} onChange={(e) => onChange({ title: e.target.value })} className="xhs-title-input font-heading" />
         {draft.titles.filter((t) => t !== draft.title).length > 0 && (
           <div className="flex flex-wrap gap-1.5">
             {draft.titles.filter((t) => t !== draft.title).map((t) => (
@@ -62,17 +61,17 @@ export function DraftEditor({ draft, onChange, readOnly, hasDraft, publishOn, ai
         )}
       </Field>
 
-      <Field label="封面大字" count={charCount(draft.cover_text)} max={12} hint="用“｜”分成两行；封面按模板实时画，去“封面”页签换模板和垫图">
-        <Input value={draft.cover_text} onChange={(e) => onChange({ cover_text: e.target.value, pages: draft.pages.length ? [{ ...draft.pages[0], text: e.target.value.replace(/｜/g, '\n') }, ...draft.pages.slice(1)] : draft.pages })} />
+      <Field label="封面大字" summary={<span className="xhs-draft-summary">{draft.pages.length} 张图 · 正文 {charCount(draft.body)} 字 · {draft.tags.length} 个话题</span>} hint="用“｜”分成两行；封面按模板实时画，去“封面”页签换模板和垫图">
+        <Input aria-label="封面大字" value={draft.cover_text} onChange={(e) => onChange({ cover_text: e.target.value, pages: draft.pages.length ? [{ ...draft.pages[0], text: e.target.value.replace(/｜/g, '\n') }, ...draft.pages.slice(1)] : draft.pages })} />
       </Field>
 
       <Field label={`图片页 · ${draft.pages.length} 张`} hint="封面一句大字，内页一页一个要点；第一行是大字，换行后是小字">
         <ol className="grid gap-2">
           {draft.pages.map((p, i) => (
-            <li key={i} className="grid grid-cols-[28px_minmax(0,1fr)_auto] items-start gap-2">
+            <li key={i} className="xhs-page-row grid grid-cols-[28px_minmax(0,1fr)] items-start gap-2">
               <span className={cn('num mt-2 grid size-6 place-items-center rounded text-[12px] font-semibold', i === 0 ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground')}>{i === 0 ? '封' : i + 1}</span>
-              <Textarea rows={2} value={p.text} onChange={(e) => setPage(i, { text: e.target.value })} className={cn('min-h-0 text-[13px]', /【待补/.test(p.text) && 'border-warn bg-warn-soft/40')} />
-              <div className="flex items-center gap-1">
+              <Textarea aria-label={`第 ${i + 1} 张图上的字`} rows={2} value={p.text} onChange={(e) => setPage(i, { text: e.target.value })} className={cn('min-h-0 text-[13px]', /【待补/.test(p.text) && 'border-warn bg-warn-soft/40')} />
+              <div className="xhs-page-actions col-start-2 flex flex-wrap items-center gap-1">
                 {i > 0 && (
                   <Choice className="h-8 w-[104px] text-xs" value={p.pad ?? null} onChange={(v) => setPage(i, { pad: v })} allowEmpty emptyLabel="垫图自动挑"
                     options={Object.entries(PAD_NAMES).map(([k, v]) => ({ value: k, label: v.split('：')[0].slice(0, 7) }))} />
@@ -86,7 +85,7 @@ export function DraftEditor({ draft, onChange, readOnly, hasDraft, publishOn, ai
       </Field>
 
       <Field label="正文" count={charCount(draft.body)} max={1000}>
-        <Textarea value={draft.body} onChange={(e) => onChange({ body: e.target.value })} className="min-h-[220px] text-[14px] leading-7" />
+        <Textarea aria-label="正文" value={draft.body} onChange={(e) => onChange({ body: e.target.value })} className="min-h-[220px] text-[14px] leading-7" />
       </Field>
 
       <Field label={`话题 · ${draft.tags.length} 个`} hint="5—8 个：品类词 + 场景词 + 人群词。回车添加">

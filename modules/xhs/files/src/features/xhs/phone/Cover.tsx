@@ -1,4 +1,4 @@
-// 封面和图片页：用模板实时画（大字 + 茶具垫图 + 品牌色，3:4），稿件一改就跟着变，不依赖生图。归属：小红书内容模块。
+// 封面和图片页：用模板实时画（大字 + 茶具垫图 + 品牌色，3:4），稿件一改就跟着变，不依赖生图。归属：小红书内容模块。 生成封面在外层标记来源，防止裁切遮住。
 // 四个模板对应素材库：a_cover1 大字 + 实拍、a_cover2 三宫格步骤、a_cover3 左右对比、a_cover4 一周茶单日历。
 // 同一张垫图在不同篇里换裁切位置和左右方向（按标题算，固定不变），内页按每页说的东西换垫图，不会一排缩略图都一个样。
 // 同行的笔记（对标收藏）不套自家模板：中性底色、写对方账号名，没有自家账号的角标。
@@ -58,8 +58,8 @@ function Mark() {
   )
 }
 
-function Frame({ cover, children, className, label }: { cover: CoverT; children: ReactNode; className?: string; label: string }) {
-  return <div className={cn('xc', className)} data-tone={cover.tone} role="img" aria-label={label}>{children}</div>
+function Frame({ cover, children, className, label, generated = cover.pad.startsWith('a_gen_') }: { cover: CoverT; children: ReactNode; className?: string; label: string; generated?: boolean }) {
+  return <div className={cn('xc', className)} data-tone={cover.tone} role="img" aria-label={label}>{children}{generated && <span className="xc-generated">AI 生成</span>}</div>
 }
 
 function Title({ ls }: { ls: string[] }) {
@@ -98,12 +98,12 @@ export function CoverArt({ text, cover, pages = [], kicker, className, peer, see
   if (cover.template === 'a_cover2') {
     const steps = [0, 1, 2].map((i) => lines(inner[i]?.text ?? '')[0] ?? ['放茶', '注水', '出汤'][i])
     return (
-      <Frame cover={cover} className={className} label={`封面：${ls.join(' ')}`}>
+      <Frame cover={cover} generated={[0, 1, 2].some(i => (inner[i]?.pad ?? (inner[i] ? padFor(inner[i].text, cover.pad, i) : cover.pad)).startsWith('a_gen_'))} className={className} label={`封面：${ls.join(' ')}`}>
         <div className="xc-kicker">{kicker ?? '跟着做'}</div><Title ls={ls} />
         <div className="xc-steps">
           {steps.map((s, i) => (
             <div key={i} className="xc-step">
-              <div className="xc-step-pic"><Pad pad={inner[i] ? padFor(inner[i].text, cover.pad, i) : cover.pad} align={(['xMin', 'xMid', 'xMax'] as const)[i]} /><span className="xc-step-no">{i + 1}</span></div>
+              <div className="xc-step-pic"><Pad pad={inner[i]?.pad ?? (inner[i] ? padFor(inner[i].text, cover.pad, i) : cover.pad)} align={(['xMin', 'xMid', 'xMax'] as const)[i]} /><span className="xc-step-no">{i + 1}</span></div>
               <div className="xc-step-cap">{s.replace(/【待补[^】]*】/, '（待补）')}</div>
             </div>
           ))}
@@ -131,7 +131,7 @@ export function CoverArt({ text, cover, pages = [], kicker, className, peer, see
     const days = inner.flatMap((p) => lines(p.text)).filter((t) => /^周[一二三四五六日]\s*\S/.test(t)).slice(0, 5)
     const cells = days.map((d) => { const m = d.match(/^(周.)\s*(.*)$/)!; return { w: m[1], t: m[2].split(/[：:｜\s]/)[0] || '—' } })
     return (
-      <Frame cover={cover} className={className} label={`封面：${ls.join(' ')}`}>
+      <Frame cover={cover} generated={!cells.length && cover.pad.startsWith('a_gen_')} className={className} label={`封面：${ls.join(' ')}`}>
         <div className="xc-kicker">{kicker ?? '一周喝茶搭配'}</div><Title ls={ls} />
         {cells.length ? (
           <div className="xc-week">
@@ -160,7 +160,7 @@ export function PageArt({ page, index, total, cover, className }: { page: PageLi
   const todo = /【待补/.test(page.text)
   const pad = page.pad ?? padFor(page.text, cover.pad, index)
   return (
-    <Frame cover={cover} className={className} label={`第 ${index + 1} 张图：${page.text}`}>
+    <Frame cover={cover} generated={!todo && pad.startsWith('a_gen_')} className={className} label={`第 ${index + 1} 张图：${page.text}`}>
       <div className="xc-page-no">{String(index + 1).padStart(2, '0')} / {String(total).padStart(2, '0')}</div>
       {todo ? <div className="xc-todo">{page.text.replace(/[【】]/g, '')}<br />拍好换上</div> : (
         <>

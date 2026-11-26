@@ -1,4 +1,4 @@
-// 茶具垫图：封面模板里的“实拍”位置先用插画顶上（对应素材库 a_pad1—5 的描述），不依赖生图。归属：小红书内容模块。
+// 茶具垫图：封面模板里的“实拍”位置先用插画顶上（对应素材库 a_pad1—5 的描述），不依赖生图。归属：小红书内容模块。 生成图片铺满垫图容器并保留来源标记。
 // 插画的颜色写在这里（是画，不是界面色）。每个实例用 useId 生成独立的渐变编号，同一页画很多张也不串。
 import { useId } from 'react'
 import { cn } from '@/lib/utils'
@@ -183,7 +183,7 @@ export function Pad({ pad, fit = 'slice', align = 'xMid', className }: { pad?: s
     const gen = pad.startsWith('a_gen_')
     const img = <img src={`/api/m/xhs/assets/${pad}/file`} alt={gen ? 'AI 生成的图' : '放进来的图'} className={cn(gen ? 'size-full' : className, fit === 'meet' ? 'object-contain' : 'object-cover', align === 'xMin' ? 'object-left' : align === 'xMax' ? 'object-right' : 'object-center')} />
     // 生成的图标一个小字“AI 生成”（约定 11.14：可以用，但不能当成实拍）
-    return gen ? <span className={cn('relative block overflow-hidden', className)}>{img}<span className="pointer-events-none absolute right-1 bottom-1 rounded bg-black/55 px-1 py-px text-[9px] leading-tight font-medium text-white">AI 生成</span></span> : img
+    return gen ? <span className={cn('relative block size-full overflow-hidden', className)}>{img}<span className="xc-pad-generated pointer-events-none absolute right-1 bottom-1 rounded bg-black/55 px-1 py-px text-[9px] leading-tight font-medium text-white">AI 生成</span></span> : img
   }
   const Scene = SCENES[pad ?? ''] ?? Desk
   return (

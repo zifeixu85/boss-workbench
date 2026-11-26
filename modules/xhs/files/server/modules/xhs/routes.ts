@@ -1,4 +1,4 @@
-// 小红书内容中心的接口：/api/m/xhs/…（模块包的接口都挂在 /api/m/<模块编号>/ 下）。归属：小红书内容模块。
+// 小红书内容中心的接口：/api/m/xhs/…（模块包的接口都挂在 /api/m/<模块编号>/ 下）。归属：小红书内容模块。 创作页账号读取接口。
 // 底座留下的只读接口（account notes topics schedule drafts assets today）保留；内容中心的在下面。
 import { moduleApp } from '../../module-kit.ts'
 import * as content from './service.ts'
@@ -13,6 +13,7 @@ import { codexStatus } from './codex.ts'
 import { identity } from '../../services/identity.ts'
 import { readFileSync } from 'node:fs'
 import { putChatImage, assetFile } from './chat-image.ts'
+import { listAccounts } from './accounts.ts'
 
 const ok = <T>(data: T) => ({ ok: true as const, data })
 const WEB = '网页' as const
@@ -20,6 +21,8 @@ const body = async (c: { req: { json: () => Promise<unknown> } }) => (await c.re
 
 export const xhsRoutes = moduleApp()
 const contentRoutes = xhsRoutes
+// 只读账号清单，登记仍由原有命令完成。
+contentRoutes.get('/accounts', (c) => c.json(ok(listAccounts())))
 // 底座的只读接口
 contentRoutes.get('/account', (c) => c.json(ok(content.account())))
 contentRoutes.get('/pillars', (c) => c.json(ok(content.pillars())))

@@ -1,4 +1,4 @@
-// 一篇内容（xhs_pieces）：选题 → 已选 → 写稿中 → 待发布 → 已发布是同一条；稿件版本只增不改。归属：小红书内容模块。
+// 一篇内容（xhs_pieces）：选题 → 已选 → 写稿中 → 待发布 → 已发布是同一条；稿件版本只增不改。归属：小红书内容模块。 稿件字段更新：账号只接受知识库登记的名称。
 import { z } from 'zod'
 import { all, get, run, tx, uid, nowIso, localDate, logChange } from '../../db.ts'
 import { now } from '../../clock.ts'
@@ -7,6 +7,7 @@ import { charCount } from '../../../shared/xhs-check.ts'
 import { normalizeDraft, emptyDraft, type Draft } from './draft.ts'
 import { checkDraft } from './checks.ts'
 import { relatedAlerts, topComments } from './related.ts'
+import { resolveAccount } from './accounts.ts'
 import { identity } from '../../services/identity.ts'
 
 export const STATUSES = ['灵感池', '已选', '写稿中', '待发布', '已发布', '已放弃'] as const
@@ -33,6 +34,7 @@ export const pieceInput = z.object({
   start: z.object({ kind: z.string(), ref: z.string().optional().nullable(), label: z.string().optional().nullable(), text: z.string().optional().nullable() }).optional().nullable(),
 })
 export const piecePatch = pieceInput.partial().extend({
+  account: text(40).min(1, '请选择登记过的账号').optional(),
   memo: text(400).optional().nullable(),
   warn: text(400).optional().nullable(),
   published_at: z.string().regex(/^\d{4}-\d{2}-\d{2}T([01]\d|2[0-3]):[0-5]\d$/, '发布时间写成 2026-10-27T12:10').refine((s) => realDate(s.slice(0, 10)), '没有这一天').optional().nullable(),
@@ -177,6 +179,7 @@ export function updatePiece(id: string, input: unknown, actor: Actor) {
   for (const k of ['title', 'angle', 'format', 'pillar_id', 'source', 'reason', 'ref', 'status', 'scheduled_date', 'scheduled_time', 'memo', 'warn', 'published_at', 'publish_url'] as const) {
     if (k in raw) fields[k] = (v[k] as string | null | undefined) ?? null
   }
+  if ('account' in raw) fields.account = resolveAccount(v.account)
   if ('start' in raw) fields.start = v.start ? JSON.stringify(v.start) : null
   if ('pillar_id' in fields) assertPillar(fields.pillar_id as string | null)
   const next = (fields.status as Status | undefined) ?? cur.status
@@ -193,7 +196,7 @@ export function updatePiece(id: string, input: unknown, actor: Actor) {
   if (!Object.keys(fields).length) return cur
   const sets = Object.keys(fields).map((k) => `${k} = :${k}`).join(', ')
   run(`UPDATE xhs_pieces SET ${sets}, updated_at = :at WHERE id = :id`, { ...fields, at: nowIso(), id })
-  const what = fields.status && fields.status !== cur.status ? `移到「${fields.status}」` : 'scheduled_date' in fields ? `排到 ${fields.scheduled_date ?? '未定'}` : '改了内容'
+  const what = fields.status && fields.status !== cur.status ? `移到「${fields.status}」` : 'scheduled_date' in fields ? `排到 ${fields.scheduled_date ?? '未定'}` : 'account' in fields ? `账号改为「${fields.account}」` : '改了内容'
   logChange(actor, 'xhs_piece', id, '修改', `小红书：「${cur.title}」${what}`)
   return pieceRow(id)
 }

@@ -1,6 +1,6 @@
 // 起点卡：为什么做这篇、从哪儿开始、AI 手上有哪些资料（每份都能点开读原文）。开始聊以后缩成一行留在最上面。归属：小红书内容模块。
 import { useState } from 'react'
-import { ChevronDown, Leaf } from 'lucide-react'
+import { BookOpen, ChartNoAxesCombined, ChevronDown, FileText, Leaf } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { DocChip } from '../KbDoc'
 import type { Kit, Piece } from '../types'
@@ -14,11 +14,11 @@ export function StartCard({ piece, kit, compact }: { piece: Piece; kit?: Kit; co
   const kind = piece.start?.kind ?? '选题'
   const show = open || !compact
   return (
-    <div className="overflow-hidden rounded-xl border bg-gradient-to-br from-accent/70 via-card to-card">
+    <div className="xhs-start-card">
       <button type="button" onClick={() => compact && setOpen(!open)} className={cn('flex w-full items-start gap-2.5 px-4 pt-3.5 text-left', !show && 'pb-3', !compact && 'cursor-default')}>
         <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-primary text-primary-foreground shadow-sm"><Leaf className="size-4" /></span>
         <span className="min-w-0 flex-1">
-          <span className="block text-[14.5px] font-semibold">{ASK[kind] ?? ASK['选题']}</span>
+          <span className="block font-heading text-[19px] leading-relaxed font-semibold">{ASK[kind] ?? ASK['选题']}</span>
           <span className={cn('mt-0.5 block text-[12.5px] text-muted-foreground', !show && 'truncate')}>
             {piece.start?.label ?? (piece.topic_date ? `${Number(piece.topic_date.slice(5, 7))}/${Number(piece.topic_date.slice(8, 10))} 早上的选题` : '记下的选题')}{piece.reason ? ` · ${piece.reason}` : ''}
           </span>
@@ -27,22 +27,22 @@ export function StartCard({ piece, kit, compact }: { piece: Piece; kit?: Kit; co
       </button>
       {show && (
         <div className="px-4 pt-2.5 pb-3.5">
-          {piece.reason && <p className="text-[12.5px] leading-relaxed"><span className="font-medium text-primary">为什么做：</span>{piece.reason}</p>}
+          {piece.reason && <p className="xhs-start-reason text-[13px] leading-relaxed"><span className="font-medium text-primary">为什么做：</span>{piece.reason}</p>}
           {piece.start?.text && piece.start.text !== piece.reason && <p className="mt-1 text-[12.5px] leading-relaxed whitespace-pre-wrap text-muted-foreground"><span className="font-medium text-primary">起点：</span>{piece.start.text}</p>}
           {piece.ref && <p className="mt-1 text-[12.5px] leading-relaxed text-muted-foreground"><span className="font-medium text-primary">依据：</span>{piece.ref}</p>}
           {piece.warn && <p className="mt-1.5 rounded-md bg-warn-soft px-2.5 py-1.5 text-[12px] text-warn">提醒：{piece.warn}</p>}
-          <div className="mt-3 rounded-lg border border-dashed border-primary/35 bg-card/70 px-3 py-2.5">
+          <div className="mt-3 rounded-lg border border-dashed border-border bg-muted/45 px-3 py-2.5">
             <div className="mb-1.5 flex flex-wrap items-center gap-1.5 text-xs font-medium">AI 手上有什么{kit?.skill && <DocChip path={kit.skill} label="小红书写法" />}</div>
             {kit ? (
-              <dl className="grid gap-1.5 text-[12px]">
+              <dl className="grid gap-3 text-[12px]">
                 {kit.groups.map((g) => (
                   <div key={g.label} className="grid grid-cols-[92px_minmax(0,1fr)] items-start gap-2">
-                    <dt className="pt-0.5 text-muted-foreground">{g.label}</dt>
+                    <dt className="flex items-center gap-1.5 pt-0.5 text-muted-foreground"><BookOpen className="size-3.5 shrink-0" />{g.label}</dt>
                     <dd className="flex min-w-0 flex-wrap gap-1">{g.files.filter((f) => !f.endsWith('README.md')).map((f) => <DocChip key={f} path={f} />)}</dd>
                   </div>
                 ))}
-                <div className="grid grid-cols-[92px_minmax(0,1fr)] gap-2"><dt className="text-muted-foreground">账号数据</dt><dd>{kit.data_note}</dd></div>
-                {kit.last_review && <div className="grid grid-cols-[92px_minmax(0,1fr)] gap-2"><dt className="text-muted-foreground">最近复盘</dt><dd>{kit.last_review}</dd></div>}
+                <div className="grid grid-cols-[92px_minmax(0,1fr)] gap-2"><dt className="flex items-center gap-1.5 text-muted-foreground"><ChartNoAxesCombined className="size-3.5 shrink-0" />账号数据</dt><dd>{kit.data_note}</dd></div>
+                {kit.last_review && <div className="grid grid-cols-[92px_minmax(0,1fr)] gap-2"><dt className="flex items-center gap-1.5 text-muted-foreground"><FileText className="size-3.5 shrink-0" />最近复盘</dt><dd>{kit.last_review}</dd></div>}
               </dl>
             ) : <p className="text-xs text-muted-foreground">读取中…</p>}
           </div>

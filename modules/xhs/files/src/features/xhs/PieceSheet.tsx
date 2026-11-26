@@ -1,4 +1,4 @@
-// 单篇抽屉（?piece=）：左边手机预览，右边按状态——写稿中 / 待发布看发布前检查，已发布看数据（第 1、3、7 天）。
+// 单篇抽屉（?piece=）：左边手机预览，右边按状态——写稿中 / 待发布看发布前检查，已发布看数据（第 1、3、7 天）。 单篇大屏预览：宽屏左右排、窄屏上下排。
 // 今天、内容（看板 / 日历 / 列表）、数据、复盘都能打开。归属：小红书内容模块。
 import { useState } from 'react'
 import { Link } from 'react-router'
@@ -30,7 +30,7 @@ export function PieceSheet() {
   const p = data?.piece
   return (
     <Sheet open onOpenChange={(o) => !o && close()}>
-      <SheetContent side="right" className="flex flex-col gap-0 bg-card p-0 data-[side=right]:w-full data-[side=right]:sm:max-w-[980px]">
+      <SheetContent side="right" className="flex flex-col gap-0 bg-card p-0 data-[side=right]:w-full data-[side=right]:sm:max-w-[min(1180px,96vw)]">
         <SheetHeader className="border-b px-6 pt-5 pb-4">
           <div className="text-xs tracking-wide text-muted-foreground">小红书 · {p?.pillar_name ?? '不在内容支柱里'} · {p?.format ?? '图文'}</div>
           <SheetTitle className="pr-8 font-heading text-xl leading-snug">{p ? (data.draft.title || p.title) : <Skeleton className="h-6 w-60" />}</SheetTitle>
@@ -51,7 +51,7 @@ export function PieceSheet() {
             <div className="grid gap-6 px-6 py-5 md:grid-cols-[320px_minmax(0,1fr)]">
               <div className="flex flex-col items-center gap-3 md:sticky md:top-0 md:self-start">
                 <ViewTabs label="手机画面" value={view} onChange={setView} items={[{ value: '发现页', label: '发现页' }, { value: '笔记页', label: '笔记页' }]} />
-                <PhonePreview draft={data.draft} view={view} selfNote={p!.note_id} comments={data.comments} stats={p!.status === '已发布' && p!.total ? { likes: p!.total.likes, saves: p!.total.saves, comments: p!.total.comments, date: p!.published_at!.slice(0, 10) } : null} />
+                <PhonePreview account={p!.account} draft={data.draft} view={view} selfNote={p!.note_id} comments={data.comments} stats={p!.status === '已发布' && p!.total ? { likes: p!.total.likes, saves: p!.total.saves, comments: p!.total.comments, date: p!.published_at!.slice(0, 10) } : null} />
                 <p className="text-center text-[12px] text-muted-foreground">{view === '发现页' ? '红框是这篇，旁边是自己最近的笔记和收藏的同行笔记' : p!.status === '已发布' ? '点图片翻页；评论是赞最多的几条（后台导出的）' : '点图片翻页；封面和内页按模板实时画'}</p>
               </div>
               <div className="min-w-0">{p!.status === '已发布' ? <Published d={data} /> : <Draft d={data} />}</div>
@@ -159,7 +159,7 @@ function Draft({ d }: { d: PieceDetail }) {
         <SheetSection title={`稿件版本（${d.versions.length}）`} action={<Link to={`/content/studio/${p.id}?tab=versions`} className="text-xs text-primary hover:underline">去创作页看全部</Link>}>
           <ul className="grid gap-1.5 text-[13px]">
             {d.versions.slice(0, 4).map((v) => (
-              <li key={v.id} className="flex items-center gap-2"><span className="num w-7 font-medium">v{v.version}</span><span className="shrink-0 text-muted-foreground">{v.origin} · {v.author}</span>{v.example && <ExampleTag />}<span className="min-w-0 flex-1 truncate">{v.note}</span><span className="num text-xs text-muted-foreground">{mdhm(v.created_at)}</span></li>
+              <li key={v.id} className="flex flex-wrap items-center gap-2"><span className="num w-7 font-medium">v{v.version}</span><span className="shrink-0 text-muted-foreground">{v.origin} · {v.author}</span>{v.example && <ExampleTag />}<span className="min-w-0 flex-1 truncate">{v.note}</span><span className="num text-xs text-muted-foreground">{mdhm(v.created_at)}</span></li>
             ))}
           </ul>
         </SheetSection>

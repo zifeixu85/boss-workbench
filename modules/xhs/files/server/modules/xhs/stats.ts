@@ -1,10 +1,11 @@
-// 数据：已发笔记的表现（自然、投流分开）、内容支柱谁收藏高、按周走势、单篇发布后第 N 天、数据提醒。归属：小红书内容模块。
+// 数据：已发笔记的表现（自然、投流分开）、内容支柱谁收藏高、按周走势、单篇发布后第 N 天、数据提醒。归属：小红书内容模块。 发现页保留自家模板与对标示意封面。
 // 口径：以自然流量为准；没有的数据是 null（页面写“—”），不当 0；数据截至 xhs_note_stats.stats_date（导入失败时停在前一天）。
 // 中位数：一篇一篇算再取中间（偶数篇取中间两篇的平均），两篇爆款会把平均数拉高，比较时都用中位数（和知识库作品索引一致）。
 import { all, get } from '../../db.ts'
 import { today, addDays, isoWeek, daysBetween } from '../../services/common.ts'
 import { normalizeDraft } from './draft.ts'
 import { xhsName } from './account-name.ts'
+import { assetFile } from './chat-image.ts'
 
 type Stat = { impressions: number; reads: number; likes: number; saves: number; comments: number; new_followers: number; spend: number }
 type NoteJoined = {
@@ -197,10 +198,18 @@ function takeaway(series: DailyPoint[]): string | null {
 
 /** 发现页里放在旁边的卡：自己最近的笔记 + 对标收藏（同行的笔记不套自家的封面和水印） */
 export function feed() {
-  const account = xhsName() // 自家账号名：设置里的小红书账号名（没设就用店名）
-  const own = noteRows().slice(0, 14).map((n) => ({ id: n.id, piece_id: n.piece_id, title: n.title, cover_text: n.cover_text, cover: n.cover, pages: n.pages, likes: n.total ? n.total.likes : null, own: true, account }))
+  const account = xhsName()
+  // 保留无图片文件的笔记，前端用自己的模板或对标示意封面绘制。账号一次读出。
+  const accounts = new Map(all<{ id: string; account: string | null }>('SELECT id, account FROM xhs_pieces').map(p => [p.id, p.account]))
+  const assets = new Set(all<{ id: string }>("SELECT id FROM xhs_assets WHERE file IS NOT NULL AND file <> ''").map(a => a.id).filter(id => { try { assetFile(id); return true } catch { return false } }))
+  const image = (pad: string | null | undefined) => pad && /^a_(img|gen)_[0-9a-z]{8}$/.test(pad) && assets.has(pad) ? `/api/m/xhs/assets/${pad}/file` : null
+  const own = noteRows().map(n => ({ id: n.id, piece_id: n.piece_id, title: n.title, cover_text: n.cover_text, cover: n.cover, pages: n.pages,
+    image: image(n.cover?.pad), generated: n.cover?.pad.startsWith('a_gen_') ?? false,
+    likes: n.total ? n.total.likes : null, own: true, account: (n.piece_id ? accounts.get(n.piece_id) : null) || account,
+  })).slice(0, 14)
   const bench = all<{ id: string; account: string; title: string; cover_text: string | null; pad: string | null; likes: number | null }>('SELECT id, account, title, cover_text, pad, likes FROM xhs_benchmarks ORDER BY saved_at DESC')
-    .map((b) => ({ id: b.id, piece_id: null, title: b.title, cover_text: b.cover_text, cover: null, pages: [], likes: b.likes, own: false, account: b.account }))
+    .map(b => ({ id: b.id, piece_id: null, title: b.title, cover_text: b.cover_text, cover: null, pages: [], likes: null, own: false, account: b.account, image: image(b.pad), generated: b.pad?.startsWith('a_gen_') ?? false })).slice(0, 14)
+
   return { own, bench }
 }
 

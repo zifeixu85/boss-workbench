@@ -1,7 +1,7 @@
-// 创作页左边的对话：起点卡、消息（参考了哪些文件、写成了哪一版、候选“用这个”）、进行中、失败重试、快捷建议、输入框。
+// 创作页左边的对话：起点卡、消息（参考了哪些文件、写成了哪一版、候选“用这个”）、进行中、失败重试、快捷建议、输入框。 对话完成后定位稿件，窄屏三段切换。
 // 背后是本机 Codex（只能看、不能改、不能联网，按“小红书创作” Skill 写）；预先写好的示例对话标清楚，不冒充现场生成。归属：小红书内容模块。
 import { useEffect, useRef, useState } from 'react'
-import { AlertCircle, ArrowUp, Bot, CircleCheck, Images, Loader2, Paperclip, RotateCcw, Square, X } from 'lucide-react'
+import { AlertCircle, Send, CircleCheck, Images, Loader2, Paperclip, RotateCcw, Square, X } from 'lucide-react'
 import { api, useApi, useWrite } from '@/lib/api'
 import { cn } from '@/lib/utils'
 import { now } from '@/lib/clock'
@@ -63,14 +63,14 @@ function Options({ m, onAdopt, busy }: { m: Message; onAdopt: (i: number) => voi
   )
 }
 
-function AiMessage({ m, onAdopt, onRetry, onStop, onShowDraft, busy, slow, limit }: { m: Message; onAdopt: (i: number) => void; onRetry: () => void; onStop: () => void; onShowDraft: () => void; busy: boolean; slow: number; limit: number }) {
+function AiMessage({ m, writer, onAdopt, onRetry, onStop, onShowDraft, busy, slow, limit }: { m: Message; writer: string; onAdopt: (i: number) => void; onRetry: () => void; onStop: () => void; onShowDraft: () => void; busy: boolean; slow: number; limit: number }) {
   const [open, setOpen] = useState(false)
   return (
     <div className="flex gap-2.5">
-      <span className="mt-0.5 grid size-7 shrink-0 place-items-center rounded-lg bg-primary text-primary-foreground shadow-sm"><Bot className="size-4" /></span>
+      <span className="mt-0.5 grid size-7 shrink-0 place-items-center rounded-lg bg-primary text-primary-foreground shadow-sm"><span className="font-heading text-sm">写</span></span>
       <div className="min-w-0 flex-1">
         <div className="mb-1 flex flex-wrap items-baseline gap-x-2 text-[12px] text-muted-foreground">
-          <span className="font-medium text-foreground">Codex</span>
+          <span className="font-medium text-foreground">{writer}</span>
           {m.origin === '示例' ? <ExampleTag text="示例 · 预先写好的" /> : m.status === 'done' ? <span>本机 · 用时 {took(m.duration_ms)}</span> : null}
           <span className="num">{mdhm(m.created_at)}</span>
         </div>
@@ -86,7 +86,7 @@ function AiMessage({ m, onAdopt, onRetry, onStop, onShowDraft, busy, slow, limit
             {m.status === 'done' && m.error && <p className="mt-1.5 text-xs text-warn">{m.error}</p>}
             {m.options && <Options m={m} onAdopt={onAdopt} busy={busy} />}
             {m.version != null && (
-              <button type="button" onClick={onShowDraft} className="mt-2.5 inline-flex items-center gap-1.5 rounded-md bg-ok-soft px-2.5 py-1 text-[12.5px] font-medium text-ok hover:brightness-95"><CircleCheck className="size-3.5" />稿件已更新到 v{m.version} · 看稿件</button>
+              <button type="button" onClick={onShowDraft} className="mt-2.5 inline-flex items-center gap-1.5 rounded-md bg-ok-soft px-2.5 py-1 text-[12.5px] font-medium text-ok hover:brightness-95"><CircleCheck className="size-3.5" />稿件已更新到 v{m.version} · 在稿件里看</button>
             )}
             {m.refs.length > 0 && <div className="mt-2.5 flex flex-wrap items-center gap-1 text-[12px] text-muted-foreground">参考了：{m.refs.map((f) => <DocChip key={f} path={f} />)}</div>}
             {m.files_read.length > 0 && (
@@ -107,7 +107,7 @@ function UserMessage({ m }: { m: Message }) {
     <div className="flex justify-end">
       <div className="max-w-[86%]">
         <div className="mb-1 text-right text-[12px] text-muted-foreground"><span className="font-medium text-foreground">{m.author}</span> <span className="num">{mdhm(m.created_at)}</span></div>
-        <div className="rounded-xl rounded-tr-sm bg-primary px-3.5 py-2 text-[13.5px] leading-relaxed whitespace-pre-wrap text-primary-foreground">{m.text}</div>
+        <div className="rounded-xl rounded-tr-sm bg-foreground px-3.5 py-2 text-[13.5px] leading-relaxed whitespace-pre-wrap text-background">{m.text}</div>
       </div>
     </div>
   )
@@ -139,19 +139,20 @@ export function ChatPane({ data, ensureSaved, onShowDraft, onCover, className }:
   const allFiles = kit ? [...(kit.skill ? [kit.skill] : []), ...kit.groups.flatMap((g) => g.files)] : []
   return (
     <section className={cn('flex min-h-[560px] min-w-0 flex-col overflow-hidden rounded-xl border bg-card shadow-paper lg:min-h-0', className)}>
-      <div ref={list} className="min-h-0 flex-1 space-y-4 overflow-y-auto px-4 py-4">
+      <div ref={list} className="xhs-chat-messages min-h-0 flex-1 space-y-6 overflow-y-auto px-5 py-6">
         <StartCard piece={data.piece} kit={kit} compact={msgs.length > 0} />
         {msgs.map((m, i) => (
           <div key={m.id}>
             {i === firstExample && <div className="mb-3 flex items-center gap-2 text-[12px] text-muted-foreground"><span className="h-px flex-1 bg-border" />下面是预先写好的示例对话，不是现场生成的<span className="h-px flex-1 bg-border" /></div>}
-            {m.role === 'user' ? <UserMessage m={m} /> : <AiMessage m={m} busy={busy || adopt.isPending}
+            {m.role === 'user' ? <UserMessage m={m} /> : <AiMessage m={m} writer={m.author && !/^(本机 )?Codex$/.test(m.author) ? m.author : data.versions.find(v => v.version === m.version)?.author?.replace(/^本机 Codex$/, 'Codex') || 'Codex'} busy={busy || adopt.isPending}
               onAdopt={async (k) => { await ensureSaved(); adopt.mutate({ mid: m.id, i: k }) }} onRetry={() => retry.mutate(m.id)} onStop={() => stop.mutate(m.id)} onShowDraft={onShowDraft}
               slow={codex?.slow_s ?? 90} limit={codex?.timeout_s ?? 180} />}
             {i === lastExample && lastExample < msgs.length - 1 && <div className="mt-4 flex items-center gap-2 text-[12px] text-muted-foreground"><span className="h-px flex-1 bg-border" />以下是现场对话<span className="h-px flex-1 bg-border" /></div>}
           </div>
         ))}
       </div>
-      <div className="border-t bg-surface-2/40 px-3 pt-2.5 pb-3">
+      {codex && !codex.available && <p role="status" className="px-4 py-2 text-xs text-warn">{codex.detail}</p>}
+      <div className="xhs-composer border-t bg-surface-2/40 px-3 pt-2.5 pb-3">
         <div className="mb-2 flex gap-1.5 overflow-x-auto pb-0.5 [scrollbar-width:none]">
           {suggestions(data.has_draft).map((s) => (
             <button key={s} type="button" disabled={busy} onClick={() => submit(s)} className="shrink-0 rounded-full border bg-card px-2.5 py-1 text-xs text-foreground/80 transition-colors hover:border-primary hover:text-primary disabled:opacity-50">{s}</button>
@@ -163,7 +164,7 @@ export function ChatPane({ data, ensureSaved, onShowDraft, onCover, className }:
             onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); submit() } }}
             placeholder={data.has_draft ? '告诉 Codex 想怎么改，比如：开头换成加班的场景，正文再短一点' : '说一句想怎么写，比如：第一次买的人最容易踩的三个坑'}
             className="max-h-40 min-h-[56px] resize-none border-0 bg-transparent text-[13.5px] shadow-none focus-visible:ring-0" />
-          <div className="flex items-center gap-1 px-2 pb-2">
+          <div className="xhs-compose-actions flex flex-wrap items-center gap-1 px-2 pb-2">
             <Popover>
               <PopoverTrigger asChild><Button size="xs" variant="ghost"><Paperclip />引用资料</Button></PopoverTrigger>
               <PopoverContent align="start" className="max-h-72 w-72 gap-0 overflow-y-auto p-1.5">
@@ -172,8 +173,8 @@ export function ChatPane({ data, ensureSaved, onShowDraft, onCover, className }:
               </PopoverContent>
             </Popover>
             <Button size="xs" variant="ghost" onClick={onCover}><Images />做封面</Button>
-            <span className={cn('ml-auto truncate text-[12px]', codex && !codex.available ? 'text-warn' : 'text-muted-foreground')}>{codex?.detail ?? ''}</span>
-            <Button size="icon-sm" aria-label="发送" onClick={() => submit()} disabled={busy || !text.trim()}>{send.isPending ? <Loader2 className="animate-spin" /> : <ArrowUp />}</Button>
+            <span className="xhs-send-hint ml-auto text-[10px] text-muted-foreground">Enter 发送 · Shift+Enter 换行</span>
+            <Button className="xhs-solid xhs-send" size="sm" aria-label="发送" onClick={() => submit()} disabled={busy || !text.trim()}>{send.isPending ? <Loader2 className="animate-spin" /> : <Send />}发送</Button>
           </div>
         </div>
       </div>
