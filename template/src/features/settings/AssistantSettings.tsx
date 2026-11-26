@@ -1,11 +1,11 @@
 // 设置 → AI 助手（2026-10-15）：本机 Codex 找没找到、登没登录，页面里的对话栏的开关（默认关），和它能做什么、不做什么。
-// 日常用法是在 Codex 里说、工作台开在右侧面板（2026-11-12）；页面里的对话栏是可选的
+// 常驻对话的开关只在装了内嵌 Codex 模块时出现（2026-11-26）。日常用法是在 Codex 里说、工作台开在右侧面板（2026-11-12）；页面里的对话栏是可选的
 import { CircleAlert, CircleCheck } from 'lucide-react'
 import { api, useApi, useWrite } from '@/lib/api'
 import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
 
-type Status = { ready: boolean; version: string | null; detail: string; fix: string | null; on: boolean; engine?: 'simple' | 'codex' }
+type Status = { ready: boolean; version: string | null; detail: string; fix: string | null; on: boolean; engine?: 'simple' | 'codex'; persistent?: boolean }
 
 export function AssistantSettings() {
   const { data, refetch } = useApi<Status>('/assistant/status')
@@ -29,11 +29,12 @@ export function AssistantSettings() {
         </div>
         <Switch checked={data.on} disabled={save.isPending} aria-label="AI 助手" onCheckedChange={(c) => save.mutate(c)} />
       </label>
-      {data.on && (
+      {/* 装了内嵌 Codex 模块才有这个开关（没装就不出现：说“工作台装上内嵌 Codex”） */}
+      {data.on && data.persistent && (
         <label className="flex items-center gap-3 border-t pt-4">
           <div className="min-w-0 flex-1">
-            <div className="text-sm font-medium">常驻对话（进阶）</div>
-            <div className="text-xs text-muted-foreground">打开后和在 Codex 里开一个对话一样：用你的插件、技能和规矩，看得到你在看的页面和选中的字，能接着聊；对话也记在你的 Codex 里。Codex 要问“是否允许”时会弹在对话栏里。关着是一问一答。</div>
+            <div className="text-sm font-medium">常驻对话（内嵌 Codex）</div>
+            <div className="text-xs text-muted-foreground">打开后和在 Codex 里开一个对话一样：用你的插件、技能和规矩，看得到你在看的页面和选中的字，能接着聊；对话也记在你的 Codex 里。Codex 要问“是否允许”时会弹在对话栏里。关掉是一问一答。</div>
           </div>
           <Switch checked={data.engine === 'codex'} disabled={engine.isPending} aria-label="常驻对话" onCheckedChange={(c) => engine.mutate(c)} />
         </label>

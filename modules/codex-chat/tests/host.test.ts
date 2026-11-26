@@ -1,11 +1,11 @@
 // 常驻对话引擎（host.ts）：拿一个假的 codex app-server（一行一条 JSON-RPC）测：握手、开对话（工作目录是知识库根目录、用他自己的设置）、
-// 逐字收回答、Codex 问“是否允许”时挂起来等网页答、答了接着跑、一轮结束；没测过的版本不用（service 降级）。运行：npm test
+// 逐字收回答、Codex 问“是否允许”时挂起来等网页答、答了接着跑、一轮结束；没测过的版本不用（service 降级）。运行（仓库根目录）：node --test modules/codex-chat/tests/*.test.ts
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { chmodSync, mkdtempSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import os from 'node:os'
-import { CodexHost, HostError, approvalOf, decisionFor, stepOf, type TurnProgress } from './host.ts'
+import { CodexHost, HostError, approvalOf, decisionFor, stepOf, type TurnProgress } from '../files/server/modules/codex-chat/host.ts'
 
 const dir = mkdtempSync(join(os.tmpdir(), 'wb-host-'))
 function fake(version: string) {

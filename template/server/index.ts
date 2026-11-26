@@ -6,6 +6,7 @@ import { streamSSE } from 'hono/streaming'
 import { existsSync, watch, readFileSync } from 'node:fs'
 import { join, relative } from 'node:path'
 import { open, dataVersion, APP_DIR, ROOT, DB_PATH } from './db.ts'
+import { dropPending } from './services/undo.ts'
 import { routes } from './routes.ts'
 import { demoDate } from './clock.ts'
 import { startReminders, type PushPayload } from './reminders/service.ts'
@@ -30,6 +31,8 @@ const app = new Hono()
 
 // 防 DNS 重绑定和跨站写入：只认本机地址；写操作必须同源、JSON
 app.use('/api/*', async (c, next) => {
+  // 撤回用的“改之前的样子”只挂在同一次请求里的那条改动上：上一次没记改动就写的行，不带到这一次
+  if (c.req.method !== 'GET') dropPending(open())
   const host = c.req.header('host') ?? ''
   if (!isLocal(host)) return c.json({ ok: false, error: '只允许本机访问' }, 403)
   if (c.req.method !== 'GET') {

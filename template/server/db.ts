@@ -1,5 +1,6 @@
 // 数据库：用 Node 自带的 node:sqlite，不需要编译原生模块。
 // 位置：<知识库根>/工作台/数据/workbench.db（程序放库外时用 WORKBENCH_ROOT、WORKBENCH_DB 指定）。网页接口和 Codex 命令行共用这一份。
+import { attachPending, installUndoTriggers } from './services/undo.ts'
 import { DatabaseSync, type SQLInputValue } from 'node:sqlite'
 import { mkdirSync, readdirSync, readFileSync, existsSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
@@ -29,6 +30,8 @@ export function open(): DatabaseSync {
   db = new DatabaseSync(DB_PATH, { timeout: 10000 })
   db.exec('PRAGMA busy_timeout = 10000; PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON;')
   migrate(db)
+  // 撤回用的临时触发器：这个连接的写入都记下“改之前的样子”，logChange 时挂到改动记录上（services/undo.ts）
+  installUndoTriggers(db)
   // 演示日期：环境变量 DEMO_TODAY 没写时，用 settings 里的 demo_today（见 clock.ts）
   const demo = db.prepare("SELECT value FROM settings WHERE key = 'demo_today'").get() as { value: string } | undefined
   applyStoredDemoToday(demo?.value)
@@ -110,9 +113,12 @@ export function localDate(d = now()) {
 
 /** 每次写入都留一条记录，网页“最近改动”和撤回都靠它 */
 export function logChange(actor: string, entity: string, entityId: string, action: string, summary: string) {
-  run('INSERT INTO changes (at, actor, entity, entity_id, action, summary) VALUES (:at, :actor, :entity, :id, :action, :summary)', {
+  const r = open().prepare('INSERT INTO changes (at, actor, entity, entity_id, action, summary) VALUES (:at, :actor, :entity, :id, :action, :summary)').run({
     at: nowIso(), actor, entity, id: entityId, action, summary,
   })
+  // 这条改动前面写的行挂上来，撤回照着还原
+  attachPending(open(), Number(r.lastInsertRowid))
+  return Number(r.lastInsertRowid)
 }
 
 /** 其他进程（例如 Codex 命令行）提交后，data_version 会变；本地服务据此推送刷新 */

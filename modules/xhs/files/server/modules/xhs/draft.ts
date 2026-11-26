@@ -19,6 +19,8 @@ export type Draft = {
 /** 封面模板（xhs_assets 里的 a_cover1—4）、垫图（a_pad1—5）、底色 */
 export const TEMPLATES = ['a_cover1', 'a_cover2', 'a_cover3', 'a_cover4'] as const
 export const PADS = ['a_pad1', 'a_pad2', 'a_pad3', 'a_pad4', 'a_pad5'] as const
+/** 对话里放进来的图（xhs_assets 里的 a_img_xxxxxxxx） */
+export const isImagePad = (v: unknown): v is string => typeof v === 'string' && /^a_img_[0-9a-z]{8}$/.test(v)
 export const TONES = ['米白', '茶绿', '暖棕', '雾蓝'] as const
 
 const str = (v: unknown, max = 4000) => (typeof v === 'string' ? v : v == null ? '' : String(v)).slice(0, max)
@@ -51,7 +53,7 @@ export function normalizeDraft(input: unknown, base?: Partial<Draft>, pillarId?:
   const fallback = defaultCover(pillarId, title)
   const cover: DraftCover = {
     template: TEMPLATES.includes(coverIn.template as never) ? coverIn.template! : fallback.template,
-    pad: PADS.includes(coverIn.pad as never) ? coverIn.pad! : fallback.pad,
+    pad: PADS.includes(coverIn.pad as never) || isImagePad(coverIn.pad) ? coverIn.pad! : fallback.pad,
     tone: TONES.includes(coverIn.tone as never) ? coverIn.tone! : fallback.tone,
   }
   const cover_text = str(pick('cover_text'), 40).trim() || pages[0]?.text.replace(/\n/g, ' ') || title

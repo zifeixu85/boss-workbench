@@ -10,7 +10,7 @@ export const TESTED_VERSIONS = ['0.166', '0.171']
 export const versionTested = (v: string, env: NodeJS.ProcessEnv = process.env) => env.WORKBENCH_CODEX_ANY_VERSION === '1' || TESTED_VERSIONS.some((t) => v === t || v.startsWith(`${t}.`))
 
 export type Approval = { key: string; kind: '跑命令' | '改文件' | '要权限'; text: string; reason: string }
-export type Step = { tool: string; label: string; state: 'running' | 'ok' | 'failed'; detail?: string }
+export type Step = { tool: string; label: string; state: 'running' | 'ok' | 'failed'; detail?: string; image?: string }
 export type TurnProgress = { text?: string; steps?: Step[]; approvals?: Approval[]; status?: 'done' | 'failed' | 'cancelled'; error?: string }
 export class HostError extends Error {}
 
@@ -30,7 +30,9 @@ export function stepOf(item: any): Step | null {
   if (type === 'fileChange') return { tool: 'files', label: `改文件：${(item.changes ?? []).map((c: any) => String(c.path ?? '').split('/').pop()).filter(Boolean).slice(0, 3).join('、') || '…'}`, state: st(item.status) }
   if (type === 'mcpToolCall') return { tool: `${item.server}.${item.tool}`, label: `${item.server === 'boss-workbench' || /workbench/.test(String(item.server)) ? '工作台' : item.server} · ${item.tool}`, state: st(item.status) }
   if (type === 'webSearch') return { tool: 'web', label: `联网搜：${short(item.query, 40)}`, state: 'ok' }
-  if (/image/i.test(type)) return { tool: 'image', label: '生成图片', state: st(item.status) }
+  // 生成的图：存在哪（savedPath），对话里直接显示（2026-11-26）
+  if (type === 'imageGeneration') return { tool: 'image', label: item.failure ? `图没生成成：${short(item.failure, 60)}` : '生成了一张图', state: item.failure ? 'failed' : item.savedPath ? 'ok' : st(item.status), ...(item.savedPath ? { image: String(item.savedPath) } : {}), ...(item.revisedPrompt ? { detail: short(item.revisedPrompt, 400) } : {}) }
+  if (type === 'imageView') return { tool: 'image-view', label: `看了一张图：${String(item.path ?? '').split('/').pop()}`, state: 'ok' }
   return { tool: type, label: type, state: st(item.status) }
 }
 
@@ -181,7 +183,7 @@ export class CodexHost {
   }
 
   /** 开一轮：没有对话就新开（在他的 Codex 历史里），有就接着（工作台重启过的先接上） */
-  async startTurn(threadId: string | null, text: string, onProgress: (p: TurnProgress) => void): Promise<{ threadId: string; done: Promise<TurnProgress>; cancel: () => void }> {
+  async startTurn(threadId: string | null, text: string, onProgress: (p: TurnProgress) => void, images: string[] = []): Promise<{ threadId: string; done: Promise<TurnProgress>; cancel: () => void }> {
     await this.ensure()
     let id = threadId
     if (id && !this.loaded.has(id)) {
@@ -202,7 +204,8 @@ export class CodexHost {
     this.turns.set(tid, turn)
     timer = setTimeout(() => { void this.interrupt(tid); turn.finish({ status: 'failed', error: '超过 15 分钟没答完，已停止' }) }, this.o.timeoutMs ?? 15 * 60000)
     try {
-      const r = await this.request('turn/start', { threadId: tid, input: [{ type: 'text', text }] })
+      // 他带的图片作为图片输入（localImage）跟着这一句发；别的附件在文字里写了位置
+      const r = await this.request('turn/start', { threadId: tid, input: [{ type: 'text', text }, ...images.map((path) => ({ type: 'localImage', path }))] })
       turn.turnId = String(r?.turn?.id ?? turn.turnId ?? '')
     } catch (e) { turn.finish({ status: 'failed', error: (e as Error).message }); throw e }
     return { threadId: tid, done, cancel: () => { void this.interrupt(tid) } }

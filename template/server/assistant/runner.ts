@@ -48,9 +48,10 @@ export function featureArguments(features: Set<string>): string[] {
 
 const toml = (v: string) => JSON.stringify(v)
 /** codex exec 的参数（提示词从 stdin 进，参数固定，网页不能改命令、模型和工具） */
-export function codexArguments(workDir: string, features: Set<string>): string[] {
+export function codexArguments(workDir: string, features: Set<string>, images: string[] = []): string[] {
   const mcp = join(APP_DIR, 'server', 'assistant', 'mcp.ts')
-  const args = ['exec', '--ignore-user-config', '--ignore-rules', '--ephemeral', '--sandbox', 'read-only', '--skip-git-repo-check', '--cd', workDir, '--json', '--color', 'never', ...featureArguments(features)]
+  // 他带的图片用 -i 跟着这一句发（附件在 assistant/attachments.ts 里，只认存过的编号）
+  const args = ['exec', '--ignore-user-config', '--ignore-rules', '--ephemeral', '--sandbox', 'read-only', '--skip-git-repo-check', '--cd', workDir, '--json', '--color', 'never', ...featureArguments(features), ...images.flatMap((p) => ['-i', p])]
   for (const v of [
     'approval_policy="never"', 'web_search="disabled"', 'project_doc_max_bytes=0', 'model_reasoning_effort="medium"', 'history.persistence="none"',
     `mcp_servers.workbench.command=${toml(process.execPath)}`, `mcp_servers.workbench.args=[${toml(mcp)}]`,
@@ -97,7 +98,7 @@ function codexEnv(): NodeJS.ProcessEnv {
 export type RunHandle = { done: Promise<void>; cancel: () => void }
 
 /** 跑一轮：读 Codex 的 JSONL 事件，工具调用记成步骤，最后一段话是回答。只认工作台工具，别的能力一出现就停 */
-export function runAssistant(prompt: string, onProgress: (p: Progress) => void, opts: { timeoutMs?: number; codex?: { bin: string; features: Set<string> } } = {}): RunHandle {
+export function runAssistant(prompt: string, onProgress: (p: Progress) => void, opts: { timeoutMs?: number; codex?: { bin: string; features: Set<string> }; images?: string[] } = {}): RunHandle {
   let cancel = () => {}
   const done = (async () => {
     const c = opts.codex ?? await (async () => { const { info, features } = await codexInfo(); return info.ready && info.bin ? { bin: info.bin, features } : null })()
@@ -105,7 +106,7 @@ export function runAssistant(prompt: string, onProgress: (p: Progress) => void, 
     const workDir = join(dirname(DB_PATH), 'ai-助手')
     mkdirSync(workDir, { recursive: true })
     await new Promise<void>((resolve) => {
-      const child = spawn(c.bin, codexArguments(workDir, c.features), { cwd: workDir, shell: false, env: codexEnv(), detached: process.platform !== 'win32', stdio: ['pipe', 'pipe', 'pipe'] })
+      const child = spawn(c.bin, codexArguments(workDir, c.features, opts.images ?? []), { cwd: workDir, shell: false, env: codexEnv(), detached: process.platform !== 'win32', stdio: ['pipe', 'pipe', 'pipe'] })
       const steps: Step[] = []
       const index = new Map<string, number>()
       let buffer = '', last = '', stderr = '', settled = false

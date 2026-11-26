@@ -11,6 +11,8 @@ import * as center from './center.ts'
 import { checkRules } from './checks.ts'
 import { codexStatus } from './codex.ts'
 import { identity } from '../../services/identity.ts'
+import { readFileSync } from 'node:fs'
+import { putChatImage, assetFile } from './chat-image.ts'
 
 const ok = <T>(data: T) => ({ ok: true as const, data })
 const WEB = '网页' as const
@@ -29,6 +31,13 @@ contentRoutes.get('/drafts', (c) => c.json(ok(content.drafts())))
 contentRoutes.get('/drafts/:id', (c) => c.json(ok(content.draft(c.req.param('id')))))
 contentRoutes.get('/assets', (c) => c.json(ok(content.assets())))
 contentRoutes.get('/today', (c) => c.json(ok(content.todayPlan())))
+// 素材图片（对话里放进稿子的图）
+contentRoutes.get('/assets/:id/file', (c) => {
+  const f = assetFile(c.req.param('id'))
+  const ext = f.split('.').pop()!.toLowerCase()
+  const type = ext === 'jpg' || ext === 'jpeg' ? 'image/jpeg' : ext === 'webp' ? 'image/webp' : ext === 'gif' ? 'image/gif' : 'image/png'
+  return new Response(readFileSync(f), { headers: { 'content-type': type, 'cache-control': 'private, max-age=86400', 'x-content-type-options': 'nosniff' } })
+})
 
 // 内容中心：今天页、开写的起点、AI 手上有什么、本机 Codex 状态
 contentRoutes.get('/center', (c) => c.json(ok(center.centerToday())))
@@ -49,6 +58,8 @@ contentRoutes.post('/pieces/:id/versions', async (c) => {
   return c.json(ok(pieces.saveVersion(c.req.param('id'), b.data, { origin: '手动修改', author: String(b.author || identity().owner), note: b.note ? String(b.note) : null })))
 })
 contentRoutes.get('/pieces/:id/versions/:v', (c) => c.json(ok(pieces.versions(c.req.param('id')).find((v) => v.version === Number(c.req.param('v'))) ?? null)))
+// AI 对话里生成的图放进这篇（做成封面垫图，存新的一版）
+contentRoutes.post('/pieces/:id/image', async (c) => c.json(ok(await putChatImage(c.req.param('id'), await body(c)))))
 contentRoutes.post('/pieces/:id/restore', async (c) => c.json(ok(pieces.restoreVersion(c.req.param('id'), Number((await body(c)).version), WEB))))
 /** 发布前检查的词表：网页边改边查用（shared/xhs-check.ts 是同一套规则） */
 contentRoutes.get('/check-rules', (c) => c.json(ok(checkRules())))

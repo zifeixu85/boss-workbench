@@ -22,7 +22,7 @@ function bench(name) {
   const KB = join(tmp, '知识库 测试')
   const APP = join(KB, '工作台', '程序')
   const DB = join(KB, '工作台', '数据', 'workbench.db')
-  const env = { ...process.env, WORKBENCH_ROOT: KB, WORKBENCH_DB: DB, NO_COLOR: '1', BOSS_WORKBENCH_SKILL: '', BOSS_WORKBENCH_MODULES: '' }
+  const env = { ...process.env, WORKBENCH_ROOT: KB, WORKBENCH_DB: DB, NO_COLOR: '1', BOSS_WORKBENCH_SKILL: '', BOSS_WORKBENCH_MODULES: '', HOME: tmp } // HOME 换掉：这台电脑上另外装着的老板工作台 Skill 不算
   delete env.DEMO_TODAY
   const sh = (cmd, args, cwd = APP) => { const r = spawnSync(cmd, args, { cwd, env, encoding: 'utf8' }); return { code: r.status, out: `${r.stdout ?? ''}${r.stderr ?? ''}` } }
   const node = (...args) => sh(process.execPath, args)

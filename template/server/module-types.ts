@@ -105,4 +105,16 @@ export type ModuleHooks = {
   importTargets?: import('./modules/data/targets.ts').ImportTarget[]
   /** 示例数据 */
   seed?: ModuleSeed
+  /** 页面 AI 助手的常驻对话引擎（内嵌 Codex 这类模块给）。有模块给了，设置里才有“常驻对话”这个开关；没有就一问一答 */
+  assistantHost?: (opts: { bin: string; cwd: string; instructions: string }) => Promise<AssistantHost>
+}
+
+/** 常驻对话引擎：开一轮、答“是否允许”、关掉。进度里的步骤、审批的样子和 service.ts 一样 */
+export type AssistantApproval = { key: string; kind: '跑命令' | '改文件' | '要权限'; text: string; reason: string }
+export type AssistantStep = { tool: string; label: string; state: 'running' | 'ok' | 'failed'; detail?: string; image?: string }
+export type AssistantProgress = { text?: string; steps?: AssistantStep[]; approvals?: AssistantApproval[]; status?: 'done' | 'failed' | 'cancelled'; error?: string }
+export interface AssistantHost {
+  startTurn(threadId: string | null, text: string, onProgress: (p: AssistantProgress) => void, images?: string[]): Promise<{ threadId: string; done: Promise<AssistantProgress>; cancel: () => void }>
+  answer(key: string, choice: 'allow' | 'allow-session' | 'deny'): boolean
+  close(): void
 }

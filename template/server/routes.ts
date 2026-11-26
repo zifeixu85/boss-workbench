@@ -13,6 +13,9 @@ import { bizRoutes } from './modules/biz/routes.ts'
 import { dataRoutes } from './modules/data/routes.ts'
 import { reminderRoutes } from './reminders/routes.ts'
 import * as assistant from './assistant/service.ts'
+import { saveAttachment } from './assistant/attachments.ts'
+import { revertChange } from './services/revert.ts'
+import { readFileSync as readFileForRoute } from 'node:fs'
 import { calendarRoutes } from './calendar/routes.ts'
 import { maybeSync } from './calendar/service.ts'
 import { APP_DIR, DB_PATH } from './db.ts'
@@ -38,8 +41,19 @@ routes.get('/assistant/messages', (c) => { const t = c.req.query('thread'); retu
 // 对话（历史）：列、改名、归档 / 找回（2026-11-26 照 A梦 自用工作台的对话框）
 routes.get('/assistant/threads', (c) => c.json(ok(assistant.threads({ archived: c.req.query('archived') === '1' }))))
 routes.patch('/assistant/threads/:id', async (c) => c.json(ok(assistant.updateThread(c.req.param('id'), await body(c) as { title?: unknown; archived?: unknown }))))
-routes.post('/assistant/ask', async (c) => c.json(ok(await assistant.ask(await body(c) as { text?: unknown; thread?: unknown }))))
+routes.post('/assistant/ask', async (c) => c.json(ok(await assistant.ask(await body(c) as { text?: unknown; thread?: unknown; attachments?: unknown }))))
 routes.post('/assistant/stop', (c) => c.json(ok(assistant.stop())))
+// 回答里生成的图：按消息编号和第几步取（只给这条回答里记下的图，不认网页传来的路径）
+routes.get('/assistant/images/:msg/:step', (c) => {
+  const path = assistant.assistantImage(c.req.param('msg'), Number(c.req.param('step')))
+  const ext = path.split('.').pop()!.toLowerCase()
+  const type = ext === 'jpg' || ext === 'jpeg' ? 'image/jpeg' : ext === 'webp' ? 'image/webp' : ext === 'gif' ? 'image/gif' : 'image/png'
+  return new Response(readFileForRoute(path), { headers: { 'content-type': type, 'cache-control': 'private, max-age=3600', 'x-content-type-options': 'nosniff' } })
+})
+// 附件：粘贴的截图、拖进来的文件（base64），存在数据库旁边的 对话附件/
+routes.post('/assistant/attachments', async (c) => c.json(ok(saveAttachment(await body(c) as { name?: unknown; data?: unknown }))))
+// 撤回一条改动（结果卡上的“撤回”）
+routes.post('/changes/:id/revert', (c) => c.json(ok(revertChange(Number(c.req.param('id')), '网页'))))
 // 常驻对话里 Codex 问“是否允许”：网页点了允许 / 这次对话都允许 / 不允许
 routes.post('/assistant/approve', async (c) => c.json(ok(assistant.approve(await body(c) as { key?: unknown; choice?: unknown }))))
 routes.delete('/assistant/messages', (c) => c.json(ok(assistant.clear())))

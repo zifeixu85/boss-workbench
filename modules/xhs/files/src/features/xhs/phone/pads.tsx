@@ -1,6 +1,7 @@
 // 茶具垫图：封面模板里的“实拍”位置先用插画顶上（对应素材库 a_pad1—5 的描述），不依赖生图。归属：小红书内容模块。
 // 插画的颜色写在这里（是画，不是界面色）。每个实例用 useId 生成独立的渐变编号，同一页画很多张也不串。
 import { useId } from 'react'
+import { cn } from '@/lib/utils'
 
 export const PAD_NAMES: Record<string, string> = {
   a_pad1: '工位俯拍：盖碗 + 电脑一角', a_pad2: '玻璃公道杯逆光', a_pad3: '保温杯 + 寿眉饼', a_pad4: '会议室一杯岩茶', a_pad5: '暖光小陶炉和茶壶',
@@ -164,6 +165,8 @@ const SCENES: Record<string, (p: P) => React.JSX.Element> = { a_pad1: Desk, a_pa
 /** 一张垫图。slice：铺满容器（裁边）；meet：完整显示 */
 export function Pad({ pad, fit = 'slice', align = 'xMid', className }: { pad?: string | null; fit?: 'slice' | 'meet'; align?: 'xMin' | 'xMid' | 'xMax'; className?: string }) {
   const k = `p${useId().replace(/[^a-zA-Z0-9]/g, '')}`
+  // 对话里放进来的图：用真图
+  if (pad && /^a_img_[0-9a-z]{8}$/.test(pad)) return <img src={`/api/m/xhs/assets/${pad}/file`} alt="对话里生成的图" className={cn(className, fit === 'meet' ? 'object-contain' : 'object-cover', align === 'xMin' ? 'object-left' : align === 'xMax' ? 'object-right' : 'object-center')} />
   const Scene = SCENES[pad ?? ''] ?? Desk
   return (
     <svg viewBox="0 0 300 240" preserveAspectRatio={`${align}YMid ${fit}`} className={className} role="img" aria-label={PAD_NAMES[pad ?? 'a_pad1']}>

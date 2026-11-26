@@ -1,5 +1,5 @@
 // 页面里的 AI 助手（默认关，设置里能打开）的对话和调度：一次只跑一轮；网页每 1.5 秒取一次进度（跑完以后，Codex 写的东西由实时刷新带到各页面）
-// 两种方式（设置 assistant_engine）：simple 一问一答（每问一次跑一次 codex exec，隔离）；codex 常驻对话（host.ts：和他在 Codex 里开对话一样，
+// 两种方式（设置 assistant_engine）：simple 一问一答（每问一次跑一次 codex exec，隔离）；codex 常驻对话（内嵌 Codex 模块的引擎：和他在 Codex 里开对话一样，
 // 用他自己的插件、技能、规矩，权限照他 Codex 的设置，要问“是否允许”时网页上弹出来）。常驻对话起不来、版本没测过，降级成一问一答并说明。
 // 2026-11-26 照 A梦 自用工作台的对话框改：能开好几个对话（assistant_threads），在历史里切换、改名；常驻对话的每个对话对应他 Codex 里的一个对话。
 import { all, get, run, uid, nowIso } from '../db.ts'
@@ -7,19 +7,37 @@ import { BadRequest, NotFound } from '../services/common.ts'
 import { getSettings } from '../services/today.ts'
 import { today } from '../services/common.ts'
 import { buildPrompt, codexInfo, runAssistant, type PageContext, type Progress, type RunHandle } from './runner.ts'
-import { CodexHost, HostError, type Approval } from './host.ts'
+import type { AssistantApproval as Approval, AssistantHost } from '../module-types.ts'
+import { moduleHooks } from '../module-hooks.ts'
 import { APP_DIR, DB_PATH, ROOT } from '../db.ts'
 import { describePage, openObject } from './page-context.ts'
+import { resolveAttachments } from './attachments.ts'
+import { changeCards, lastChangeId } from '../services/revert.ts'
+import { existsSync } from 'node:fs'
+import { extname } from 'node:path'
 
-type Row = { id: string; thread_id: string | null; role: 'user' | 'assistant'; text: string; status: string; error: string | null; steps_json: string | null; page_title: string | null; page_path: string | null; page_selection: string | null; created_at: string; finished_at: string | null }
+type Row = { id: string; thread_id: string | null; role: 'user' | 'assistant'; text: string; status: string; error: string | null; steps_json: string | null; page_title: string | null; page_path: string | null; page_selection: string | null; created_at: string; finished_at: string | null; change_from: number | null; change_to: number | null; attachments_json: string | null }
 type ThreadRow = { id: string; title: string; codex_thread_id: string | null; archived: number; created_at: string; updated_at: string }
-const shape = (r: Row) => ({ ...r, steps: r.steps_json ? JSON.parse(r.steps_json) : [], steps_json: undefined })
+const shape = (r: Row) => {
+  const steps = (r.steps_json ? JSON.parse(r.steps_json) : []) as { image?: string }[]
+  return {
+    ...r, steps, steps_json: undefined, attachments_json: undefined,
+    attachments: r.attachments_json ? JSON.parse(r.attachments_json) : [],
+    // 生成的图：网页按编号取（/assistant/images/<消息>/<第几张>），不把本机路径给网页
+    images: steps.flatMap((s, i) => (s.image ? [{ step: i, url: `/api/assistant/images/${r.id}/${i}`, name: s.image.split('/').pop() }] : [])),
+    // 结果卡：这一轮 AI 写进工作台的（打开、撤回）
+    cards: r.role === 'assistant' && r.change_from !== null ? changeCards(r.change_from, r.change_to) : [],
+  }
+}
 
 let current: { id: string; thread: string; handle: RunHandle } | null = null
-let host: CodexHost | null = null
+let host: AssistantHost | null = null
+/** 有没有装了给常驻对话引擎的模块（内嵌 Codex）；没装就只有一问一答，设置里也不出这个开关 */
+const hostMaker = () => moduleHooks().find((x) => x.hooks.assistantHost)?.hooks.assistantHost ?? null
 /** 常驻对话这一轮在等他点的审批（只在内存里：工作台重启了，Codex 那边这一轮也就断了） */
 let waiting: Approval[] = []
-const engineOf = () => (get<{ value: string }>("SELECT value FROM settings WHERE key = 'assistant_engine'")?.value === 'codex' ? 'codex' : 'simple')
+// 装了内嵌 Codex 就默认常驻对话（设置里能换回一问一答）；没装一律一问一答
+const engineOf = () => (hostMaker() && get<{ value: string }>("SELECT value FROM settings WHERE key = 'assistant_engine'")?.value !== 'simple' ? 'codex' : 'simple')
 /** 给常驻对话的话：它在哪个工作台里（一台电脑上可能有好几个工作台，Codex 里也可能接着别的工作台的工具），用哪条命令读写这一个 */
 const instructions = () => [
   '你在老板工作台网页右边的对话栏里被调用，和他在 Codex 里开对话是同一回事：照他的规矩、技能、插件做事。',
@@ -34,7 +52,7 @@ export async function status(force = false) {
   const { info } = await codexInfo(force)
   const s = get<{ value: string }>("SELECT value FROM settings WHERE key = 'assistant_on'")?.value
   // 默认关（2026-11-12）：日常用法是在 Codex 里说、工作台开在右侧面板（Codex 插件）；页面里的对话栏要用再到设置里打开
-  return { ready: info.ready, version: info.version, detail: info.detail, fix: info.fix, on: s === '1', running: current?.id ?? null, running_thread: current?.thread ?? null, engine: engineOf() }
+  return { ready: info.ready, version: info.version, detail: info.detail, fix: info.fix, on: s === '1', running: current?.id ?? null, running_thread: current?.thread ?? null, engine: engineOf(), persistent: !!hostMaker() }
 }
 
 // ───────────────────────────── 对话（历史）
@@ -91,7 +109,7 @@ export function clear() {
 
 // ───────────────────────────── 说一句
 
-export async function ask(input: { text?: unknown; page?: PageContext; thread?: unknown }) {
+export async function ask(input: { text?: unknown; page?: PageContext; thread?: unknown; attachments?: unknown }) {
   const text = String(input.text ?? '').trim()
   if (!text) throw new BadRequest('要写想让 AI 做什么')
   if (text.length > 4000) throw new BadRequest('一次说得太长了，拆成几次说')
@@ -110,32 +128,35 @@ export async function ask(input: { text?: unknown; page?: PageContext; thread?: 
   const at = nowIso()
   const pg = input.page as (PageContext & { selection?: unknown }) | undefined
   const page = pg && typeof pg === 'object' ? { title: String(pg.title ?? '').slice(0, 80), path: String(pg.path ?? '').slice(0, 200), text: String(pg.text ?? ''), selection: String(pg.selection ?? '').slice(0, 2000) } : undefined
+  const att = resolveAttachments(input.attachments)
   const uidUser = uid('am'), uidBot = uid('am')
   // 本页胶囊显示的是“打开的对象”（认得出就用对象名，认不出用页面标题）
   const shown = page?.path ? (openObject(page.path).replace(/（.*$/, '').replace(/^“我关注的”对象 · /, '') || page.title) : null
-  run('INSERT INTO assistant_messages (id, thread_id, role, text, status, page_title, page_path, page_selection, created_at, finished_at) VALUES (:id, :t, \'user\', :text, \'done\', :pt, :pp, :ps, :at, :at)',
-    { id: uidUser, t: thread, text, pt: shown, pp: page?.path ?? null, ps: page?.selection || null, at })
-  run('INSERT INTO assistant_messages (id, thread_id, role, text, status, created_at) VALUES (:id, :t, \'assistant\', \'\', \'running\', :at)', { id: uidBot, t: thread, at: nowIso() })
+  run('INSERT INTO assistant_messages (id, thread_id, role, text, status, page_title, page_path, page_selection, attachments_json, created_at, finished_at) VALUES (:id, :t, \'user\', :text, \'done\', :pt, :pp, :ps, :aj, :at, :at)',
+    { id: uidUser, t: thread, text, pt: shown, pp: page?.path ?? null, ps: page?.selection || null, aj: att.items.length ? JSON.stringify(att.items.map(({ path: _p, ...a }) => a)) : null, at })
+  // 这一轮开始时改动记录到哪了：答完以后，这之后 AI 写的就是这一轮的结果
+  run('INSERT INTO assistant_messages (id, thread_id, role, text, status, change_from, created_at) VALUES (:id, :t, \'assistant\', \'\', \'running\', :cf, :at)', { id: uidBot, t: thread, cf: lastChangeId(), at: nowIso() })
   run('UPDATE assistant_threads SET updated_at = :at, archived = 0 WHERE id = :id', { id: thread, at })
   const s = getSettings()
-  const prompt = buildPrompt({ text, page, history, today: today(), owner: s.owner, business: s.business, modules: s.modules })
+  const said = att.note ? `${text}\n\n${att.note}` : text
+  const prompt = buildPrompt({ text: said, page, history, today: today(), owner: s.owner, business: s.business, modules: s.modules })
   const save = (p: Progress) => {
     const fields: string[] = []
     const params: Record<string, string | null> = { id: uidBot }
     if (p.text !== undefined) { fields.push('text = :text'); params.text = p.text }
     if (p.steps) { fields.push('steps_json = :steps'); params.steps = JSON.stringify(p.steps) }
-    if (p.status) { fields.push('status = :status', 'finished_at = :fin'); params.status = p.status; params.fin = nowIso() }
+    if (p.status) { fields.push('status = :status', 'finished_at = :fin', 'change_to = :ct'); params.status = p.status; params.fin = nowIso(); params.ct = String(lastChangeId()) }
     if (p.error !== undefined) { fields.push('error = :error'); params.error = p.error }
     if (fields.length) run(`UPDATE assistant_messages SET ${fields.join(', ')} WHERE id = :id`, params)
     if (p.status) run('UPDATE assistant_threads SET updated_at = :at WHERE id = :id', { id: thread, at: nowIso() })
   }
   if (engineOf() === 'codex') {
-    const viaHost = await startOnHost(thread, uidBot, text, page, save).catch((e: Error) => e)
+    const viaHost = await startOnHost(thread, uidBot, said, page, save, att.images).catch((e: Error) => e)
     if (!(viaHost instanceof Error)) return { id: uidBot, thread }
     // 常驻对话起不来（版本没测过、协议对不上、进程退了）：降级成一问一答，说一句原因，不报错
     save({ steps: [{ tool: 'fallback', label: `常驻对话没起来，先用一问一答：${viaHost.message}`, state: 'failed' }] })
   }
-  const handle = runAssistant(prompt, save)
+  const handle = runAssistant(prompt, save, { images: att.images })
   current = { id: uidBot, thread, handle }
   handle.done.finally(() => { if (current?.id === uidBot) current = null })
   return { id: uidBot, thread }
@@ -143,21 +164,33 @@ export async function ask(input: { text?: unknown; page?: PageContext; thread?: 
 }
 
 /** 常驻对话开一轮：每句前面带上他在看的页面（哪一页、打开的对象、选中的文字），对话记在他自己的 Codex 历史里（一个工作台对话对应一个 Codex 对话） */
-async function startOnHost(thread: string, uidBot: string, text: string, page: (PageContext & { selection?: string }) | undefined, save: (p: Progress) => void) {
+async function startOnHost(thread: string, uidBot: string, text: string, page: (PageContext & { selection?: string }) | undefined, save: (p: Progress) => void, images: string[] = []) {
   const { info } = await codexInfo()
-  if (!info.bin) throw new HostError('没找到 Codex 的命令')
-  if (!host) host = new CodexHost({ bin: info.bin, cwd: ROOT, instructions: instructions() })
+  if (!info.bin) throw new Error('没找到 Codex 的命令')
+  const make = hostMaker()
+  if (!make) throw new Error('没装内嵌 Codex')
+  if (!host) host = await make({ bin: info.bin, cwd: ROOT, instructions: instructions() })
   const h = host
   let steps: Progress['steps'] = []
   const turn = await h.startTurn(threadRow(thread)?.codex_thread_id ?? null, `${describePage(page)}\n\n${text}`, (p) => {
     if (p.approvals) waiting = p.approvals
     if (p.steps) steps = p.steps
     save({ ...(p.text !== undefined ? { text: p.text } : {}), ...(p.steps ? { steps } : {}), ...(p.status ? { status: p.status } : {}), ...(p.error !== undefined ? { error: p.error } : {}) })
-  })
+  }, images)
   run('UPDATE assistant_threads SET codex_thread_id = :c WHERE id = :id', { id: thread, c: turn.threadId })
   const handle: RunHandle = { cancel: turn.cancel, done: turn.done.then(() => undefined) }
   current = { id: uidBot, thread, handle }
   turn.done.finally(() => { waiting = []; if (current?.id === uidBot) current = null })
+}
+
+const IMAGE_EXT = /^\.(png|jpe?g|gif|webp)$/i
+/** 一条回答里第 i 步生成的图在本机哪儿（网页按编号取图、小红书“放进当前稿子”都用这个；只认这条回答里记下的） */
+export function assistantImage(messageId: string, step: number): string {
+  const r = get<{ steps_json: string | null }>('SELECT steps_json FROM assistant_messages WHERE id = :id', { id: messageId })
+  const path = r?.steps_json ? (JSON.parse(r.steps_json) as { image?: string }[])[step]?.image : undefined
+  if (!path || !IMAGE_EXT.test(extname(path))) throw new NotFound('没有这张图')
+  if (!existsSync(path)) throw new NotFound('这张图在电脑上找不到了（可能被挪走或删了）')
+  return path
 }
 
 /** 网页上点了“允许 / 这次对话都允许 / 不允许” */

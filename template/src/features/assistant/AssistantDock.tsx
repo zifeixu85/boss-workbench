@@ -16,7 +16,7 @@ import { DOCK_WIDTH, canPin, clampDockWidth, dockLayout, dragDockWidth, hotkeyAc
 import { useDockMark, useDockPrefs, useViewportWidth } from './use-dock'
 import { DockFrameContext, DockHeader, Tip, type DockFrame } from './DockFrame'
 import { HistoryView, type Thread } from './DockHistory'
-import { Composer, MessageList, approve, type Msg } from './DockChat'
+import { Composer, MessageList, approve, type Msg, type Attached } from './DockChat'
 import './dock.css'
 
 type Status = { ready: boolean; version: string | null; detail: string; fix: string | null; on: boolean; running: string | null; running_thread: string | null; engine?: 'simple' | 'codex' }
@@ -135,10 +135,10 @@ function DockBody() {
 
   if (history) return <HistoryView onBack={() => setHistory(false)} onPick={(t) => { setThread(t.id); setHistory(false) }} />
 
-  const send = async (text: string, page: { title: string; path: string; text: string; selection: string } | null) => {
+  const send = async (text: string, page: { title: string; path: string; text: string; selection: string } | null, attachments: Attached[] = []) => {
     setError(null)
     try {
-      const r = await api.post<{ id: string; thread: string }>('/assistant/ask', { text, page, ...(thread ? { thread } : {}) })
+      const r = await api.post<{ id: string; thread: string }>('/assistant/ask', { text, page, ...(attachments.length ? { attachments: attachments.map((a) => ({ id: a.id, name: a.name })) } : {}), ...(thread ? { thread } : {}) })
       if (r.thread !== thread) { fresh.current.add(r.thread); setThread(r.thread) }
       await qc.invalidateQueries({ queryKey: ['assistant-messages', r.thread] })
       void qc.invalidateQueries({ queryKey: ['assistant-threads'] })
