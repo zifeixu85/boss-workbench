@@ -70,9 +70,9 @@ function Card({ a }: { a: AssistantCard }) {
         {(a.legacy || a.file_problems > 0) && <StatusBadge value={a.legacy ? '待补齐' : `${a.file_problems} 处要改`} tone="warn" />}
       </div>
       {a.skills.length > 0 && (
-        <div className="flex flex-wrap items-center gap-1.5" aria-label="看家本领">
+        <div className="flex flex-wrap items-center gap-1.5" aria-label="方法">
           {a.skills.slice(0, 3).map((k) => <span key={k} className="rounded-md bg-primary/8 px-1.5 py-0.5 text-xs font-medium text-primary">{k}</span>)}
-          {a.skills.length > 3 && <span className="text-xs text-muted-foreground">等 {a.skills.length} 项本领</span>}
+          {a.skills.length > 3 && <span className="text-xs text-muted-foreground">等 {a.skills.length} 项方法</span>}
         </div>
       )}
       <p className="line-clamp-2 min-h-10 text-[13.5px] leading-5">{a.owns ? <><span className="text-muted-foreground">管：</span>{a.owns}</> : <span className="text-muted-foreground">还没写管什么</span>}</p>
