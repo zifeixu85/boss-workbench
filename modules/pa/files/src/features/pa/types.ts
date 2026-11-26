@@ -107,6 +107,8 @@ export type Usage = {
 export type AssistantLink = { key: string; name: string; avatar: string; by: string }
 export type AssistantBase = {
   key: string; name: string; avatar: string; duty: string; owns: string; notOwns: string; call: string; can: string[]; chief: boolean
+  /** 信条（IDENTITY 开头写了才有） */
+  motto: string
   legacy: boolean; missing: string[]; folder: string; thread: string; mismatch: string[]
   /** 看家本领的名字（约定 11.12），按文件里的顺序 */
   skills: string[]

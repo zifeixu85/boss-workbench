@@ -15,7 +15,7 @@ import type { AssistantCard, AssistantList } from './types'
 
 export default function RolesPage() {
   const { data: d, error, refetch } = useApi<AssistantList>('/m/pa/assistants')
-  const head = <PageHeader eyebrow="我的助理" title="助理" desc="你的几位助理，每位管什么、最近在忙什么、用了多少。点进去看它的设定、档案和做过的事。要新建或改哪位，在对话里说。" />
+  const head = <PageHeader eyebrow="我的助理" title="助理" />
   if (error && !d) return <>{head}<PageBody><Failed message={error.message} onRetry={() => refetch()} /></PageBody></>
   if (!d) return <>{head}<PageBody className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3"><Skeleton className="h-52" /><Skeleton className="h-52" /><Skeleton className="h-52" /></PageBody></>
   return (
@@ -34,7 +34,7 @@ export default function RolesPage() {
           : <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">{d.assistants.map((a) => <Card key={a.key} a={a} />)}</div>}
         {d.retired.length > 0 && (
           <details className="group rounded-xl border bg-card/60 px-4 py-3 text-sm">
-            <summary className="cursor-pointer list-none text-muted-foreground marker:hidden hover:text-foreground">不用了的 {d.retired.length} 位（文件夹还留着，点开能看）</summary>
+            <summary className="cursor-pointer list-none text-muted-foreground marker:hidden hover:text-foreground">已停用 · {d.retired.length} 位</summary>
             <ul className="mt-2 grid gap-1.5">
               {d.retired.map((r) => (
                 <li key={r.key}><Link to={`/roles/${encodeURIComponent(r.key)}`} className="text-primary hover:underline">{r.avatar ? `${r.avatar} ` : ''}{r.name}</Link>
@@ -83,8 +83,8 @@ function Card({ a }: { a: AssistantCard }) {
             : <span className="text-muted-foreground">近 30 天没认出它的对话</span>}
         </div>
         <div className="flex items-baseline justify-between gap-2 text-muted-foreground">
-          <span>近 30 天 {a.sessions} 个对话</span>
-          <span>这周 <span className="num text-[15px] font-semibold text-foreground">{week.value}</span>{week.unit} token</span>
+          <span>近 30 天 · {a.sessions} 个对话</span>
+          <span>本周 · <span className="num text-[15px] font-semibold text-foreground">{week.value}</span>{week.unit} token</span>
         </div>
       </div>
     </Link>

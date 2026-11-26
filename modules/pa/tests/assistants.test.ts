@@ -19,6 +19,7 @@ const NEW_ID = `---
   - 写知识库
   - 派活给别的对话
 总协调: 是
+信条: 先把关，再动手
 ---
 
 ## 我是谁
@@ -39,14 +40,14 @@ const OLD_ID = `---
 
 test('新格式：开头的几项全读出来；总协调是总助', () => {
   const a = assistantProps('总助-阿栀', NEW_ID)
-  assert.deepEqual({ ...a }, { key: '总助-阿栀', name: '阿栀', avatar: '🧑‍💼', duty: '总助', owns: '盯各项目进度、派活、回来核对', notOwns: '替你回客户、答应价钱', call: '叫阿栀', can: ['读知识库', '写知识库', '派活给别的对话'], chief: true, legacy: false, missing: [] })
+  assert.deepEqual({ ...a }, { key: '总助-阿栀', name: '阿栀', avatar: '🧑‍💼', duty: '总助', owns: '盯各项目进度、派活、回来核对', notOwns: '替你回客户、答应价钱', call: '叫阿栀', can: ['读知识库', '写知识库', '派活给别的对话'], chief: true, motto: '先把关，再动手', legacy: false, missing: [] })
 })
 
 test('旧格式：缺的从文件夹名、“角色”、“我管什么，不管什么”那一节补；还缺的留空并列出来，不报错', () => {
   const a = assistantProps('内容-小红', OLD_ID)
   assert.equal(a.name, '小红'); assert.equal(a.duty, '内容助理'); assert.equal(a.avatar, '')
   assert.equal(a.owns, '出选题、写稿、配图建议。'); assert.equal(a.notOwns, '发布、回评论。')
-  assert.equal(a.call, '叫小红'); assert.equal(a.chief, false); assert.equal(a.legacy, true)
+  assert.equal(a.call, '叫小红'); assert.equal(a.chief, false); assert.equal(a.legacy, true); assert.equal(a.motto, '', '没写信条就是空的，不算缺')
   assert.deepEqual(a.missing, ['头像', '职责', '管什么', '不管什么', '怎么叫', '能做什么', '总协调'])
   assert.equal(assistantProps('总助-小茶', '---\n角色: 总助\n名称: 小茶\n---\n').chief, true, '旧的总助文件夹也算总协调')
   assert.equal(assistantProps('分身-阿远', '').name, '阿远', '没有 IDENTITY 也能显示')

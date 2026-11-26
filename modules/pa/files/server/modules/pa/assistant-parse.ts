@@ -10,6 +10,8 @@ export type Assistant = {
   /** 助理文件夹名（页面地址用它） */
   key: string
   name: string; avatar: string; duty: string; owns: string; notOwns: string; call: string; can: string[]; chief: boolean
+  /** 信条（IDENTITY 开头可选的一项，写了才显示） */
+  motto: string
   /** 开头没写这几项新字段（11.11 以前建的） */
   legacy: boolean
   /** 缺的固定项 */
@@ -63,6 +65,7 @@ export function assistantProps(folder: string, identity: string): Assistant {
     call: str(meta['怎么叫']) || `叫${name}`,
     can: list(meta['能做什么']),
     chief: has('总协调') ? str(meta['总协调']) === '是' : oldKind === '总助',
+    motto: str(meta['信条']),
     legacy: missing.length > 0,
     missing,
   }

@@ -40,7 +40,10 @@ export default function AssistantPage() {
               {a.legacy && <StatusBadge value="待补齐" tone="warn" />}
               {a.retired && <StatusBadge value={a.stopped?.day ? `${a.stopped.day} 起不用了` : '不用了'} tone="neutral" />}
             </div>
-            <span className="text-xs text-muted-foreground">在对话里说“{a.call}”叫到它 · 放在知识库 {a.folder}/</span>
+            <div className="flex flex-wrap gap-1.5">
+              <span className="inline-flex max-w-full items-center gap-1 rounded-md border bg-card px-1.5 py-0.5 text-xs text-muted-foreground"><span className="text-foreground/70">唤起</span>{a.call}</span>
+              <span className="inline-flex max-w-full items-center gap-1 rounded-md border bg-card px-1.5 py-0.5 text-xs text-muted-foreground" title={`知识库 ${a.folder}/`}><span className="text-foreground/70">位置</span><span className="truncate font-mono">{a.folder}/</span></span>
+            </div>
           </div>
         </div>
       </PageHeader>
@@ -51,11 +54,12 @@ export default function AssistantPage() {
           <aside className="grid min-h-0 min-w-0 content-start gap-5 lg:overflow-y-auto lg:overscroll-contain lg:pr-1" aria-label="定位、用量和做过的事">
             <Panel title="定位">
               <dl className="grid gap-3 text-sm">
+                {a.motto && <Field label="信条"><span className="font-heading text-[15px] leading-6">“{a.motto}”</span></Field>}
                 {a.skills.length > 0 && <Field label="方法"><span className="flex flex-wrap gap-1.5">{a.skills.slice(0, 3).map((k) => <span key={k} className="rounded-md bg-primary/8 px-1.5 py-0.5 text-xs font-medium text-primary">{k}</span>)}{a.skills.length > 3 && <span className="self-center text-xs text-muted-foreground">等 {a.skills.length} 项，全文见“能力 › 方法”</span>}</span></Field>}
-                <Field label="管什么">{a.owns}</Field>
-                <Field label="不管什么">{a.notOwns}</Field>
-                <Field label="怎么叫">{a.call}</Field>
-                <Field label="能做什么">{a.can.length ? <span className="flex flex-wrap gap-1.5">{a.can.map((c) => <span key={c} className="rounded-md border bg-muted/40 px-1.5 py-0.5 text-xs">{c}</span>)}</span> : ''}</Field>
+                <Field label="职责范围">{a.owns}</Field>
+                <Field label="不负责">{a.notOwns}</Field>
+                <Field label="唤起方式">{a.call}</Field>
+                <Field label="权限">{a.can.length ? <span className="flex flex-wrap gap-1.5">{a.can.map((c) => <span key={c} className="rounded-md border bg-muted/40 px-1.5 py-0.5 text-xs">{c}</span>)}</span> : ''}</Field>
               </dl>
               {a.legacy && <p className="mt-3 rounded-lg bg-warn-soft px-3 py-2 text-xs text-warn">它的 IDENTITY 开头还没写：{a.missing.join('、')}。跟总助说“把助理的头像、职责补齐”就行。</p>}
               {a.mismatch.length > 0 && <p className="mt-3 rounded-lg bg-warn-soft px-3 py-2 text-xs text-warn">和花名册对不上（以 IDENTITY 为准）：{a.mismatch.join('；')}</p>}
