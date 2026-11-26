@@ -4,7 +4,7 @@
 // 作品放哪：知识库档案.md 的“我关注的”表登记的作品文件夹；没登记放 13-作品/。写知识库之前先备份原文件。归属：小红书内容模块。
 import { existsSync, mkdirSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
-import { ROOT, localDate } from '../../db.ts'
+import { ROOT, localDate, run } from '../../db.ts'
 import { now } from '../../clock.ts'
 import { BadRequest, type Actor } from '../../services/common.ts'
 import { backupKbFile, canReadKbPath, readKbTextFile, writeKb } from '../../services/kb.ts'
@@ -76,6 +76,8 @@ export function saveWork(input: unknown, opts: { id?: string; by?: string; actor
   const summary = String(raw.summary ?? '').trim().replace(/\s+/g, ' ').slice(0, SUMMARY_MAX) || draft.title
   const id = opts.id ? pieceRow(opts.id).id : createPiece({ title: draft.title, source: '自己想的', status: '写稿中', reason: summary }, opts.actor ?? 'Codex', { created_by: by }).id
   const { version, draft: saved } = saveVersion(id, draft, { origin: 'AI 写稿', author: by, note: summary })
+  // 用到的知识库文件记进这一篇的“依据”（还没写依据的才写），内容页、创作页都看得到来源
+  if (sources.length) run('UPDATE xhs_pieces SET ref = :ref WHERE id = :id AND (ref IS NULL OR ref = \'\')', { id, ref: sources.map((x) => `${x}.md`).join('、').slice(0, 400) })
   const folder = worksFolder()
   const d = now()
   const day = localDate(d)

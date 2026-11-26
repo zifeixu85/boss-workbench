@@ -28,11 +28,13 @@ test('存选题 → 存稿 → 改稿 → 放图 → 找到；都记着是阿柚
   assert.match(t.id, /^p_/); assert.equal(t.existed, false); assert.equal(t.path, `/content/studio/${t.id}`)
   assert.equal(json('xhs-topic-add', '--title', '圣诞礼盒怎么挑', '--by', '阿柚').id, t.id, '同名的不重复存，回已有那篇')
 
-  const draft = { title: '圣诞礼盒怎么挑', summary: '给公司采购的三档礼盒', pages: ['圣诞礼盒怎么挑', '198 元一档', '398 元一档'], body: '三档怎么选。', tags: ['圣诞'] }
+  const draft = { title: '圣诞礼盒怎么挑', summary: '给公司采购的三档礼盒', pages: ['圣诞礼盒怎么挑', '198 元一档', '398 元一档'], body: '三档怎么选。', tags: ['圣诞'], sources: ['1-老板说明书/老板说明书.md'] }
   const d1 = json('xhs-draft-save', '--id', t.id, '--draft', JSON.stringify(draft), '--by', '阿柚')
   assert.equal(d1.id, t.id, '写在选题下面，是同一篇'); assert.equal(d1.version, 1); assert.equal(d1.path, `/content/studio/${t.id}`)
   const cover = sh('--input-type=module', '-e', `import { latestDraft } from './server/modules/xhs/pieces.ts'; console.log(latestDraft(${JSON.stringify(t.id)}).draft.cover.pad)`)
   assert.equal(cover.out.trim().split('\n').pop(), 'a_pad0', '没给图：封面是占位，不拿茶具插画充数')
+  const ref = sh('--input-type=module', '-e', `import { pieceRow } from './server/modules/xhs/pieces.ts'; console.log(pieceRow(${JSON.stringify(t.id)}).ref)`)
+  assert.equal(ref.out.trim().split('\n').pop(), '1-老板说明书/老板说明书.md', '用到的知识库文件记进这一篇的依据')
   const d2 = json('xhs-draft-save', '--id', t.id, '--draft', JSON.stringify({ ...draft, body: '改过的正文' }), '--by', '阿柚')
   assert.equal(d2.version, 2, '改稿存成新的一版')
 

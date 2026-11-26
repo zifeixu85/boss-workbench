@@ -29,6 +29,7 @@ export function StartCard({ piece, kit, compact }: { piece: Piece; kit?: Kit; co
         <div className="px-4 pt-2.5 pb-3.5">
           {piece.reason && <p className="text-[12.5px] leading-relaxed"><span className="font-medium text-primary">为什么做：</span>{piece.reason}</p>}
           {piece.start?.text && piece.start.text !== piece.reason && <p className="mt-1 text-[12.5px] leading-relaxed whitespace-pre-wrap text-muted-foreground"><span className="font-medium text-primary">起点：</span>{piece.start.text}</p>}
+          {piece.ref && <p className="mt-1 text-[12.5px] leading-relaxed text-muted-foreground"><span className="font-medium text-primary">依据：</span>{piece.ref}</p>}
           {piece.warn && <p className="mt-1.5 rounded-md bg-warn-soft px-2.5 py-1.5 text-[12px] text-warn">提醒：{piece.warn}</p>}
           <div className="mt-3 rounded-lg border border-dashed border-primary/35 bg-card/70 px-3 py-2.5">
             <div className="mb-1.5 flex flex-wrap items-center gap-1.5 text-xs font-medium">AI 手上有什么{kit?.skill && <DocChip path={kit.skill} label="小红书写法" />}</div>
