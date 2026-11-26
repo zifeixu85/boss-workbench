@@ -9,7 +9,7 @@ import { StatusBadge } from '@/components/status'
 import { EmptyNote, Failed } from '@/components/chart-kit'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Skeleton } from '@/components/ui/skeleton'
-import { SessionBadge, when } from './parts'
+import { kbLink, SessionBadge, when } from './parts'
 import { Avatar, tokens } from './assistant-parts'
 import type { AssistantCard, AssistantList } from './types'
 
@@ -22,6 +22,12 @@ export default function RolesPage() {
     <>
       {head}
       <PageBody className="grid grid-cols-[minmax(0,1fr)] gap-5">
+        {d.assistants.length > 0 && (
+          <p className="flex flex-wrap items-baseline gap-x-2 text-sm">
+            <span>团队里现在有 <span className="num font-heading text-[22px] font-semibold">{d.roster.count}</span> 位</span>
+            <span className="text-xs text-muted-foreground">{d.roster.path ? <>按花名册数（<Link className="text-primary hover:underline" to={kbLink(d.roster.path)}>{d.roster.path.split('/').pop()}</Link>{d.roster.old ? '，还是旧名“同事清单”，下次更新时总助会改名' : ''}）</> : '还没有花名册，按助理文件夹数'}</span>
+          </p>
+        )}
         {d.problems.length > 0 && <Alert className="border-warn/30 bg-warn-soft/50"><AlertTitle>有几处要看一下</AlertTitle><AlertDescription>{d.problems.join('；')}</AlertDescription></Alert>}
         {!d.exists || !d.assistants.length
           ? <Panel><EmptyNote>还没有助理（知识库 {d.base}/ 下没有助理的文件夹）。在 Codex 里说“认识一下我的总助”，建好以后这里就会多一张卡；以后想加小红书助理、报价助理，也是说一句。</EmptyNote></Panel>
@@ -29,7 +35,7 @@ export default function RolesPage() {
         <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
           <span>{d.note}</span>
           {d.unmatched > 0 && <Link to="/progress?assistant=-" className="inline-flex items-center gap-1 text-primary hover:underline"><Users className="size-3.5" />近 30 天还有 {d.unmatched} 个对话没归到助理</Link>}
-          {!d.colleagues && d.assistants.length > 0 && <span>还没有同事清单（{d.base}/同事清单.md），常驻对话认不出来；让总助补上就行。</span>}
+          {!d.colleagues && d.assistants.length > 0 && <span>还没有花名册（{d.base}/花名册.md），常驻对话认不出来；让总助补上就行。</span>}
         </p>
       </PageBody>
     </>
@@ -52,6 +58,12 @@ function Card({ a }: { a: AssistantCard }) {
         </div>
         {(a.legacy || a.file_problems > 0) && <StatusBadge value={a.legacy ? '待补齐' : `${a.file_problems} 处要改`} tone="warn" />}
       </div>
+      {a.skills.length > 0 && (
+        <div className="flex flex-wrap items-center gap-1.5" aria-label="看家本领">
+          {a.skills.slice(0, 3).map((k) => <span key={k} className="rounded-md bg-primary/8 px-1.5 py-0.5 text-xs font-medium text-primary">{k}</span>)}
+          {a.skills.length > 3 && <span className="text-xs text-muted-foreground">等 {a.skills.length} 项本领</span>}
+        </div>
+      )}
       <p className="line-clamp-2 min-h-10 text-[13.5px] leading-5">{a.owns ? <><span className="text-muted-foreground">管：</span>{a.owns}</> : <span className="text-muted-foreground">还没写管什么</span>}</p>
       <div className="mt-auto grid gap-2 border-t pt-3 text-xs">
         <div className="flex min-w-0 items-center gap-2">

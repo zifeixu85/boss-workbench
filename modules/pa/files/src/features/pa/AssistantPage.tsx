@@ -79,13 +79,14 @@ export default function AssistantPage() {
         <aside className="grid min-w-0 gap-5">
           <Panel title="定位">
             <dl className="grid gap-3 text-sm">
+              {a.skills.length > 0 && <Field label="看家本领"><span className="flex flex-wrap gap-1.5">{a.skills.slice(0, 3).map((k) => <span key={k} className="rounded-md bg-primary/8 px-1.5 py-0.5 text-xs font-medium text-primary">{k}</span>)}{a.skills.length > 3 && <span className="self-center text-xs text-muted-foreground">等 {a.skills.length} 项，全文在“看家本领”页签</span>}</span></Field>}
               <Field label="管什么">{a.owns}</Field>
               <Field label="不管什么">{a.notOwns}</Field>
               <Field label="怎么叫">{a.call}</Field>
               <Field label="能做什么">{a.can.length ? <span className="flex flex-wrap gap-1.5">{a.can.map((c) => <span key={c} className="rounded-md border bg-muted/40 px-1.5 py-0.5 text-xs">{c}</span>)}</span> : ''}</Field>
             </dl>
             {a.legacy && <p className="mt-3 rounded-lg bg-warn-soft px-3 py-2 text-xs text-warn">它的 IDENTITY 开头还没写：{a.missing.join('、')}。跟总助说“把助理的头像、职责补齐”就行。</p>}
-            {a.mismatch.length > 0 && <p className="mt-3 rounded-lg bg-warn-soft px-3 py-2 text-xs text-warn">和同事清单对不上（以 IDENTITY 为准）：{a.mismatch.join('；')}</p>}
+            {a.mismatch.length > 0 && <p className="mt-3 rounded-lg bg-warn-soft px-3 py-2 text-xs text-warn">和花名册对不上（以 IDENTITY 为准）：{a.mismatch.join('；')}</p>}
           </Panel>
           <Panel title="用量" desc="归到它的对话加起来，估的">
             <div className="grid grid-cols-3 gap-2 text-center">
@@ -96,8 +97,8 @@ export default function AssistantPage() {
           </Panel>
           <Panel title="常驻对话">
             {a.resident?.link ? <Button asChild variant="outline" className="w-full justify-between"><a href={a.resident.link}><span className="truncate">{a.resident.title}</span><ExternalLink /></a></Button>
-              : a.thread ? <EmptyNote>同事清单里登记的是“{a.thread}”，这台电脑近 30 天没读到这个对话。</EmptyNote>
-              : <EmptyNote>同事清单里还没登记它的常驻对话。</EmptyNote>}
+              : a.thread ? <EmptyNote>花名册里登记的是“{a.thread}”，这台电脑近 30 天没读到这个对话。</EmptyNote>
+              : <EmptyNote>花名册里还没登记它的常驻对话。</EmptyNote>}
           </Panel>
           <p className="text-xs text-muted-foreground">{a.note.replace('<名字>', a.name)}</p>
         </aside>

@@ -3,7 +3,7 @@
 // 运行：node --test modules/pa/tests/*.test.ts
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { assistantProps, matchAssistant, parseColleagues, parseDispatch, titleKey, type AssistantKey } from '../files/server/modules/pa/assistant-parse.ts'
+import { assistantProps, matchAssistant, parseColleagues, parseDispatch, skillNames, titleKey, type AssistantKey } from '../files/server/modules/pa/assistant-parse.ts'
 
 const NEW_ID = `---
 类型: 角色
@@ -94,4 +94,11 @@ test('对话归到哪个助理：常驻对话、新旧两种标题、第一句�
   assert.deepEqual(m('问个事', '', { dock: false, persona: '小红书助理-小叶' }), null, '不是对话栏开的不看这一项')
   assert.equal(m('随便聊聊'), null)
   assert.equal(titleKey('🧑‍💼 阿栀｜总助（我的知识库，置顶）'), '🧑‍💼 阿栀｜总助')
+})
+
+test('看家本领（约定 11.12）：每条“**叫什么**。什么时候用……”，取名字；也认小节标题、列表开头的名字；开头属性和说明段不算', () => {
+  const md = `---\n类型: 角色\n名称: 看家本领\n---\n\n每条三句。\n\n- **金字塔原理**。什么时候用：汇报。用了我会：先给结论。\n- **要事第一**。什么时候用：排先后。\n\n**关键节点和依赖**。什么时候用：盯进度。\n\n## 复盘四问\n什么时候用：收尾。\n`
+  assert.deepEqual(skillNames(md), ['金字塔原理', '要事第一', '关键节点和依赖', '复盘四问'])
+  assert.deepEqual(skillNames('- 选题的钩子：什么时候用……\n- 标题套路。什么时候用……\n'), ['选题的钩子', '标题套路'])
+  assert.deepEqual(skillNames(''), [])
 })

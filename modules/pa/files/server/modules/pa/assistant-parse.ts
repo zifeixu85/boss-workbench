@@ -1,8 +1,8 @@
 // 助理（约定 11.11，2026-11-27 A梦 定：“全部就要助理，都是我们的助理”）的纯计算：不读文件，传进来的是文字。
 // - 每个助理的属性读 IDENTITY.md 开头的固定项；旧助理缺的从文件夹名、“角色”、“我管什么，不管什么”那一节补，还缺的留空并列出来。
-// - 同事清单、派单记录是表格，按表头认列。
+// - 花名册（11.11 时叫同事清单）、派单记录是表格，按表头认列。
 // - 一个对话归哪个助理，按下面的顺序认，前面的优先；认不出的不硬归（页面上放“没归到助理的”）：
-//   常驻对话（标题和同事清单里登记的一样）→ 标题以“<头像> <名字>”开头（新格式带“｜职责”，旧的没有；没头像的认“<名字>｜”）
+//   常驻对话（标题和花名册里登记的一样）→ 标题以“<头像> <名字>”开头（新格式带“｜职责”，旧的没有；没头像的认“<名字>｜”）
 //   → 第一句是“叫<名字>” → 工作台对话栏里选了叫哪位的 → 总助派单记录里交出去的那个对话 → 在工作台对话栏里开的（没说叫谁，默认总协调）。
 import { front, sections, str } from './text.ts'
 
@@ -121,4 +121,18 @@ export function matchAssistant(s: { title: string; first: string; dock: boolean;
     ?? (s.dock && s.persona ? hit('工作台对话栏', (a) => a.key === s.persona) : null)
     ?? (dispatched.includes(title) ? hit('派单记录', (a) => a.chief) : null)
     ?? (s.dock ? hit('工作台对话栏', (a) => a.chief) : null)
+}
+
+/** 看家本领（约定 11.12）：每条写成“**叫什么**。什么时候用：…。用了我会：…”。取名字：加粗的开头、小节标题、列表项“名字。/名字：”开头 */
+export function skillNames(md: string): string[] {
+  const out: string[] = []
+  for (const raw of front(md).body.split(/\r?\n/)) {
+    const line = raw.trim()
+    const name = line.match(/^(?:[-*]\s+|\d+[.、]\s*)?\*\*([^*]{1,30})\*\*/)?.[1]
+      ?? line.match(/^#{2,4}\s+(.{1,30})$/)?.[1]
+      ?? line.match(/^[-*]\s+([^。：:，,]{1,20})[。：:]/)?.[1]
+    const n = name?.replace(/[。：:，,\s]+$/, '').trim()
+    if (n && !out.includes(n)) out.push(n)
+  }
+  return out
 }

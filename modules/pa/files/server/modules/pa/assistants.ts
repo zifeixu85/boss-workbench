@@ -1,5 +1,5 @@
 // 助理页的数据（约定 11.11，2026-11-27 A梦 定）：一张助理清单，点进去是这个助理自己的页（定位、档案、做了哪些事、用量、常驻对话）。
-// 属性读 IDENTITY 开头的固定项，缺的用同事清单那一行补；两处不一致以 IDENTITY 为准，页面上说一句。
+// 属性读 IDENTITY 开头的固定项，缺的用花名册（约定 11.12 改的名，旧名“同事清单”也认）那一行补；两处不一致以 IDENTITY 为准，页面上说一句。
 // 对话归到哪个助理见 assistant-parse.ts 的 matchAssistant；用量按归到的对话加总（估的：只算这台电脑上的对话记录）。只读，不改文件。
 import { readdirSync } from 'node:fs'
 import { join } from 'node:path'
@@ -11,19 +11,22 @@ import { places } from './places.ts'
 import { roles, type Role } from './roles.ts'
 import { listSessions, now, type SessionView } from './store.ts'
 import { localDay } from './usage-calc.ts'
-import { assistantProps, matchAssistant, parseColleagues, parseDispatch, type Assistant, type Colleague, type Dispatch, type MatchBy } from './assistant-parse.ts'
+import { assistantProps, matchAssistant, parseColleagues, parseDispatch, skillNames, type Assistant, type Colleague, type Dispatch, type MatchBy } from './assistant-parse.ts'
 
-const COLLEAGUES = '同事清单.md'
+/** 花名册（约定 11.12；11.11 时叫同事清单）：先找新名字，没有再找旧的 */
+const ROSTER = ['花名册.md', '同事清单.md']
 const DISPATCH = '派单记录.md'
 /** 档案页签的顺序：三份在前，总助的三份规则文件跟着，别的按名字 */
-const FILE_ORDER = ['IDENTITY', 'SOUL', 'MEMORY', '底稿', '路由表', '派单记录', '起名规则', '角色', '规矩', '记忆', '身份', '性格']
-const FILE_CALL: Record<string, string> = { IDENTITY: '它是谁', SOUL: '怎么想、怎么做事', MEMORY: '记住的事', 底稿: '分身的底稿', 路由表: '哪类事交给谁', 派单记录: '交出去的事', 起名规则: '新对话怎么起名', 角色: '旧格式', 规矩: '旧格式', 记忆: '旧格式' }
+// 约定 11.12：每轮必读的两份、干活时读的三份、记忆，再是别的（总助的三份规则、查证时读的画像和岗位调研）
+const FILE_ORDER = ['IDENTITY', 'SOUL', '看家本领', '行业门道', '会用的家伙', 'MEMORY', '底稿', '路由表', '派单记录', '起名规则', '画像', '岗位调研', '角色', '规矩', '记忆', '身份', '性格']
+const FILE_CALL: Record<string, string> = { IDENTITY: '它是谁', SOUL: '怎么想、怎么做事', 看家本领: '它会用的方法', 行业门道: '懂你这一行的', 会用的家伙: '会用的工具', 画像: '完整的画像', 岗位调研: '招它时查的资料', MEMORY: '记住的事', 底稿: '分身的底稿', 路由表: '哪类事交给谁', 派单记录: '交出去的事', 起名规则: '新对话怎么起名', 角色: '旧格式', 规矩: '旧格式', 记忆: '旧格式' }
 
 const readable = (rel: string) => { const abs = join(ROOT, rel); return existsSync(abs) && canReadKbPath(abs) }
 const read = (rel: string) => (readable(rel) ? readKbTextFile(join(ROOT, rel)) : '')
 
 type Usage = { today: number; d7: number; d30: number }
 export type AssistantCard = Assistant & {
+  skills: string[]
   folder: string; thread: string; mismatch: string[]
   recent: { id: string; title: string; status: string; last_at: string } | null
   sessions: number; usage: Usage; file_problems: number
@@ -35,11 +38,12 @@ function base() { return places()['助理'] }
 /** 清单里这一行对应哪个助理文件夹：名字一栏链到的路径优先，不然按名字 */
 const rowOf = (rows: Colleague[], folder: string, name: string) => rows.find((r) => r.path && r.path.split('/').slice(-2, -1)[0] === folder) ?? rows.find((r) => r.name === name)
 
-/** 全部助理（总协调排最前，别的按名字），加上同事清单里补来的常驻对话 */
-function loadAssistants(): { list: (Assistant & { folder: string; thread: string; mismatch: string[]; role: Role | undefined })[]; colleagues: Colleague[]; base: string; exists: boolean } {
+/** 全部助理（总协调排最前，别的按名字），加上花名册里补来的常驻对话 */
+function loadAssistants(): { list: (Assistant & { folder: string; thread: string; mismatch: string[]; role: Role | undefined; skills: string[] })[]; colleagues: Colleague[]; rosterFile: string | null; base: string; exists: boolean } {
   const BASE = base()
   const r = roles()
-  const colleagues = parseColleagues(read(`${BASE}/${COLLEAGUES}`))
+  const rosterFile = ROSTER.map((f) => `${BASE}/${f}`).find(readable) ?? null
+  const colleagues = rosterFile ? parseColleagues(read(rosterFile)) : []
   const list = r.roles.map((role) => {
     const folder = role.folder.split('/').pop()!
     const idFile = role.files.find((f) => f.exists && (f.name === 'IDENTITY' || f.name === '角色'))
@@ -50,13 +54,14 @@ function loadAssistants(): { list: (Assistant & { folder: string; thread: string
     const fill = <K extends 'avatar' | 'duty' | 'owns' | 'notOwns' | 'call'>(k: K, label: string, from: string | undefined) => {
       if (!from) return a[k]
       if (!a[k] || (a.legacy && a.missing.includes(label))) return from
-      if (a[k] !== from) mismatch.push(`${label}：IDENTITY 写“${a[k]}”，同事清单写“${from}”`)
+      if (a[k] !== from) mismatch.push(`${label}：IDENTITY 写“${a[k]}”，花名册写“${from}”`)
       return a[k]
     }
     const merged = { ...a, avatar: fill('avatar', '头像', row?.avatar), duty: fill('duty', '职责', row?.duty), owns: fill('owns', '管什么', row?.owns), notOwns: fill('notOwns', '不管什么', row?.notOwns), call: fill('call', '怎么叫', row?.call) }
-    return { ...merged, folder: role.folder, thread: row?.thread ?? '', mismatch, role }
+    const skills = skillNames(read(`${role.folder}/看家本领.md`))
+    return { ...merged, folder: role.folder, thread: row?.thread ?? '', mismatch, role, skills }
   }).sort((x, y) => Number(y.chief) - Number(x.chief) || x.name.localeCompare(y.name, 'zh'))
-  return { list, colleagues, base: BASE, exists: r.exists }
+  return { list, colleagues, rosterFile, base: BASE, exists: r.exists }
 }
 
 /** 总助派单记录（没有总助或没这份文件就是空的） */
@@ -123,10 +128,12 @@ export function assistantList() {
   const chiefs = cards.filter((c) => c.chief).length
   return {
     base: loaded.base, exists: loaded.exists, assistants: cards, unmatched, colleagues: loaded.colleagues.length > 0,
+    // 顶上那句总览：“团队里现在有 N 位”（按花名册数；没有花名册按助理文件夹数）
+    roster: { path: loaded.rosterFile, count: loaded.colleagues.length || cards.length, old: !!loaded.rosterFile?.endsWith('同事清单.md') },
     problems: [
       ...roles().problems,
       ...(chiefs > 1 ? [`总协调只能有一个，现在有 ${chiefs} 个写了“总协调: 是”`] : []),
-      ...loaded.colleagues.filter((c) => !cards.some((a) => a.name === c.name)).map((c) => `同事清单里的“${c.name}”在助理文件夹里没找到`),
+      ...loaded.colleagues.filter((c) => !cards.some((a) => a.name === c.name)).map((c) => `花名册里的“${c.name}”在助理文件夹里没找到`),
     ],
     note: '对话按标题、第一句、常驻对话和派单记录认是哪个助理的，认不出的不算；用量是这些对话在这台电脑上的记录加起来，估的。',
   }

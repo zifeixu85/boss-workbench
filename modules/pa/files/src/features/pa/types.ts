@@ -108,10 +108,14 @@ export type AssistantLink = { key: string; name: string; avatar: string; by: str
 export type AssistantBase = {
   key: string; name: string; avatar: string; duty: string; owns: string; notOwns: string; call: string; can: string[]; chief: boolean
   legacy: boolean; missing: string[]; folder: string; thread: string; mismatch: string[]
+  /** 看家本领的名字（约定 11.12），按文件里的顺序 */
+  skills: string[]
 }
 export type AssistantUsage = { today: number; d7: number; d30: number }
 export type AssistantCard = AssistantBase & { recent: { id: string; title: string; status: SessionStatus; last_at: string } | null; sessions: number; usage: AssistantUsage; file_problems: number }
-export type AssistantList = { base: string; exists: boolean; assistants: AssistantCard[]; unmatched: number; colleagues: boolean; problems: string[]; note: string }
+export type AssistantList = { base: string; exists: boolean; assistants: AssistantCard[]; unmatched: number; colleagues: boolean; problems: string[]; note: string
+  /** 花名册：哪份文件（旧名同事清单也认）、有几位 */
+  roster: { path: string | null; count: number; old: boolean } }
 export type Dispatch = { day: string; what: string; to: string; done: string; stage: string; note: string; open: boolean }
 export type AssistantDetail = AssistantBase & {
   files: { name: string; path: string; call: string; problems: string[] }[]; folder_problems: string[]
