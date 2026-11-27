@@ -2,6 +2,9 @@
   "id": "news",
   "name": "行业资讯",
   "version": "0.3.0",
+  "author": "A梦 (ameng)",
+  "license": "Apache-2.0",
+  "homepage": "https://github.com/zifeixu85/boss-workbench",
   "summary": "资讯来源你自己定、自己关：生财有术、AI HOT 这样的来源由 Codex 取了写进来；每条一句摘要、能看全文，每天一份 Codex 写的总结，关注的词放最上面",
   "needs": [],
   "nav": [

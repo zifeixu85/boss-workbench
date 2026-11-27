@@ -1,7 +1,7 @@
 # NOTICE
 
 老板工作台（boss-workbench），属于「老板工作台」开源项目的一部分。
-Copyright 2026 A梦（https://ameng.blog）
+Copyright 2026 A梦 (ameng)（https://ameng.blog）
 
 本项目按 Apache License 2.0 授权，全文见同一文件夹里的 `LICENSE`。转发、修改或二次分发时，请保留这份 NOTICE，写明出处：A梦 · https://ameng.blog · https://github.com/zifeixu85/boss-workbench 。
 

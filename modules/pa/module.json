@@ -2,6 +2,9 @@
   "id": "pa",
   "name": "个人助理",
   "version": "0.5.0",
+  "author": "A梦 (ameng)",
+  "license": "Apache-2.0",
+  "homepage": "https://github.com/zifeixu85/boss-workbench",
   "summary": "使用个人助理的工作台：一半按你关心的对象看（知识库“我关注的”有几类出几页），一半按 AI 做了什么看（进展、产出、报告、助理）。只读本机 Codex、Claude Code 的对话记录，只取标题、文件夹、时间和写文件的路径",
   "needs": [],
   "nav": [
